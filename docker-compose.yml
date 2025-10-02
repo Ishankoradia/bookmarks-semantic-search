@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bookmark-backend
+    ports:
+      - "6005:6005"
+    env_file:
+      - ./backend/.env
+    networks:
+      - bookmark-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bookmark-frontend
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      # Override API URL to use Docker network
+      - NEXT_PUBLIC_API_URL=http://localhost:6005/api/v1
+    depends_on:
+      - backend
+    networks:
+      - bookmark-network
+    restart: unless-stopped
+
+networks:
+  bookmark-network:
+    driver: bridge

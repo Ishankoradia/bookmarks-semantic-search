@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.env.local
+.env
+*.log
+.DS_Store
+.git/
+.gitignore
+README.md
+.vscode/
+coverage/
+.eslintcache
+*.tsbuildinfo
