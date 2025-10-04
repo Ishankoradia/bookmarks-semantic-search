@@ -32,10 +32,28 @@ export interface CreateBookmarkRequest {
   reference?: string;
 }
 
+export type DateRangeFilter = 'today' | 'last_week' | 'last_month' | 'last_3_months' | 'last_year' | 'all_time';
+
+export interface MetadataFilters {
+  reference?: string;
+  domain?: string;
+  date_range?: DateRangeFilter;
+  date_from?: string;
+  date_to?: string;
+}
+
 export interface SearchQuery {
   query: string;
   limit?: number;
   threshold?: number;
+  filters?: MetadataFilters;
+}
+
+export interface ParsedSearchQuery {
+  search_query: string;
+  domain_filter?: string;
+  reference_filter?: string;
+  date_range?: DateRangeFilter;
 }
 
 export interface TagPreviewResponse {
@@ -88,6 +106,13 @@ export const bookmarkApi = {
 
   async regenerateTags(bookmarkId: string): Promise<TagPreviewResponse> {
     const response = await api.post<TagPreviewResponse>(`/bookmarks/${bookmarkId}/regenerate-tags`);
+    return response.data;
+  },
+
+  async parseQuery(query: string): Promise<ParsedSearchQuery> {
+    const response = await api.post<ParsedSearchQuery>('/bookmarks/parse-query', null, {
+      params: { query }
+    });
     return response.data;
   },
 };

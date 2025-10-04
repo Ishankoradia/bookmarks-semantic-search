@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.schemas.bookmark import (
     BookmarkCreate, BookmarkResponse, BookmarkUpdate, 
     BookmarkSearchResult, SearchQuery, ReadStatusUpdate,
-    TagPreviewRequest, TagPreviewResponse
+    TagPreviewRequest, TagPreviewResponse, ParsedSearchQuery
 )
 from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
@@ -86,13 +86,27 @@ async def search_bookmarks(
     db: Session = Depends(get_db)
 ):
     try:
-        results = await bookmark_service.search_bookmarks(
+        results = await bookmark_service.search_bookmarks_with_filters(
             db,
             query=search.query,
             limit=search.limit,
-            threshold=search.threshold
+            threshold=search.threshold,
+            filters=search.filters,
+            auto_parse_query=True  # Will parse query if no filters provided
         )
         return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/parse-query", response_model=ParsedSearchQuery)
+async def parse_search_query(query: str):
+    """
+    Parse a natural language search query to extract semantic search text and metadata filters.
+    Useful for testing the query parsing logic.
+    """
+    try:
+        parsed = await embedding_service.parse_search_query(query)
+        return ParsedSearchQuery(**parsed)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
