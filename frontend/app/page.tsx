@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { bookmarkApi, Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse } from "@/lib/api"
 
 type FilterTab = "all" | "unread" | "read"
@@ -22,6 +23,7 @@ type FilterTab = "all" | "unread" | "read"
 export default function BookmarkSearchApp() {
   const [searchQuery, setSearchQuery] = useState("")
   const [newBookmarkUrl, setNewBookmarkUrl] = useState("")
+  const [newBookmarkReference, setNewBookmarkReference] = useState("")
   const [isAddingBookmark, setIsAddingBookmark] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [bookmarks, setBookmarks] = useState<(BookmarkType | BookmarkSearchResult)[]>([])
@@ -137,8 +139,12 @@ export default function BookmarkSearchApp() {
     try {
       setIsAddingBookmark(true)
       setModalError(null)
-      await bookmarkApi.createBookmark({ url: newBookmarkUrl })
+      await bookmarkApi.createBookmark({ 
+        url: newBookmarkUrl,
+        reference: newBookmarkReference.trim() || undefined 
+      })
       setNewBookmarkUrl("")
+      setNewBookmarkReference("")
       setIsDialogOpen(false) // Close the dialog
       // Reload bookmarks to show the new one
       await loadBookmarks()
@@ -165,9 +171,10 @@ export default function BookmarkSearchApp() {
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open)
     if (!open) {
-      // Clear modal error, URL, and tag preview when closing
+      // Clear modal error, URL, reference, and tag preview when closing
       setModalError(null)
       setNewBookmarkUrl("")
+      setNewBookmarkReference("")
       setTagPreview(null)
     }
   }
@@ -369,6 +376,17 @@ export default function BookmarkSearchApp() {
                   </div>
                 </div>
 
+                <div>
+                  <Label htmlFor="reference">Reference (Optional)</Label>
+                  <Textarea
+                    id="reference"
+                    placeholder="How did you find this bookmark? (e.g., 'Recommended by John', 'Found on HackerNews', 'From newsletter X')"
+                    value={newBookmarkReference}
+                    onChange={(e) => setNewBookmarkReference(e.target.value)}
+                    className="mt-2 min-h-[80px]"
+                  />
+                </div>
+
                 {/* Tag Preview Section */}
                 {tagPreview && (
                   <div className="space-y-3 p-4 bg-slate-50 rounded-lg border">
@@ -512,6 +530,11 @@ export default function BookmarkSearchApp() {
                     <div className="flex items-center gap-2">
                       <span className="text-green-600 font-medium">{bookmark.domain}</span>
                     </div>
+                    {bookmark.reference && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-sm italic">via: {bookmark.reference}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap">
                       <Tag className="w-4 h-4" />
                       {bookmark.tags && bookmark.tags.length > 0 ? (

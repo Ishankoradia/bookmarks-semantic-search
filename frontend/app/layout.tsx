@@ -5,8 +5,8 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Semantic Bookmarks',
+  description: 'Search your bookmarks by meaning with AI-powered semantic search',
   generator: 'v0.app',
 }
 

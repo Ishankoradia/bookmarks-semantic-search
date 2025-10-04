@@ -18,6 +18,7 @@ export interface Bookmark {
   tags: string[];
   meta_data: Record<string, any>;
   is_read?: boolean;
+  reference?: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -28,6 +29,7 @@ export interface BookmarkSearchResult extends Bookmark {
 
 export interface CreateBookmarkRequest {
   url: string;
+  reference?: string;
 }
 
 export interface SearchQuery {

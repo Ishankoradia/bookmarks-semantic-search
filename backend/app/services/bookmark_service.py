@@ -38,8 +38,9 @@ class BookmarkService:
                 raise ValueError(f"Failed to process URL: {str(e)}")
         
         try:
-            # Create embedding
-            content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}"
+            # Create embedding - include reference in the embedding if provided
+            reference_text = f" Reference: {bookmark_data.reference}" if bookmark_data.reference else ""
+            content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}{reference_text}"
             embedding = await self.embedding_service.create_embedding(content_for_embedding)
             
         except Exception as e:
@@ -70,7 +71,8 @@ class BookmarkService:
                 domain=scraped_data['domain'],
                 embedding=embedding,
                 tags=auto_tags,  # Use auto-generated tags
-                meta_data=scraped_data['metadata']
+                meta_data=scraped_data['metadata'],
+                reference=bookmark_data.reference if hasattr(bookmark_data, 'reference') else None
             )
             
             db.add(bookmark)
@@ -123,7 +125,7 @@ class BookmarkService:
         sql_query = text("""
             SELECT 
                 id, url, title, description, content, domain, tags, meta_data,
-                is_read, created_at, updated_at,
+                is_read, reference, created_at, updated_at,
                 1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
             FROM bookmarks
             WHERE 1 - (embedding <=> CAST(:embedding AS vector)) > :threshold
@@ -148,6 +150,7 @@ class BookmarkService:
                 'tags': row.tags or [],
                 'meta_data': row.meta_data or {},
                 'is_read': row.is_read,
+                'reference': row.reference,
                 'created_at': row.created_at,
                 'updated_at': row.updated_at,
                 'similarity_score': float(row.similarity_score)
