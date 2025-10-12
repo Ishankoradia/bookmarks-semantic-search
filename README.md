@@ -1,6 +1,10 @@
-# 📚 Semantic Bookmark Search
+\# 📚 Semantic Bookmark Search
 
 An AI-powered bookmark manager that uses semantic search to find relevant bookmarks using natural language queries.
+
+## Video
+
+<div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe src="https://www.loom.com/embed/b753352e9d1b4196ba43600803f16809?sid=efef877b-2bd1-42bc-a67e-5223e0219792" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
 
 ## Features
 
@@ -11,23 +15,6 @@ An AI-powered bookmark manager that uses semantic search to find relevant bookma
 - **🎯 Similarity Scoring**: Shows relevance scores for search results
 - **🗂️ Browse All**: View and manage all your bookmarks
 - **🗑️ Easy Management**: Delete unwanted bookmarks with confirmation
-
-## Tech Stack
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **PostgreSQL + pgvector** - Vector database for embeddings
-- **OpenAI API** - Text embeddings (text-embedding-3-small)
-- **SQLAlchemy** - Database ORM
-- **BeautifulSoup** - Web scraping and content extraction
-- **Alembic** - Database migrations
-
-### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **Lucide React** - Icons
-- **Axios** - API client
 
 ## Setup Instructions
 
