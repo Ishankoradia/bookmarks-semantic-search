@@ -4,7 +4,7 @@ An AI-powered bookmark manager that uses semantic search to find relevant bookma
 
 ## Video
 
-<div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe src="https://www.loom.com/embed/b753352e9d1b4196ba43600803f16809?sid=efef877b-2bd1-42bc-a67e-5223e0219792" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
+https://github.com/user-attachments/assets/9ecf1893-a1ba-46b9-b3d3-df2dc2a274ea
 
 ## Features
 
