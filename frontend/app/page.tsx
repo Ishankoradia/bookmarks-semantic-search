@@ -512,7 +512,14 @@ export default function BookmarkSearchApp() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
+                        <a 
+                          href={bookmark.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex-1 hover:text-indigo-600 transition-colors cursor-pointer"
+                        >
+                          <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
+                        </a>
                         {'similarity_score' in bookmark && (
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
                             {(bookmark.similarity_score * 100).toFixed(0)}% match
@@ -565,7 +572,14 @@ export default function BookmarkSearchApp() {
                       <span>{formatDate(bookmark.created_at)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-green-600 font-medium">{bookmark.domain}</span>
+                      <a 
+                        href={`https://${bookmark.domain}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors"
+                      >
+                        {bookmark.domain}
+                      </a>
                     </div>
                     {bookmark.reference && (
                       <div className="flex items-center gap-2">
