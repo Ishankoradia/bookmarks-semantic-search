@@ -90,7 +90,7 @@ class BookmarkService:
         return db.query(Bookmark).filter(Bookmark.id == bookmark_id).first()
     
     def get_bookmarks(self, db: Session, skip: int = 0, limit: int = 100) -> List[Bookmark]:
-        return db.query(Bookmark).offset(skip).limit(limit).all()
+        return db.query(Bookmark).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
     
     def update_bookmark(self, db: Session, bookmark_id: uuid.UUID, update_data: BookmarkUpdate) -> Optional[Bookmark]:
         bookmark = self.get_bookmark(db, bookmark_id)

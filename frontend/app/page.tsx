@@ -38,6 +38,43 @@ export default function BookmarkSearchApp() {
   const [isPreviewingTags, setIsPreviewingTags] = useState(false)
   const [regeneratingTagsId, setRegeneratingTagsId] = useState<string | null>(null)
 
+  // Format date in a friendly way
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+
+    if (diffMinutes < 1) {
+      return "just now"
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+    } else if (diffDays < 1) {
+      return "today"
+    } else if (diffDays === 1) {
+      return "yesterday"
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago`
+    } else if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7)
+      return `${weeks} week${weeks === 1 ? '' : 's'} ago`
+    } else if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30)
+      return `${months} month${months === 1 ? '' : 's'} ago`
+    } else {
+      // For older dates, show the actual date
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      })
+    }
+  }
+
   // Load all bookmarks on component mount
   useEffect(() => {
     loadBookmarks()
@@ -525,7 +562,7 @@ export default function BookmarkSearchApp() {
                   <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      <span>{new Date(bookmark.created_at).toLocaleDateString()}</span>
+                      <span>{formatDate(bookmark.created_at)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-green-600 font-medium">{bookmark.domain}</span>
