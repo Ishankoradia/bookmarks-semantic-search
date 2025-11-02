@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { bookmarkApi, Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse } from "@/lib/api"
@@ -37,6 +47,9 @@ export default function BookmarkSearchApp() {
   const [tagPreview, setTagPreview] = useState<TagPreviewResponse | null>(null)
   const [isPreviewingTags, setIsPreviewingTags] = useState(false)
   const [regeneratingTagsId, setRegeneratingTagsId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [bookmarkToDelete, setBookmarkToDelete] = useState<{id: string, title: string} | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Format date in a friendly way
   const formatDate = (dateString: string) => {
@@ -277,6 +290,33 @@ export default function BookmarkSearchApp() {
       setTimeout(() => setError(null), 3000)
       setRegeneratingTagsId(null)
     }
+  }
+
+  const handleDeleteBookmark = async () => {
+    if (!bookmarkToDelete) return
+    
+    try {
+      setIsDeleting(true)
+      await bookmarkApi.deleteBookmark(bookmarkToDelete.id)
+      
+      // Remove from both bookmarks and allBookmarks
+      setAllBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
+      setBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
+      
+      // Close dialog and reset state
+      setDeleteDialogOpen(false)
+      setBookmarkToDelete(null)
+    } catch (err: any) {
+      setError('Failed to delete bookmark')
+      console.error('Error deleting bookmark:', err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteClick = (bookmark: BookmarkType | BookmarkSearchResult) => {
+    setBookmarkToDelete({ id: bookmark.id, title: bookmark.title })
+    setDeleteDialogOpen(true)
   }
 
   const handleCopyToClipboard = async (url: string, bookmarkId: string) => {
@@ -557,6 +597,15 @@ export default function BookmarkSearchApp() {
                           <Copy className="w-5 h-5 text-slate-400" />
                         )}
                       </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleDeleteClick(bookmark)}
+                        className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                        title="Delete bookmark"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
                       <Button variant="ghost" size="icon" asChild>
                         <a href={bookmark.url} target="_blank" rel="noopener noreferrer" title="Open in new tab">
                           <ExternalLink className="w-5 h-5" />
@@ -663,6 +712,35 @@ export default function BookmarkSearchApp() {
             </p>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Bookmark</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{bookmarkToDelete?.title}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteBookmark}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   )
