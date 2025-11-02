@@ -482,7 +482,7 @@ export default function BookmarkSearchApp() {
                           </span>
                         )}
                       </div>
-                      <CardDescription className="text-base text-pretty">{bookmark.description}</CardDescription>
+                      <CardDescription className="text-base line-clamp-2">{bookmark.description}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button 
