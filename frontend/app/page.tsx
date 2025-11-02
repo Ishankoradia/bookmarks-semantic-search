@@ -367,35 +367,21 @@ export default function BookmarkSearchApp() {
 
         {/* Search and Add Section */}
         <div className="mb-8 flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 flex gap-2">
-            <div className="flex-1 relative">
-              {isSearching ? (
-                <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin" />
-              ) : (
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              )}
-              <Input
-                type="text"
-                placeholder="Search bookmarks semantically..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isSearching}
-                className="pl-12 h-14 text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <Button 
-              onClick={handleSearch}
+          <div className="flex-1 relative">
+            {isSearching ? (
+              <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin" />
+            ) : (
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            )}
+            <Input
+              type="text"
+              placeholder="Search bookmarks semantically..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
               disabled={isSearching}
-              size="lg" 
-              className="h-14 px-6 bg-indigo-600 hover:bg-indigo-700"
-            >
-              {isSearching ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Search className="w-5 h-5" />
-              )}
-            </Button>
+              className="pl-12 h-14 text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
+            />
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
