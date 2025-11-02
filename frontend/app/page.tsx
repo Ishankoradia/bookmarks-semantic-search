@@ -594,7 +594,7 @@ export default function BookmarkSearchApp() {
                         {copiedId === bookmark.id ? (
                           <Check className="w-5 h-5 text-green-600" />
                         ) : (
-                          <Copy className="w-5 h-5 text-slate-400" />
+                          <Copy className="w-5 h-5 text-black" />
                         )}
                       </Button>
                       <Button 
