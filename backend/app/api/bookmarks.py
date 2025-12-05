@@ -50,35 +50,33 @@ def get_bookmarks(
 ):
     return bookmark_service.get_bookmarks(db, skip=skip, limit=limit)
 
-@router.get("/{bookmark_id}", response_model=BookmarkResponse)
-def get_bookmark(
-    bookmark_id: UUID,
-    db: Session = Depends(get_db)
-):
-    bookmark = bookmark_service.get_bookmark(db, bookmark_id)
-    if not bookmark:
-        raise HTTPException(status_code=404, detail="Bookmark not found")
-    return bookmark
+@router.get("/categories", response_model=dict)
+def get_categories(db: Session = Depends(get_db)):
+    """Get all categories with their bookmark counts."""
+    try:
+        grouped_bookmarks = bookmark_service.get_bookmarks_grouped_by_category(db)
+        categories = {}
+        for category, bookmarks in grouped_bookmarks.items():
+            categories[category] = len(bookmarks)
+        return categories
+    except Exception as e:
+        print(f"Error getting categories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get categories")
 
-@router.put("/{bookmark_id}", response_model=BookmarkResponse)
-def update_bookmark(
-    bookmark_id: UUID,
-    bookmark_update: BookmarkUpdate,
+@router.get("/categories/{category}", response_model=List[BookmarkResponse])
+def get_bookmarks_by_category(
+    category: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update)
-    if not bookmark:
-        raise HTTPException(status_code=404, detail="Bookmark not found")
-    return bookmark
-
-@router.delete("/{bookmark_id}")
-def delete_bookmark(
-    bookmark_id: UUID,
-    db: Session = Depends(get_db)
-):
-    if not bookmark_service.delete_bookmark(db, bookmark_id):
-        raise HTTPException(status_code=404, detail="Bookmark not found")
-    return {"message": "Bookmark deleted successfully"}
+    """Get bookmarks for a specific category."""
+    try:
+        bookmarks = bookmark_service.get_bookmarks_by_category(db, category, skip, limit)
+        return bookmarks
+    except Exception as e:
+        print(f"Error getting bookmarks for category {category}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bookmarks for category: {category}")
 
 @router.post("/search", response_model=List[BookmarkSearchResult])
 async def search_bookmarks(
@@ -109,18 +107,6 @@ async def parse_search_query(query: str):
         return ParsedSearchQuery(**parsed)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.patch("/{bookmark_id}/read-status", response_model=BookmarkResponse)
-def update_read_status(
-    bookmark_id: UUID,
-    read_status: ReadStatusUpdate,
-    db: Session = Depends(get_db)
-):
-    bookmark_update = BookmarkUpdate(is_read=read_status.is_read)
-    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update)
-    if not bookmark:
-        raise HTTPException(status_code=404, detail="Bookmark not found")
-    return bookmark
 
 @router.post("/preview-tags", response_model=TagPreviewResponse)
 async def preview_tags(request: TagPreviewRequest):
@@ -160,6 +146,48 @@ async def preview_tags(request: TagPreviewRequest):
     except Exception as e:
         print(f"Error in preview_tags: {e}")
         raise HTTPException(status_code=500, detail="Failed to preview tags")
+
+@router.get("/{bookmark_id}", response_model=BookmarkResponse)
+def get_bookmark(
+    bookmark_id: UUID,
+    db: Session = Depends(get_db)
+):
+    bookmark = bookmark_service.get_bookmark(db, bookmark_id)
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return bookmark
+
+@router.put("/{bookmark_id}", response_model=BookmarkResponse)
+def update_bookmark(
+    bookmark_id: UUID,
+    bookmark_update: BookmarkUpdate,
+    db: Session = Depends(get_db)
+):
+    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update)
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return bookmark
+
+@router.delete("/{bookmark_id}")
+def delete_bookmark(
+    bookmark_id: UUID,
+    db: Session = Depends(get_db)
+):
+    if not bookmark_service.delete_bookmark(db, bookmark_id):
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return {"message": "Bookmark deleted successfully"}
+
+@router.patch("/{bookmark_id}/read-status", response_model=BookmarkResponse)
+def update_read_status(
+    bookmark_id: UUID,
+    read_status: ReadStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    bookmark_update = BookmarkUpdate(is_read=read_status.is_read)
+    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update)
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+    return bookmark
 
 @router.post("/{bookmark_id}/regenerate-tags")
 async def regenerate_tags_for_bookmark(

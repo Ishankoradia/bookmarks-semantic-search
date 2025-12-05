@@ -116,6 +116,18 @@ export const bookmarkApi = {
     });
     return response.data;
   },
+
+  async getCategories(): Promise<Record<string, number>> {
+    const response = await api.get<Record<string, number>>('/bookmarks/categories');
+    return response.data;
+  },
+
+  async getBookmarksByCategory(category: string, skip = 0, limit = 100): Promise<Bookmark[]> {
+    const response = await api.get<Bookmark[]>(`/bookmarks/categories/${encodeURIComponent(category)}`, {
+      params: { skip, limit },
+    });
+    return response.data;
+  },
 };
 
 export default api;

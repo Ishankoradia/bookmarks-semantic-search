@@ -410,7 +410,7 @@ class BookmarkService:
         sql_query = text("""
             SELECT 
                 id, url, title, description, content, domain, tags, meta_data,
-                is_read, reference, created_at, updated_at,
+                is_read, reference, category, created_at, updated_at,
                 1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
             FROM bookmarks
             WHERE 1 - (embedding <=> CAST(:embedding AS vector)) > :threshold
@@ -444,3 +444,28 @@ class BookmarkService:
             bookmarks.append(BookmarkSearchResult(**bookmark_dict))
         
         return bookmarks
+    
+    def get_bookmarks_grouped_by_category(self, db: Session) -> Dict[str, List[Bookmark]]:
+        """Get bookmarks grouped by category with counts."""
+        bookmarks = db.query(Bookmark).order_by(Bookmark.created_at.desc()).all()
+        
+        grouped = {}
+        for bookmark in bookmarks:
+            category = bookmark.category or "Others"
+            if category not in grouped:
+                grouped[category] = []
+            grouped[category].append(bookmark)
+        
+        return grouped
+    
+    def get_bookmarks_by_category(self, db: Session, category: str, skip: int = 0, limit: int = 100) -> List[Bookmark]:
+        """Get bookmarks for a specific category."""
+        if category == "Others":
+            # Handle null/empty categories
+            return db.query(Bookmark).filter(
+                (Bookmark.category.is_(None)) | (Bookmark.category == "")
+            ).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
+        else:
+            return db.query(Bookmark).filter(
+                Bookmark.category == category
+            ).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()

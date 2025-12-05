@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2 } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2, Grid3X3, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,8 +29,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { bookmarkApi, Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse } from "@/lib/api"
 
 type FilterTab = "all" | "unread" | "read"
+type ViewMode = "search" | "clusters"
 
 export default function BookmarkSearchApp() {
+  const [viewMode, setViewMode] = useState<ViewMode>("search")
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [categorySearchQuery, setCategorySearchQuery] = useState("")
+  
+  // Search mode state
   const [searchQuery, setSearchQuery] = useState("")
   const [newBookmarkUrl, setNewBookmarkUrl] = useState("")
   const [newBookmarkReference, setNewBookmarkReference] = useState("")
@@ -50,6 +56,12 @@ export default function BookmarkSearchApp() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bookmarkToDelete, setBookmarkToDelete] = useState<{id: string, title: string} | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Clusters mode state
+  const [categories, setCategories] = useState<Record<string, number>>({})
+  const [categoryBookmarks, setCategoryBookmarks] = useState<BookmarkType[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+  const [isLoadingCategoryBookmarks, setIsLoadingCategoryBookmarks] = useState(false)
 
   // Format date in a friendly way
   const formatDate = (dateString: string) => {
@@ -88,10 +100,14 @@ export default function BookmarkSearchApp() {
     }
   }
 
-  // Load all bookmarks on component mount
+  // Load data on component mount
   useEffect(() => {
-    loadBookmarks()
-  }, [])
+    if (viewMode === "search") {
+      loadBookmarks()
+    } else if (viewMode === "clusters") {
+      loadCategories()
+    }
+  }, [viewMode])
 
   const loadBookmarks = async () => {
     try {
@@ -105,6 +121,35 @@ export default function BookmarkSearchApp() {
       console.error('Error loading bookmarks:', err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadCategories = async () => {
+    try {
+      setIsLoadingCategories(true)
+      setError(null)
+      const data = await bookmarkApi.getCategories()
+      setCategories(data)
+    } catch (err: any) {
+      setError('Failed to load categories')
+      console.error('Error loading categories:', err)
+    } finally {
+      setIsLoadingCategories(false)
+    }
+  }
+
+  const loadCategoryBookmarks = async (category: string) => {
+    try {
+      setIsLoadingCategoryBookmarks(true)
+      setError(null)
+      const data = await bookmarkApi.getBookmarksByCategory(category)
+      setCategoryBookmarks(data)
+      setSelectedCategory(category)
+    } catch (err: any) {
+      setError('Failed to load category bookmarks')
+      console.error('Error loading category bookmarks:', err)
+    } finally {
+      setIsLoadingCategoryBookmarks(false)
     }
   }
 
@@ -196,8 +241,15 @@ export default function BookmarkSearchApp() {
       setNewBookmarkUrl("")
       setNewBookmarkReference("")
       setIsDialogOpen(false) // Close the dialog
-      // Reload bookmarks to show the new one
-      await loadBookmarks()
+      // Reload data based on current view mode
+      if (viewMode === "search") {
+        await loadBookmarks()
+      } else if (viewMode === "clusters") {
+        await loadCategories()
+        if (selectedCategory) {
+          await loadCategoryBookmarks(selectedCategory)
+        }
+      }
     } catch (err: any) {
       let errorMessage = 'Failed to add bookmark'
       
@@ -264,6 +316,7 @@ export default function BookmarkSearchApp() {
       
       setAllBookmarks(prev => prev.map(updateBookmark))
       setBookmarks(prev => prev.map(updateBookmark))
+      setCategoryBookmarks(prev => prev.map(updateBookmark))
     } catch (err: any) {
       setError('Failed to update read status')
       console.error('Error updating read status:', err)
@@ -281,6 +334,7 @@ export default function BookmarkSearchApp() {
       
       setAllBookmarks(prev => prev.map(updateBookmark))
       setBookmarks(prev => prev.map(updateBookmark))
+      setCategoryBookmarks(prev => prev.map(updateBookmark))
       
       // Show success feedback (could add a toast here)
       setTimeout(() => setRegeneratingTagsId(null), 1000)
@@ -299,9 +353,15 @@ export default function BookmarkSearchApp() {
       setIsDeleting(true)
       await bookmarkApi.deleteBookmark(bookmarkToDelete.id)
       
-      // Remove from both bookmarks and allBookmarks
+      // Remove from all state
       setAllBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
       setBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
+      setCategoryBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
+      
+      // Update categories if in clusters view
+      if (viewMode === "clusters") {
+        await loadCategories()
+      }
       
       // Close dialog and reset state
       setDeleteDialogOpen(false)
@@ -344,6 +404,45 @@ export default function BookmarkSearchApp() {
     }
   }
 
+  const handleCategorySearch = async () => {
+    if (!selectedCategory) return
+    
+    if (categorySearchQuery.trim() === "") {
+      // If no search query, load all bookmarks for this category
+      await loadCategoryBookmarks(selectedCategory)
+    } else {
+      // Perform semantic search within the category
+      try {
+        setIsLoadingCategoryBookmarks(true)
+        setError(null)
+        const results = await bookmarkApi.searchBookmarks({
+          query: categorySearchQuery,
+          limit: 50,
+          threshold: 0.3
+        })
+        // Filter results to only include bookmarks from this category
+        const categoryResults = results.filter(bookmark => 
+          (bookmark.category || "Others") === selectedCategory
+        )
+        setCategoryBookmarks(categoryResults)
+      } catch (err: any) {
+        setError('Search failed')
+        console.error('Search error:', err)
+      } finally {
+        setIsLoadingCategoryBookmarks(false)
+      }
+    }
+  }
+
+  const handleCategorySearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCategorySearch()
+    }
+  }
+
+  const totalBookmarks = Object.values(categories).reduce((sum, count) => sum + count, 0)
+  const categoryCount = Object.keys(categories).length
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -365,28 +464,36 @@ export default function BookmarkSearchApp() {
           </div>
         )}
 
-        {/* Search and Add Section */}
-        <div className="mb-8 flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            {isSearching ? (
-              <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin" />
-            ) : (
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            )}
-            <Input
-              type="text"
-              placeholder="Search bookmarks semantically..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={isSearching}
-              className="pl-12 h-14 text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
-            />
+        {/* View Mode Toggle */}
+        <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="inline-flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+            <button
+              onClick={() => setViewMode("search")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                viewMode === "search"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+              }`}
+            >
+              <Search className="w-4 h-4" />
+              Search
+            </button>
+            <button
+              onClick={() => setViewMode("clusters")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                viewMode === "clusters"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+              }`}
+            >
+              <Grid3X3 className="w-4 h-4" />
+              Clusters
+            </button>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
-              <Button size="lg" className="h-14 px-6 bg-indigo-600 hover:bg-indigo-700">
+              <Button size="lg" className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700">
                 <Plus className="w-5 h-5 mr-2" />
                 Add Bookmark
               </Button>
@@ -495,214 +602,498 @@ export default function BookmarkSearchApp() {
           </Dialog>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="mb-6">
-          <Tabs value={activeFilter} onValueChange={(value) => handleFilterChange(value as FilterTab)}>
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="unread">Unread</TabsTrigger>
-              <TabsTrigger value="read">Read</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* Search View */}
+        {viewMode === "search" && (
+          <div>
+            {/* Search Section */}
+            <div className="mb-8 flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                {isSearching ? (
+                  <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin" />
+                ) : (
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                )}
+                <Input
+                  type="text"
+                  placeholder="Search bookmarks semantically..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={isSearching}
+                  className="pl-12 h-14 text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
 
-        {/* Results Count */}
-        <div className="mb-6">
-          <p className="text-slate-600">
-            {isLoading ? (
-              "Loading bookmarks..."
-            ) : (
-              <>
-                Found <span className="font-semibold text-slate-900">{bookmarks.length}</span> bookmark
-                {bookmarks.length !== 1 ? "s" : ""}
-                {searchQuery && <span> for "{searchQuery}"</span>}
-              </>
+            {/* Filter Tabs */}
+            <div className="mb-6">
+              <Tabs value={activeFilter} onValueChange={(value) => handleFilterChange(value as FilterTab)}>
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="unread">Unread</TabsTrigger>
+                  <TabsTrigger value="read">Read</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Results Count */}
+            <div className="mb-6">
+              <p className="text-slate-600">
+                {isLoading ? (
+                  "Loading bookmarks..."
+                ) : (
+                  <>
+                    Found <span className="font-semibold text-slate-900">{bookmarks.length}</span> bookmark
+                    {bookmarks.length !== 1 ? "s" : ""}
+                    {searchQuery && <span> for "{searchQuery}"</span>}
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="text-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
+                <p className="text-slate-600">Loading bookmarks...</p>
+              </div>
             )}
-          </p>
-        </div>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="text-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
-            <p className="text-slate-600">Loading bookmarks...</p>
-          </div>
-        )}
-
-        {/* Bookmarks Grid */}
-        {!isLoading && (
-          <div className="grid gap-6">
-            {bookmarks.map((bookmark) => (
-              <Card key={bookmark.id} className="hover:shadow-lg transition-shadow border-slate-200">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <a 
-                          href={bookmark.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex-1 hover:text-indigo-600 transition-colors cursor-pointer"
-                        >
-                          <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
-                        </a>
-                        {'similarity_score' in bookmark && (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                            {(bookmark.similarity_score * 100).toFixed(0)}% match
-                          </span>
-                        )}
-                      </div>
-                      <CardDescription className="text-base line-clamp-2">{bookmark.description}</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
-                        className="hover:bg-slate-100"
-                        title={bookmark.is_read ? "Mark as unread" : "Mark as read"}
-                      >
-                        {bookmark.is_read ? (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <Circle className="w-5 h-5 text-slate-400" />
-                        )}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
-                        className={`hover:bg-slate-100 transition-colors ${
-                          copiedId === bookmark.id ? 'bg-green-50' : ''
-                        }`}
-                        title={copiedId === bookmark.id ? "Copied!" : "Copy URL to clipboard"}
-                      >
-                        {copiedId === bookmark.id ? (
-                          <Check className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <Copy className="w-5 h-5 text-black" />
-                        )}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteClick(bookmark)}
-                        className="hover:bg-red-50 hover:text-red-600 transition-colors"
-                        title="Delete bookmark"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <a href={bookmark.url} target="_blank" rel="noopener noreferrer" title="Open in new tab">
-                          <ExternalLink className="w-5 h-5" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(bookmark.created_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <a 
-                        href={`https://${bookmark.domain}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors"
-                      >
-                        {bookmark.domain}
-                      </a>
-                    </div>
-                    {bookmark.reference && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 text-sm italic">via: {bookmark.reference}</span>
-                      </div>
-                    )}
-                    {bookmark.category && (
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
-                          {bookmark.category}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Tag className="w-4 h-4" />
-                      {bookmark.tags && bookmark.tags.length > 0 ? (
-                        <>
-                          {bookmark.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
+            {/* Bookmarks Grid */}
+            {!isLoading && (
+              <div className="grid gap-6">
+                {bookmarks.map((bookmark) => (
+                  <Card key={bookmark.id} className="hover:shadow-lg transition-shadow border-slate-200">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <a 
+                              href={bookmark.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex-1 hover:text-indigo-600 transition-colors cursor-pointer"
                             >
-                              {tag}
-                            </span>
-                          ))}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRegenerateTags(bookmark.id)}
-                            disabled={regeneratingTagsId === bookmark.id}
-                            className="h-6 px-2 hover:bg-slate-100"
-                            title="Regenerate tags"
+                              <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
+                            </a>
+                            {'similarity_score' in bookmark && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                {(bookmark.similarity_score * 100).toFixed(0)}% match
+                              </span>
+                            )}
+                          </div>
+                          <CardDescription className="text-base line-clamp-2">{bookmark.description}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+                            className="hover:bg-slate-100"
+                            title={bookmark.is_read ? "Mark as unread" : "Mark as read"}
                           >
-                            {regeneratingTagsId === bookmark.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
+                            {bookmark.is_read ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
                             ) : (
-                              <RefreshCw className="w-3 h-3" />
+                              <Circle className="w-5 h-5 text-slate-400" />
                             )}
                           </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRegenerateTags(bookmark.id)}
-                          disabled={regeneratingTagsId === bookmark.id}
-                          className="h-6 px-2 text-xs"
-                        >
-                          {regeneratingTagsId === bookmark.id ? (
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+                            className={`hover:bg-slate-100 transition-colors ${
+                              copiedId === bookmark.id ? 'bg-green-50' : ''
+                            }`}
+                            title={copiedId === bookmark.id ? "Copied!" : "Copy URL to clipboard"}
+                          >
+                            {copiedId === bookmark.id ? (
+                              <Check className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <Copy className="w-5 h-5 text-black" />
+                            )}
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteClick(bookmark)}
+                            className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title="Delete bookmark"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" asChild>
+                            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" title="Open in new tab">
+                              <ExternalLink className="w-5 h-5" />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(bookmark.created_at)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={`https://${bookmark.domain}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors"
+                          >
+                            {bookmark.domain}
+                          </a>
+                        </div>
+                        {bookmark.reference && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 text-sm italic">via: {bookmark.reference}</span>
+                          </div>
+                        )}
+                        {bookmark.category && (
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
+                              {bookmark.category}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Tag className="w-4 h-4" />
+                          {bookmark.tags && bookmark.tags.length > 0 ? (
                             <>
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              Generating...
+                              {bookmark.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRegenerateTags(bookmark.id)}
+                                disabled={regeneratingTagsId === bookmark.id}
+                                className="h-6 px-2 hover:bg-slate-100"
+                                title="Regenerate tags"
+                              >
+                                {regeneratingTagsId === bookmark.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3 h-3" />
+                                )}
+                              </Button>
                             </>
                           ) : (
-                            <>
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                              Generate Tags
-                            </>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRegenerateTags(bookmark.id)}
+                              disabled={regeneratingTagsId === bookmark.id}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {regeneratingTagsId === bookmark.id ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-3 h-3 mr-1" />
+                                  Generate Tags
+                                </>
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                      )}
-                    </div>
-                    <span
-                      className={`px-2 py-1 rounded-md text-xs font-medium ${
-                        bookmark.is_read 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-orange-100 text-orange-700'
-                      }`}
-                    >
-                      {bookmark.is_read ? 'Read' : 'Unread'}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
+                            bookmark.is_read 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-orange-100 text-orange-700'
+                          }`}
+                        >
+                          {bookmark.is_read ? 'Read' : 'Unread'}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoading && bookmarks.length === 0 && (
+              <div className="text-center py-16">
+                <div className="inline-flex p-4 bg-slate-200 rounded-full mb-4">
+                  <Search className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">No bookmarks found</h3>
+                <p className="text-slate-600">
+                  {searchQuery ? "Try a different search term or add a new bookmark" : "Add your first bookmark to get started"}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Empty State */}
-        {!isLoading && bookmarks.length === 0 && (
-          <div className="text-center py-16">
-            <div className="inline-flex p-4 bg-slate-200 rounded-full mb-4">
-              <Search className="w-8 h-8 text-slate-400" />
+        {/* Clusters View */}
+        {viewMode === "clusters" && !selectedCategory && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Explore Your Bookmarks</h2>
+              <p className="text-slate-600">Click on a cluster to see articles in that category</p>
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">No bookmarks found</h3>
-            <p className="text-slate-600">
-              {searchQuery ? "Try a different search term or add a new bookmark" : "Add your first bookmark to get started"}
-            </p>
+
+            {/* Loading State for Categories */}
+            {(isLoadingCategories || Object.keys(categories).length === 0) && (
+              <div className="text-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
+                <p className="text-slate-600">Loading categories...</p>
+              </div>
+            )}
+
+            {/* Categories Grid */}
+            {!isLoadingCategories && Object.keys(categories).length > 0 && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
+                  {Object.entries(categories)
+                    .sort(([, countA], [, countB]) => countB - countA) // Sort by count descending
+                    .map(([category, count]) => (
+                    <Card 
+                      key={category} 
+                      className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200"
+                      onClick={() => loadCategoryBookmarks(category)}
+                    >
+                      <CardContent className="p-6 text-center">
+                        <h3 className="text-lg font-semibold text-indigo-900 mb-2">{category}</h3>
+                        <p className="text-indigo-600 font-medium">
+                          {count} article{count !== 1 ? 's' : ''}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Summary */}
+                <div className="text-center text-slate-600">
+                  <p>
+                    You have {totalBookmarks} total bookmarks across {categoryCount} cluster{categoryCount !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Category Detail View */}
+        {viewMode === "clusters" && selectedCategory && (
+          <div>
+            {/* Header with Back Button */}
+            <div className="mb-8 flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCategory(null)}
+                className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Clusters
+              </Button>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">{selectedCategory}</h2>
+                <p className="text-slate-600">{categoryBookmarks.length} bookmarks in this category</p>
+              </div>
+            </div>
+
+            {/* Search within Category */}
+            <div className="mb-8">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder={`Search within ${selectedCategory}...`}
+                  value={categorySearchQuery}
+                  onChange={(e) => setCategorySearchQuery(e.target.value)}
+                  onKeyPress={handleCategorySearchKeyPress}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Loading State for Category Bookmarks */}
+            {isLoadingCategoryBookmarks && (
+              <div className="text-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
+                <p className="text-slate-600">Loading bookmarks...</p>
+              </div>
+            )}
+
+            {/* Category Bookmarks Grid */}
+            {!isLoadingCategoryBookmarks && (
+              <div className="grid gap-6">
+                {categoryBookmarks.map((bookmark) => (
+                  <Card key={bookmark.id} className="hover:shadow-lg transition-shadow border-slate-200">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <a 
+                              href={bookmark.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex-1 hover:text-indigo-600 transition-colors cursor-pointer"
+                            >
+                              <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
+                            </a>
+                          </div>
+                          <CardDescription className="text-base line-clamp-2">{bookmark.description}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+                            className="hover:bg-slate-100"
+                            title={bookmark.is_read ? "Mark as unread" : "Mark as read"}
+                          >
+                            {bookmark.is_read ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <Circle className="w-5 h-5 text-slate-400" />
+                            )}
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+                            className={`hover:bg-slate-100 transition-colors ${
+                              copiedId === bookmark.id ? 'bg-green-50' : ''
+                            }`}
+                            title={copiedId === bookmark.id ? "Copied!" : "Copy URL to clipboard"}
+                          >
+                            {copiedId === bookmark.id ? (
+                              <Check className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <Copy className="w-5 h-5 text-black" />
+                            )}
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteClick(bookmark)}
+                            className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title="Delete bookmark"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" asChild>
+                            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" title="Open in new tab">
+                              <ExternalLink className="w-5 h-5" />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(bookmark.created_at)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={`https://${bookmark.domain}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors"
+                          >
+                            {bookmark.domain}
+                          </a>
+                        </div>
+                        {bookmark.reference && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 text-sm italic">via: {bookmark.reference}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Tag className="w-4 h-4" />
+                          {bookmark.tags && bookmark.tags.length > 0 ? (
+                            <>
+                              {bookmark.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRegenerateTags(bookmark.id)}
+                                disabled={regeneratingTagsId === bookmark.id}
+                                className="h-6 px-2 hover:bg-slate-100"
+                                title="Regenerate tags"
+                              >
+                                {regeneratingTagsId === bookmark.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3 h-3" />
+                                )}
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRegenerateTags(bookmark.id)}
+                              disabled={regeneratingTagsId === bookmark.id}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {regeneratingTagsId === bookmark.id ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-3 h-3 mr-1" />
+                                  Generate Tags
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
+                            bookmark.is_read 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-orange-100 text-orange-700'
+                          }`}
+                        >
+                          {bookmark.is_read ? 'Read' : 'Unread'}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State for Category */}
+            {!isLoadingCategoryBookmarks && categoryBookmarks.length === 0 && (
+              <div className="text-center py-16">
+                <div className="inline-flex p-4 bg-slate-200 rounded-full mb-4">
+                  <Search className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">No bookmarks found</h3>
+                <p className="text-slate-600">
+                  {categorySearchQuery ? "Try a different search term" : `No bookmarks in ${selectedCategory} category`}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
