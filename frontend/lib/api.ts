@@ -19,6 +19,7 @@ export interface Bookmark {
   meta_data: Record<string, any>;
   is_read?: boolean;
   reference?: string | null;
+  category?: string | null;
   created_at: string;
   updated_at: string | null;
 }

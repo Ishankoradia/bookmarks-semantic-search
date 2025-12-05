@@ -12,6 +12,7 @@ class BookmarkBase(BaseModel):
     meta_data: Dict[str, Any] = Field(default_factory=dict)
     is_read: Optional[bool] = False
     reference: Optional[str] = None
+    category: Optional[str] = None
 
 class BookmarkCreate(BaseModel):
     url: HttpUrl
@@ -24,6 +25,7 @@ class BookmarkUpdate(BaseModel):
     meta_data: Optional[Dict[str, Any]] = None
     is_read: Optional[bool] = None
     reference: Optional[str] = None
+    category: Optional[str] = None
 
 class BookmarkInDB(BookmarkBase):
     id: UUID

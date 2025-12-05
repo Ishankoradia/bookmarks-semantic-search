@@ -62,7 +62,19 @@ class BookmarkService:
             auto_tags = []
         
         try:
-            # Create bookmark with auto-generated tags
+            # Generate category using GPT-4o mini
+            category = await self.embedding_service.generate_content_category(
+                title=scraped_data['title'],
+                content=scraped_data['content']
+            )
+            
+        except Exception as e:
+            print(f"Failed to generate category: {e}")
+            # Use default category if generation fails
+            category = "General"
+        
+        try:
+            # Create bookmark with auto-generated tags and category
             bookmark = Bookmark(
                 url=url,
                 title=scraped_data['title'],
@@ -72,6 +84,7 @@ class BookmarkService:
                 domain=scraped_data['domain'],
                 embedding=embedding,
                 tags=auto_tags,  # Use auto-generated tags
+                category=category,  # Use auto-generated category
                 meta_data=scraped_data['metadata'],
                 reference=bookmark_data.reference if hasattr(bookmark_data, 'reference') else None
             )
@@ -263,7 +276,7 @@ class BookmarkService:
                 sql_query = text(f"""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
-                        is_read, reference, created_at, updated_at,
+                        is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
                     WHERE ({where_clause})
@@ -282,7 +295,7 @@ class BookmarkService:
                 sql_query = text("""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
-                        is_read, reference, created_at, updated_at,
+                        is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
                     WHERE 1 - (embedding <=> CAST(:embedding AS vector)) > :threshold
@@ -300,7 +313,7 @@ class BookmarkService:
             sql_query = text("""
                 SELECT 
                     id, url, title, description, content, domain, tags, meta_data,
-                    is_read, reference, created_at, updated_at,
+                    is_read, reference, category, created_at, updated_at,
                     1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                 FROM bookmarks
                 WHERE 1 - (embedding <=> CAST(:embedding AS vector)) > :threshold
@@ -325,7 +338,7 @@ class BookmarkService:
                 fallback_query = text(f"""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
-                        is_read, reference, created_at, updated_at,
+                        is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
                     WHERE {where_clause}
@@ -358,6 +371,7 @@ class BookmarkService:
                 'meta_data': row.meta_data or {},
                 'is_read': row.is_read,
                 'reference': row.reference,
+                'category': row.category,
                 'created_at': row.created_at,
                 'updated_at': row.updated_at,
                 'similarity_score': float(row.similarity_score)
@@ -422,6 +436,7 @@ class BookmarkService:
                 'meta_data': row.meta_data or {},
                 'is_read': row.is_read,
                 'reference': row.reference,
+                'category': row.category,
                 'created_at': row.created_at,
                 'updated_at': row.updated_at,
                 'similarity_score': float(row.similarity_score)

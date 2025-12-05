@@ -108,6 +108,68 @@ Classify the content format (article, tutorial, documentation, etc.) and choose 
             print(f"Error generating tags with GPT-4o mini function calling: {e}")
             raise Exception(f"Failed to generate tags: {str(e)}")
     
+    async def generate_content_category(self, title: str, content: str) -> str:
+        """Generate a descriptive category for the content using GPT-4o mini."""
+        
+        # Prepare content for analysis (limit to avoid token limits)
+        content_sample = content[:1500] if content else ""
+        
+        # Define the function schema for structured output
+        function_schema = {
+            "name": "categorize_content",
+            "description": "Generate a descriptive category that best describes the content",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "A concise category (1-3 words) that best describes the content type and subject matter (e.g., 'Web Development', 'AI Research', 'Business Strategy', 'Design Tutorial', 'Tech News', 'Programming Guide')"
+                    }
+                },
+                "required": ["category"]
+            }
+        }
+        
+        prompt = f"""
+Analyze this web content and generate a descriptive category that best describes what this content is about:
+
+Title: {title}
+Content: {content_sample}
+
+Generate a concise category (1-3 words) that best describes both the content type and subject matter. Examples:
+- "Web Development" for React tutorials
+- "AI Research" for machine learning papers  
+- "Business Strategy" for startup advice
+- "Design Tutorial" for UI/UX guides
+- "Tech News" for technology articles
+- "Programming Guide" for coding documentation
+"""
+
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                functions=[function_schema],
+                function_call={"name": "categorize_content"},
+                temperature=0.1
+            )
+            
+            # Extract function call result
+            function_call = response.choices[0].message.function_call
+            if function_call and function_call.name == "categorize_content":
+                result = json.loads(function_call.arguments)
+                category = result.get("category", "").strip()
+                
+                if category:
+                    return category
+            
+            raise ValueError("Function call did not return expected category")
+                
+        except Exception as e:
+            print(f"Error generating category with GPT-4o mini: {e}")
+            # Return a default category on error rather than failing the entire bookmark creation
+            return "General"
+    
     async def parse_search_query(self, query: str) -> Dict[str, Any]:
         """Parse user query to extract search text and metadata filters using GPT-4o mini."""
         

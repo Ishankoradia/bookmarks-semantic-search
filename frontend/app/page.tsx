@@ -621,6 +621,13 @@ export default function BookmarkSearchApp() {
                         <span className="text-slate-500 text-sm italic">via: {bookmark.reference}</span>
                       </div>
                     )}
+                    {bookmark.category && (
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
+                          {bookmark.category}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap">
                       <Tag className="w-4 h-4" />
                       {bookmark.tags && bookmark.tags.length > 0 ? (

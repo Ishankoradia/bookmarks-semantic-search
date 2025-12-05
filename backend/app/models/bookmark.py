@@ -22,6 +22,7 @@ class Bookmark(Base):
     meta_data = Column(JSON, default={})
     is_read = Column(Boolean, default=False, nullable=True)
     reference = Column(Text, nullable=True)  # How user found this bookmark
+    category = Column(String, nullable=True)  # Category that best describes the content
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
