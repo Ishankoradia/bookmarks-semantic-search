@@ -128,6 +128,41 @@ export const bookmarkApi = {
     });
     return response.data;
   },
+
+  async refreshCategory(category: string): Promise<{ job_id: string; status: string; total_bookmarks?: number }> {
+    const response = await api.post<{ job_id: string; status: string; total_bookmarks?: number }>(
+      `/categories/${encodeURIComponent(category)}/refresh`
+    );
+    return response.data;
+  },
+
+  async getJobStatus(jobId: string): Promise<JobStatus> {
+    const response = await api.get<JobStatus>(`/jobs/${jobId}`);
+    return response.data;
+  },
+
+  async getActiveJobs(): Promise<JobStatus[]> {
+    const response = await api.get<JobStatus[]>('/jobs/active');
+    return response.data;
+  },
 };
+
+export interface JobStatus {
+  id: string;
+  job_type: string;
+  status: string;
+  title: string;
+  progress_current: number;
+  progress_total: number;
+  progress_percentage: number;
+  current_item: string | null;
+  parameters: Record<string, any>;
+  result: Record<string, any> | null;
+  error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_seconds: number;
+}
 
 export default api;

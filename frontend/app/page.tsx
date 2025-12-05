@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2, Grid3X3, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { bookmarkApi, Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse } from "@/lib/api"
+import { Progress } from "@/components/ui/progress"
+import { bookmarkApi, Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
 
 type FilterTab = "all" | "unread" | "read"
 type ViewMode = "search" | "clusters"
@@ -62,6 +63,11 @@ export default function BookmarkSearchApp() {
   const [categoryBookmarks, setCategoryBookmarks] = useState<BookmarkType[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
   const [isLoadingCategoryBookmarks, setIsLoadingCategoryBookmarks] = useState(false)
+  
+  // Category refresh state
+  const [refreshingCategories, setRefreshingCategories] = useState<Record<string, JobStatus>>({})
+  const [activeJobs, setActiveJobs] = useState<string[]>([])
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
 
   // Format date in a friendly way
   const formatDate = (dateString: string) => {
@@ -100,12 +106,21 @@ export default function BookmarkSearchApp() {
     }
   }
 
-  // Load data on component mount
+  // Load data on component mount and restore active jobs
   useEffect(() => {
     if (viewMode === "search") {
       loadBookmarks()
     } else if (viewMode === "clusters") {
       loadCategories()
+      restoreActiveJobs()
+    }
+    
+    // Cleanup polling on unmount or view change
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current)
+        pollingInterval.current = null
+      }
     }
   }, [viewMode])
 
@@ -437,6 +452,110 @@ export default function BookmarkSearchApp() {
   const handleCategorySearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleCategorySearch()
+    }
+  }
+
+  const restoreActiveJobs = async () => {
+    try {
+      const jobs = await bookmarkApi.getActiveJobs()
+      const categoryJobs = jobs.filter(job => job.job_type === 'refresh_category')
+      
+      const newRefreshingCategories: Record<string, JobStatus> = {}
+      const newActiveJobs: string[] = []
+      
+      categoryJobs.forEach(job => {
+        const category = job.parameters.category
+        if (category) {
+          newRefreshingCategories[category] = job
+          newActiveJobs.push(job.id)
+        }
+      })
+      
+      setRefreshingCategories(newRefreshingCategories)
+      setActiveJobs(newActiveJobs)
+      
+      // Start polling if there are active jobs
+      if (newActiveJobs.length > 0) {
+        startJobPolling(newActiveJobs)
+      }
+    } catch (err) {
+      console.error('Failed to restore active jobs:', err)
+    }
+  }
+
+  const startJobPolling = (jobIds: string[]) => {
+    // Clear existing polling
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current)
+    }
+    
+    // Poll every 2 seconds
+    pollingInterval.current = setInterval(async () => {
+      const updatedJobs: string[] = []
+      const newRefreshingCategories = { ...refreshingCategories }
+      
+      for (const jobId of jobIds) {
+        try {
+          const jobStatus = await bookmarkApi.getJobStatus(jobId)
+          const category = jobStatus.parameters.category
+          
+          if (category) {
+            newRefreshingCategories[category] = jobStatus
+            
+            // Check if job is still active
+            if (jobStatus.status === 'running' || jobStatus.status === 'pending') {
+              updatedJobs.push(jobId)
+            } else if (jobStatus.status === 'completed') {
+              // Job completed, refresh categories
+              await loadCategories()
+              delete newRefreshingCategories[category]
+            } else if (jobStatus.status === 'failed') {
+              // Job failed, show error
+              setError(`Failed to refresh category ${category}: ${jobStatus.error_message}`)
+              delete newRefreshingCategories[category]
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to get status for job ${jobId}:`, err)
+        }
+      }
+      
+      setRefreshingCategories(newRefreshingCategories)
+      setActiveJobs(updatedJobs)
+      
+      // Stop polling if no more active jobs
+      if (updatedJobs.length === 0 && pollingInterval.current) {
+        clearInterval(pollingInterval.current)
+        pollingInterval.current = null
+      }
+    }, 2000)
+  }
+
+  const handleCategoryRefresh = async (category: string) => {
+    try {
+      const response = await bookmarkApi.refreshCategory(category)
+      
+      if (response.status === 'already_running') {
+        setError(`A refresh is already in progress for ${category}`)
+        return
+      }
+      
+      // Get initial job status
+      const jobStatus = await bookmarkApi.getJobStatus(response.job_id)
+      
+      setRefreshingCategories(prev => ({
+        ...prev,
+        [category]: jobStatus
+      }))
+      
+      setActiveJobs(prev => [...prev, response.job_id])
+      
+      // Start polling for this job
+      startJobPolling([...activeJobs, response.job_id])
+      
+    } catch (err: any) {
+      setError(`Failed to start refresh for ${category}`)
+      console.error('Category refresh error:', err)
     }
   }
 
@@ -860,20 +979,61 @@ export default function BookmarkSearchApp() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
                   {Object.entries(categories)
                     .sort(([, countA], [, countB]) => countB - countA) // Sort by count descending
-                    .map(([category, count]) => (
-                    <Card 
-                      key={category} 
-                      className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200"
-                      onClick={() => loadCategoryBookmarks(category)}
-                    >
-                      <CardContent className="p-6 text-center">
-                        <h3 className="text-lg font-semibold text-indigo-900 mb-2">{category}</h3>
-                        <p className="text-indigo-600 font-medium">
-                          {count} article{count !== 1 ? 's' : ''}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                    .map(([category, count]) => {
+                      const jobStatus = refreshingCategories[category]
+                      const isRefreshing = jobStatus && (jobStatus.status === 'running' || jobStatus.status === 'pending')
+                      
+                      return (
+                        <Card 
+                          key={category} 
+                          className="relative cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200"
+                        >
+                          {/* Refresh button - only show when not refreshing */}
+                          {!isRefreshing && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation() // Prevent card click
+                                handleCategoryRefresh(category)
+                              }}
+                              className="absolute top-2 right-2 z-10 opacity-60 hover:opacity-100"
+                              title="Refresh category"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          <CardContent 
+                            className="p-6 text-center"
+                            onClick={() => !isRefreshing && loadCategoryBookmarks(category)}
+                          >
+                            <h3 className="text-lg font-semibold text-indigo-900 mb-2">{category}</h3>
+                            <p className="text-indigo-600 font-medium">
+                              {count} article{count !== 1 ? 's' : ''}
+                            </p>
+                            
+                            {/* Progress overlay when refreshing */}
+                            {isRefreshing && jobStatus && (
+                              <div className="mt-4">
+                                <div className="flex items-center justify-center gap-2 text-sm text-slate-600 mb-2">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Refreshing...</span>
+                                </div>
+                                <Progress value={jobStatus.progress_percentage} className="h-2" />
+                                <p className="text-xs text-slate-500 mt-1 truncate">
+                                  {jobStatus.current_item && jobStatus.current_item.replace('Processing: ', '')}
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                  {jobStatus.progress_current}/{jobStatus.progress_total}
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                
                 </div>
 
                 {/* Summary */}
