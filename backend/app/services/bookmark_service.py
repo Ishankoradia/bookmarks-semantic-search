@@ -218,6 +218,16 @@ class BookmarkService:
                 filter_conditions.append("domain ~* :domain")
                 filter_params["domain"] = active_filters.domain
             
+            # Category filter
+            if active_filters.category:
+                if active_filters.category == "Others":
+                    # Filter for bookmarks with null or empty category
+                    filter_conditions.append("(category IS NULL OR category = '')")
+                else:
+                    # Filter for exact category match
+                    filter_conditions.append("category = :category")
+                    filter_params["category"] = active_filters.category
+            
             # Date range filter
             if active_filters.date_range:
                 date_from, date_to = self._get_date_range(active_filters.date_range)
@@ -267,11 +277,10 @@ class BookmarkService:
                 filtered_count = 0
             
             if filtered_count > 0:
-                # Filters returned results, use filtered search with higher threshold for quality
-                # We'll fallback to metadata results if vector search returns nothing
-                vector_threshold = max(threshold, 0.7)  # Use higher threshold for better quality
+                # Filters returned results, use filtered search
+                vector_threshold = threshold
                 
-                print(f"Using vector threshold: {vector_threshold} (original: {threshold}) for {filtered_count} filtered results")
+                print(f"Using threshold: {vector_threshold} for {filtered_count} filtered results")
                 
                 sql_query = text(f"""
                     SELECT 
@@ -332,22 +341,24 @@ class BookmarkService:
             print(f"Vector search returned {len(results)} results")
             
             # If vector search returned no results and we had metadata filters, 
-            # return all metadata-filtered results sorted by similarity
+            # return metadata-filtered results that meet the original threshold
             if len(results) == 0 and filter_conditions:
-                print(f"Vector search returned no results, falling back to all metadata-filtered results")
+                print(f"Vector search returned no results, falling back to metadata-filtered results with original threshold: {threshold}")
                 fallback_query = text(f"""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
                         is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
-                    WHERE {where_clause}
+                    WHERE ({where_clause})
+                        AND 1 - (embedding <=> CAST(:embedding AS vector)) > :threshold
                     ORDER BY similarity_score DESC
                     LIMIT :limit
                 """)
                 
                 fallback_params = {**filter_params, 
                                  'embedding': str(query_embedding),
+                                 'threshold': threshold,
                                  'limit': limit}
                 
                 results = db.execute(fallback_query, fallback_params).fetchall()

@@ -38,6 +38,7 @@ export type DateRangeFilter = 'today' | 'last_week' | 'last_month' | 'last_3_mon
 export interface MetadataFilters {
   reference?: string;
   domain?: string;
+  category?: string;
   date_range?: DateRangeFilter;
   date_from?: string;
   date_to?: string;

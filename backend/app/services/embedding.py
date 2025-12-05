@@ -6,7 +6,16 @@ import json
 class EmbeddingService:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.EMBEDDING_MODEL
+        # Model configurations from settings
+        self.embedding_model = settings.EMBEDDING_MODEL
+        self.tag_generation_model = settings.TAG_GENERATION_MODEL
+        self.tag_generation_temperature = settings.TAG_GENERATION_TEMPERATURE
+        self.category_generation_model = settings.CATEGORY_GENERATION_MODEL
+        self.category_generation_temperature = settings.CATEGORY_GENERATION_TEMPERATURE
+        self.query_parsing_model = settings.QUERY_PARSING_MODEL
+        self.query_parsing_temperature = settings.QUERY_PARSING_TEMPERATURE
+        self.content_analysis_model = settings.CONTENT_ANALYSIS_MODEL
+        self.content_analysis_temperature = settings.CONTENT_ANALYSIS_TEMPERATURE
     
     async def create_embedding(self, text: str) -> List[float]:
         if not text or len(text.strip()) == 0:
@@ -17,7 +26,7 @@ class EmbeddingService:
         try:
             response = await self.client.embeddings.create(
                 input=text,
-                model=self.model
+                model=self.embedding_model
             )
             return response.data[0].embedding
         except Exception as e:
@@ -32,7 +41,7 @@ class EmbeddingService:
         try:
             response = await self.client.embeddings.create(
                 input=texts,
-                model=self.model
+                model=self.embedding_model
             )
             return [item.embedding for item in response.data]
         except Exception as e:
@@ -82,11 +91,11 @@ Classify the content format (article, tutorial, documentation, etc.) and choose 
 
         try:
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.tag_generation_model,
                 messages=[{"role": "user", "content": prompt}],
                 functions=[function_schema],
                 function_call={"name": "classify_content"},
-                temperature=0.1
+                temperature=self.tag_generation_temperature
             )
             
             # Extract function call result
@@ -147,11 +156,11 @@ Generate a concise category (1-3 words) that best describes both the content typ
 
         try:
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.category_generation_model,
                 messages=[{"role": "user", "content": prompt}],
                 functions=[function_schema],
                 function_call={"name": "categorize_content"},
-                temperature=0.1
+                temperature=self.category_generation_temperature
             )
             
             # Extract function call result
@@ -166,7 +175,7 @@ Generate a concise category (1-3 words) that best describes both the content typ
             raise ValueError("Function call did not return expected category")
                 
         except Exception as e:
-            print(f"Error generating category with GPT-4o mini: {e}")
+            print(f"Error generating category with {self.category_generation_model}: {e}")
             # Return a default category on error rather than failing the entire bookmark creation
             return "General"
     
@@ -226,11 +235,11 @@ Query to parse: "{query}"
 
         try:
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.query_parsing_model,
                 messages=[{"role": "user", "content": prompt}],
                 functions=[function_schema],
                 function_call={"name": "parse_search_query"},
-                temperature=0.1
+                temperature=self.query_parsing_temperature
             )
             
             # Extract function call result

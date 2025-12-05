@@ -60,6 +60,17 @@ https://github.com/user-attachments/assets/9ecf1893-a1ba-46b9-b3d3-df2dc2a274ea
    SECRET_KEY=your-secret-key
    ENVIRONMENT=development
    CORS_ORIGINS=http://localhost:3000
+   
+   # AI Model Configuration (optional)
+   EMBEDDING_MODEL=text-embedding-3-small
+   TAG_GENERATION_MODEL=gpt-4o-mini
+   TAG_GENERATION_TEMPERATURE=0.3
+   CATEGORY_GENERATION_MODEL=gpt-4o-mini
+   CATEGORY_GENERATION_TEMPERATURE=0.1
+   QUERY_PARSING_MODEL=gpt-4o-mini
+   QUERY_PARSING_TEMPERATURE=0.2
+   CONTENT_ANALYSIS_MODEL=gpt-4o-mini
+   CONTENT_ANALYSIS_TEMPERATURE=0.5
    ```
 
 ### Frontend Setup
@@ -82,6 +93,44 @@ https://github.com/user-attachments/assets/9ecf1893-a1ba-46b9-b3d3-df2dc2a274ea
 2. **Search**: Use natural language to find relevant bookmarks
 3. **Browse**: View all your bookmarks in the "All Bookmarks" tab
 4. **Manage**: Delete unwanted bookmarks or open them in new tabs
+
+## AI Model Configuration
+
+The application uses different AI models for various tasks. All models are configurable via environment variables:
+
+### Model Types
+- **Embedding Model**: Generates vector embeddings for semantic search
+  - Default: `text-embedding-3-small`
+  - Used for: Content vectorization and search queries
+
+- **Tag Generation Model**: Creates content tags for bookmarks
+  - Default: `gpt-4o-mini`
+  - Used for: Generating content format and domain tags
+  - Temperature: `0.3` (low for consistency)
+
+- **Category Generation Model**: Assigns categories to bookmarks
+  - Default: `gpt-4o-mini`
+  - Used for: Creating descriptive categories for content grouping
+  - Temperature: `0.1` (very low for consistent categorization)
+
+- **Query Parsing Model**: Parses search queries for metadata filters
+  - Default: `gpt-4o-mini`
+  - Used for: Understanding user intent in search queries
+  - Temperature: `0.2` (low for accurate parsing)
+
+- **Content Analysis Model**: For future advanced content analysis
+  - Default: `gpt-4o-mini`
+  - Temperature: `0.5` (moderate for balanced analysis)
+
+### Customization
+You can use different models by updating the environment variables:
+```env
+TAG_GENERATION_MODEL=gpt-4o
+CATEGORY_GENERATION_MODEL=gpt-3.5-turbo
+QUERY_PARSING_MODEL=gpt-4o-mini
+```
+
+Temperature values control randomness (0.0 = deterministic, 1.0 = highly random).
 
 ## API Documentation
 

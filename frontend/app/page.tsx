@@ -60,7 +60,7 @@ export default function BookmarkSearchApp() {
   
   // Clusters mode state
   const [categories, setCategories] = useState<Record<string, number>>({})
-  const [categoryBookmarks, setCategoryBookmarks] = useState<BookmarkType[]>([])
+  const [categoryBookmarks, setCategoryBookmarks] = useState<(BookmarkType | BookmarkSearchResult)[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
   const [isLoadingCategoryBookmarks, setIsLoadingCategoryBookmarks] = useState(false)
   
@@ -157,6 +157,7 @@ export default function BookmarkSearchApp() {
     try {
       setIsLoadingCategoryBookmarks(true)
       setError(null)
+      setCategorySearchQuery("") // Clear search input when switching categories
       const data = await bookmarkApi.getBookmarksByCategory(category)
       setCategoryBookmarks(data)
       setSelectedCategory(category)
@@ -426,20 +427,19 @@ export default function BookmarkSearchApp() {
       // If no search query, load all bookmarks for this category
       await loadCategoryBookmarks(selectedCategory)
     } else {
-      // Perform semantic search within the category
+      // Perform semantic search within the category using backend filters
       try {
         setIsLoadingCategoryBookmarks(true)
         setError(null)
         const results = await bookmarkApi.searchBookmarks({
           query: categorySearchQuery,
           limit: 50,
-          threshold: 0.3
+          threshold: 0.3,
+          filters: {
+            category: selectedCategory
+          }
         })
-        // Filter results to only include bookmarks from this category
-        const categoryResults = results.filter(bookmark => 
-          (bookmark.category || "Others") === selectedCategory
-        )
-        setCategoryBookmarks(categoryResults)
+        setCategoryBookmarks(results)
       } catch (err: any) {
         setError('Search failed')
         console.error('Search error:', err)
@@ -1055,7 +1055,10 @@ export default function BookmarkSearchApp() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => {
+                  setSelectedCategory(null)
+                  setCategorySearchQuery("") // Clear search input when going back
+                }}
                 className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -1107,6 +1110,11 @@ export default function BookmarkSearchApp() {
                             >
                               <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
                             </a>
+                            {'similarity_score' in bookmark && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                {(bookmark.similarity_score * 100).toFixed(0)}% match
+                              </span>
+                            )}
                           </div>
                           <CardDescription className="text-base line-clamp-2">{bookmark.description}</CardDescription>
                         </div>
