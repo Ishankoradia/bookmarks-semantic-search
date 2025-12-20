@@ -747,11 +747,12 @@ export default function BookmarkSearchApp() {
                 {bookmarks.map((bookmark) => (
                   <Card 
                     key={bookmark.id} 
-                    className="hover:shadow-lg transition-all duration-200 cursor-pointer group border-slate-200"
+                    className="hover:shadow-lg transition-all duration-200 cursor-pointer group border-slate-200 h-full"
                     onClick={() => window.open(bookmark.url, '_blank', 'noopener,noreferrer')}
                   >
-                    <CardContent className="p-6">
-                      <div className="space-y-3">
+                    <CardContent className="p-6 h-full">
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 space-y-3">
                         {/* Title */}
                         <h3 className="font-semibold text-lg leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2">
                           {bookmark.title}
@@ -771,12 +772,6 @@ export default function BookmarkSearchApp() {
                           </div>
                         )}
                         
-                        {/* Reference */}
-                        {bookmark.reference && (
-                          <div className="text-sm text-slate-600 italic">
-                            via: {bookmark.reference}
-                          </div>
-                        )}
                         
                         {/* Tags */}
                         {bookmark.tags && bookmark.tags.length > 0 && (
@@ -792,16 +787,20 @@ export default function BookmarkSearchApp() {
                           </div>
                         )}
                         
+                        </div>
+                        
                         {/* Actions and meta info */}
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100">
                           <div className="flex items-center gap-2 text-xs text-slate-500">
                             <Calendar className="w-3 h-3" />
                             <span>{formatDate(bookmark.created_at)}</span>
-                            {bookmark.is_read && (
-                              <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                                Read
-                              </span>
-                            )}
+                            <span className={`px-1.5 py-0.5 rounded text-xs ${
+                              bookmark.is_read 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {bookmark.is_read ? 'Read' : 'Unread'}
+                            </span>
                           </div>
                           
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
