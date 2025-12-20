@@ -747,8 +747,7 @@ export default function BookmarkSearchApp() {
                 {bookmarks.map((bookmark) => (
                   <Card 
                     key={bookmark.id} 
-                    className="hover:shadow-lg transition-all duration-200 cursor-pointer group border-slate-200 h-full"
-                    onClick={() => window.open(bookmark.url, '_blank', 'noopener,noreferrer')}
+                    className="hover:shadow-lg transition-all duration-200 group border-slate-200 h-full"
                   >
                     <CardContent className="p-6 h-full">
                       <div className="flex flex-col h-full">
@@ -787,6 +786,18 @@ export default function BookmarkSearchApp() {
                           </div>
                         )}
                         
+                        {/* CTA Button */}
+                        <div className="pt-2">
+                          <Button
+                            onClick={() => window.open(bookmark.url, '_blank', 'noopener,noreferrer')}
+                            variant="outline"
+                            className="w-full border-slate-300 text-slate-700 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white transition-colors cursor-pointer"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Read Article
+                          </Button>
+                        </div>
+                        
                         </div>
                         
                         {/* Actions and meta info */}
@@ -807,10 +818,7 @@ export default function BookmarkSearchApp() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleReadStatusToggle(bookmark.id, bookmark.is_read || false)
-                              }}
+                              onClick={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
                               className="h-7 w-7 p-0 hover:bg-slate-100"
                               title={bookmark.is_read ? "Mark as unread" : "Mark as read"}
                             >
@@ -823,10 +831,7 @@ export default function BookmarkSearchApp() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleCopyToClipboard(bookmark.url, bookmark.id)
-                              }}
+                              onClick={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                               className={`h-7 w-7 p-0 hover:bg-slate-100 transition-colors ${
                                 copiedId === bookmark.id ? 'bg-green-50' : ''
                               }`}
@@ -841,10 +846,7 @@ export default function BookmarkSearchApp() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteClick(bookmark)
-                              }}
+                              onClick={() => handleDeleteClick(bookmark)}
                               className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
                               title="Delete bookmark"
                             >
