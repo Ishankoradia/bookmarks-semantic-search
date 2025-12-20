@@ -20,7 +20,7 @@ ENVIRONMENT=development
 CORS_ORIGINS=http://localhost:3002
 ```
 
-**frontend/.env.local:**
+**frontend/.env:**
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:6005/api/v1
 ```

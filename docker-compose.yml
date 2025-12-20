@@ -22,7 +22,7 @@ services:
     ports:
       - "3002:3002"
     env_file:
-      - ./frontend/.env.local
+      - ./frontend/.env
     environment:
       # Override API URL to use Docker network
       - NEXT_PUBLIC_API_URL=http://localhost:6005/api/v1

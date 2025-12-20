@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3002"
     
+    # Authentication
+    WHITELISTED_EMAILS: str = ""  # Comma-separated list of whitelisted emails
+    
     # Embedding model configuration
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536

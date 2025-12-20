@@ -7,7 +7,6 @@ __pycache__/
 *.db
 *.sqlite3
 .env
-.env.local
 .pytest_cache/
 .coverage
 htmlcov/

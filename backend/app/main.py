@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import bookmarks, jobs
+from app.api import bookmarks, jobs, auth
 
 Base.metadata.create_all(bind=engine)
 
@@ -29,6 +29,12 @@ app.include_router(
     jobs.router,
     prefix=f"{settings.API_V1_STR}",
     tags=["jobs"]
+)
+
+app.include_router(
+    auth.router,
+    prefix=f"{settings.API_V1_STR}/auth",
+    tags=["auth"]
 )
 
 @app.get("/")

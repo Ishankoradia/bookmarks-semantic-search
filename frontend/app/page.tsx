@@ -1,8 +1,11 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2, Grid3X3, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import SimpleAuthButton from "@/components/auth/simple-auth-button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,12 +30,17 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
-import { bookmarkApi, Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
+import { useBookmarkApi } from "@/lib/auth-api"
+import { Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
 
 type FilterTab = "all" | "unread" | "read"
 type ViewMode = "search" | "clusters"
 
 export default function BookmarkSearchApp() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const authApi = useBookmarkApi()
+  
   const [viewMode, setViewMode] = useState<ViewMode>("search")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categorySearchQuery, setCategorySearchQuery] = useState("")
@@ -68,6 +76,13 @@ export default function BookmarkSearchApp() {
   const [refreshingCategories, setRefreshingCategories] = useState<Record<string, JobStatus>>({})
   const [activeJobs, setActiveJobs] = useState<string[]>([])
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+  
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+    }
+  }, [status, router])
 
   // Format date in a friendly way
   const formatDate = (dateString: string) => {
@@ -128,7 +143,7 @@ export default function BookmarkSearchApp() {
     try {
       setIsLoading(true)
       setError(null)
-      const data = await bookmarkApi.getBookmarks()
+      const data = await authApi.getBookmarks()
       setAllBookmarks(data)
       applyFilter(data, activeFilter)
     } catch (err: any) {
@@ -143,7 +158,7 @@ export default function BookmarkSearchApp() {
     try {
       setIsLoadingCategories(true)
       setError(null)
-      const data = await bookmarkApi.getCategories()
+      const data = await authApi.getCategories()
       setCategories(data)
     } catch (err: any) {
       setError('Failed to load categories')
@@ -158,7 +173,7 @@ export default function BookmarkSearchApp() {
       setIsLoadingCategoryBookmarks(true)
       setError(null)
       setCategorySearchQuery("") // Clear search input when switching categories
-      const data = await bookmarkApi.getBookmarksByCategory(category)
+      const data = await authApi.getBookmarksByCategory(category)
       setCategoryBookmarks(data)
       setSelectedCategory(category)
     } catch (err: any) {
@@ -193,7 +208,7 @@ export default function BookmarkSearchApp() {
       try {
         setIsSearching(true)
         setError(null)
-        const results = await bookmarkApi.searchBookmarks({
+        const results = await authApi.searchBookmarks({
           query: searchQuery,
           limit: 50,
           threshold: 0.3
@@ -219,7 +234,7 @@ export default function BookmarkSearchApp() {
       try {
         setIsSearching(true)
         setError(null)
-        const results = await bookmarkApi.searchBookmarks({
+        const results = await authApi.searchBookmarks({
           query: searchQuery,
           limit: 50,
           threshold: 0.3
@@ -250,7 +265,7 @@ export default function BookmarkSearchApp() {
     try {
       setIsAddingBookmark(true)
       setModalError(null)
-      await bookmarkApi.createBookmark({ 
+      await authApi.createBookmark({ 
         url: newBookmarkUrl,
         reference: newBookmarkReference.trim() || undefined 
       })
@@ -306,7 +321,7 @@ export default function BookmarkSearchApp() {
     try {
       setIsPreviewingTags(true)
       setModalError(null)
-      const preview = await bookmarkApi.previewTags(newBookmarkUrl)
+      const preview = await authApi.previewTags(newBookmarkUrl)
       setTagPreview(preview)
     } catch (err: any) {
       let errorMessage = 'Failed to preview tags'
@@ -325,7 +340,7 @@ export default function BookmarkSearchApp() {
 
   const handleReadStatusToggle = async (bookmarkId: string, currentStatus: boolean) => {
     try {
-      await bookmarkApi.updateReadStatus(bookmarkId, !currentStatus)
+      await authApi.updateReadStatus(bookmarkId, !currentStatus)
       // Update the bookmark in both bookmarks and allBookmarks
       const updateBookmark = (bookmark: BookmarkType | BookmarkSearchResult) => 
         bookmark.id === bookmarkId ? { ...bookmark, is_read: !currentStatus } : bookmark
@@ -342,7 +357,7 @@ export default function BookmarkSearchApp() {
   const handleRegenerateTags = async (bookmarkId: string) => {
     try {
       setRegeneratingTagsId(bookmarkId)
-      const response = await bookmarkApi.regenerateTags(bookmarkId)
+      const response = await authApi.regenerateTags(bookmarkId)
       
       // Update the bookmark with new tags
       const updateBookmark = (bookmark: BookmarkType | BookmarkSearchResult) => 
@@ -367,7 +382,7 @@ export default function BookmarkSearchApp() {
     
     try {
       setIsDeleting(true)
-      await bookmarkApi.deleteBookmark(bookmarkToDelete.id)
+      await authApi.deleteBookmark(bookmarkToDelete.id)
       
       // Remove from all state
       setAllBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
@@ -431,7 +446,7 @@ export default function BookmarkSearchApp() {
       try {
         setIsLoadingCategoryBookmarks(true)
         setError(null)
-        const results = await bookmarkApi.searchBookmarks({
+        const results = await authApi.searchBookmarks({
           query: categorySearchQuery,
           limit: 50,
           threshold: 0.3,
@@ -457,7 +472,7 @@ export default function BookmarkSearchApp() {
 
   const restoreActiveJobs = async () => {
     try {
-      const jobs = await bookmarkApi.getActiveJobs()
+      const jobs = await authApi.getActiveJobs()
       const categoryJobs = jobs.filter(job => job.job_type === 'refresh_category')
       
       const newRefreshingCategories: Record<string, JobStatus> = {}
@@ -496,7 +511,7 @@ export default function BookmarkSearchApp() {
       
       for (const jobId of jobIds) {
         try {
-          const jobStatus = await bookmarkApi.getJobStatus(jobId)
+          const jobStatus = await authApi.getJobStatus(jobId)
           const category = jobStatus.parameters.category
           
           if (category) {
@@ -533,7 +548,7 @@ export default function BookmarkSearchApp() {
 
   const handleCategoryRefresh = async (category: string) => {
     try {
-      const response = await bookmarkApi.refreshCategory(category)
+      const response = await authApi.refreshCategory(category)
       
       if (response.status === 'already_running') {
         setError(`A refresh is already in progress for ${category}`)
@@ -541,7 +556,7 @@ export default function BookmarkSearchApp() {
       }
       
       // Get initial job status
-      const jobStatus = await bookmarkApi.getJobStatus(response.job_id)
+      const jobStatus = await authApi.getJobStatus(response.job_id)
       
       setRefreshingCategories(prev => ({
         ...prev,
@@ -562,18 +577,40 @@ export default function BookmarkSearchApp() {
   const totalBookmarks = Object.values(categories).reduce((sum, count) => sum + count, 0)
   const categoryCount = Object.keys(categories).length
 
+  // Show loading state while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Prevent rendering if not authenticated
+  if (status === "unauthenticated") {
+    return null
+  }
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Header */}
-        <header className="mb-12 text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-indigo-600 rounded-xl">
-              <Bookmark className="w-8 h-8 text-white" />
+        <header className="mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-indigo-600 rounded-xl">
+                <Bookmark className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-slate-900">Semantic Bookmarks</h1>
+                <p className="text-slate-600 text-lg">Search your bookmarks by meaning, not just keywords</p>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-slate-900">Semantic Bookmarks</h1>
+            <SimpleAuthButton />
           </div>
-          <p className="text-slate-600 text-lg">Search your bookmarks by meaning, not just keywords</p>
         </header>
 
         {/* Error Display */}
@@ -966,10 +1003,25 @@ export default function BookmarkSearchApp() {
             </div>
 
             {/* Loading State for Categories */}
-            {(isLoadingCategories || Object.keys(categories).length === 0) && (
+            {isLoadingCategories && (
               <div className="text-center py-16">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
                 <p className="text-slate-600">Loading categories...</p>
+              </div>
+            )}
+
+            {/* No Categories/Bookmarks State */}
+            {!isLoadingCategories && Object.keys(categories).length === 0 && (
+              <div className="text-center py-16">
+                <div className="p-3 bg-slate-100 rounded-xl mb-4 inline-block">
+                  <Bookmark className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">No bookmarks yet</h3>
+                <p className="text-slate-600 mb-6">Start by adding your first bookmark to see categories here.</p>
+                <Button onClick={() => setViewMode("search")} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Your First Bookmark
+                </Button>
               </div>
             )}
 

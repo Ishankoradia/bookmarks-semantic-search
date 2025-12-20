@@ -1,7 +1,8 @@
-from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean
+from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 import uuid
 from app.core.database import Base
 
@@ -23,6 +24,10 @@ class Bookmark(Base):
     is_read = Column(Boolean, default=False, nullable=True)
     reference = Column(Text, nullable=True)  # How user found this bookmark
     category = Column(String, nullable=True)  # Category that best describes the content
+    
+    # User relationship
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
+    user = relationship("User", back_populates="bookmarks")
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

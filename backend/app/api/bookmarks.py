@@ -4,6 +4,8 @@ from typing import List
 from uuid import UUID
 
 from app.core.database import get_db
+from app.core.auth import get_current_user
+from app.models.user import User
 from app.schemas.bookmark import (
     BookmarkCreate, BookmarkResponse, BookmarkUpdate, 
     BookmarkSearchResult, SearchQuery, ReadStatusUpdate,
@@ -21,10 +23,11 @@ embedding_service = EmbeddingService()
 @router.post("/", response_model=BookmarkResponse)
 async def create_bookmark(
     bookmark: BookmarkCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     try:
-        result = await bookmark_service.create_bookmark(db, bookmark)
+        result = await bookmark_service.create_bookmark(db, bookmark, current_user.id)
         return result
     except ValueError as e:
         error_msg = str(e)
@@ -46,15 +49,19 @@ async def create_bookmark(
 def get_bookmarks(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    return bookmark_service.get_bookmarks(db, skip=skip, limit=limit)
+    return bookmark_service.get_bookmarks(db, user_id=current_user.id, skip=skip, limit=limit)
 
 @router.get("/categories", response_model=dict)
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get all categories with their bookmark counts."""
     try:
-        grouped_bookmarks = bookmark_service.get_bookmarks_grouped_by_category(db)
+        grouped_bookmarks = bookmark_service.get_bookmarks_grouped_by_category(db, user_id=current_user.id)
         categories = {}
         for category, bookmarks in grouped_bookmarks.items():
             categories[category] = len(bookmarks)
@@ -68,11 +75,12 @@ def get_bookmarks_by_category(
     category: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Get bookmarks for a specific category."""
     try:
-        bookmarks = bookmark_service.get_bookmarks_by_category(db, category, skip, limit)
+        bookmarks = bookmark_service.get_bookmarks_by_category(db, category, user_id=current_user.id, skip=skip, limit=limit)
         return bookmarks
     except Exception as e:
         print(f"Error getting bookmarks for category {category}: {e}")
@@ -81,7 +89,8 @@ def get_bookmarks_by_category(
 @router.post("/search", response_model=List[BookmarkSearchResult])
 async def search_bookmarks(
     search: SearchQuery,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     try:
         results = await bookmark_service.search_bookmarks_with_filters(
@@ -90,6 +99,7 @@ async def search_bookmarks(
             limit=search.limit,
             threshold=search.threshold,
             filters=search.filters,
+            user_id=current_user.id,
             auto_parse_query=True  # Will parse query if no filters provided
         )
         return results
@@ -150,9 +160,10 @@ async def preview_tags(request: TagPreviewRequest):
 @router.get("/{bookmark_id}", response_model=BookmarkResponse)
 def get_bookmark(
     bookmark_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    bookmark = bookmark_service.get_bookmark(db, bookmark_id)
+    bookmark = bookmark_service.get_bookmark(db, bookmark_id, user_id=current_user.id)
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
     return bookmark
@@ -161,9 +172,10 @@ def get_bookmark(
 def update_bookmark(
     bookmark_id: UUID,
     bookmark_update: BookmarkUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update)
+    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update, user_id=current_user.id)
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
     return bookmark
@@ -171,9 +183,10 @@ def update_bookmark(
 @router.delete("/{bookmark_id}")
 def delete_bookmark(
     bookmark_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    if not bookmark_service.delete_bookmark(db, bookmark_id):
+    if not bookmark_service.delete_bookmark(db, bookmark_id, user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Bookmark not found")
     return {"message": "Bookmark deleted successfully"}
 
@@ -181,10 +194,11 @@ def delete_bookmark(
 def update_read_status(
     bookmark_id: UUID,
     read_status: ReadStatusUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     bookmark_update = BookmarkUpdate(is_read=read_status.is_read)
-    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update)
+    bookmark = bookmark_service.update_bookmark(db, bookmark_id, bookmark_update, user_id=current_user.id)
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
     return bookmark
@@ -192,10 +206,11 @@ def update_read_status(
 @router.post("/{bookmark_id}/regenerate-tags")
 async def regenerate_tags_for_bookmark(
     bookmark_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Regenerate tags for an existing bookmark using AI."""
-    bookmark = bookmark_service.get_bookmark(db, bookmark_id)
+    bookmark = bookmark_service.get_bookmark(db, bookmark_id, user_id=current_user.id)
     if not bookmark:
         raise HTTPException(status_code=404, detail="Bookmark not found")
     

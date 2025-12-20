@@ -13,11 +13,11 @@ class BookmarkService:
         self.scraper = WebScraper()
         self.embedding_service = EmbeddingService()
     
-    async def create_bookmark(self, db: Session, bookmark_data: BookmarkCreate) -> Bookmark:
+    async def create_bookmark(self, db: Session, bookmark_data: BookmarkCreate, user_id: int) -> Bookmark:
         url = str(bookmark_data.url)
         
-        # Check if bookmark already exists
-        existing = db.query(Bookmark).filter(Bookmark.url == url).first()
+        # Check if bookmark already exists for this user
+        existing = db.query(Bookmark).filter(Bookmark.url == url, Bookmark.user_id == user_id).first()
         if existing:
             raise ValueError("A bookmark with this URL already exists")
         
@@ -86,6 +86,7 @@ class BookmarkService:
                 tags=auto_tags,  # Use auto-generated tags
                 category=category,  # Use auto-generated category
                 meta_data=scraped_data['metadata'],
+                user_id=user_id,
                 reference=bookmark_data.reference if hasattr(bookmark_data, 'reference') else None
             )
             
@@ -99,14 +100,14 @@ class BookmarkService:
             db.rollback()
             raise ValueError("Failed to save bookmark to database. Please try again.")
     
-    def get_bookmark(self, db: Session, bookmark_id: uuid.UUID) -> Optional[Bookmark]:
-        return db.query(Bookmark).filter(Bookmark.id == bookmark_id).first()
+    def get_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> Optional[Bookmark]:
+        return db.query(Bookmark).filter(Bookmark.id == bookmark_id, Bookmark.user_id == user_id).first()
     
-    def get_bookmarks(self, db: Session, skip: int = 0, limit: int = 100) -> List[Bookmark]:
-        return db.query(Bookmark).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
+    def get_bookmarks(self, db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[Bookmark]:
+        return db.query(Bookmark).filter(Bookmark.user_id == user_id).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
     
-    def update_bookmark(self, db: Session, bookmark_id: uuid.UUID, update_data: BookmarkUpdate) -> Optional[Bookmark]:
-        bookmark = self.get_bookmark(db, bookmark_id)
+    def update_bookmark(self, db: Session, bookmark_id: uuid.UUID, update_data: BookmarkUpdate, user_id: int) -> Optional[Bookmark]:
+        bookmark = self.get_bookmark(db, bookmark_id, user_id=user_id)
         if not bookmark:
             return None
         
@@ -118,8 +119,8 @@ class BookmarkService:
         db.refresh(bookmark)
         return bookmark
     
-    def delete_bookmark(self, db: Session, bookmark_id: uuid.UUID) -> bool:
-        bookmark = self.get_bookmark(db, bookmark_id)
+    def delete_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> bool:
+        bookmark = self.get_bookmark(db, bookmark_id, user_id=user_id)
         if not bookmark:
             return False
         
@@ -155,6 +156,7 @@ class BookmarkService:
         self, 
         db: Session, 
         query: str, 
+        user_id: int,
         limit: int = 10,
         threshold: float = 0.5,
         filters: Optional[MetadataFilters] = None,
@@ -259,13 +261,16 @@ class BookmarkService:
             count_query_str = f"""
                 SELECT COUNT(*) as count
                 FROM bookmarks
-                WHERE {where_clause}
+                WHERE user_id = :user_id AND ({where_clause})
             """
             count_query = text(count_query_str)
             
             print(f"Filter conditions: {filter_conditions}")
             print(f"Filter params: {filter_params}")
             print(f"Count query SQL: {count_query_str}")
+            
+            # Add user_id parameter
+            filter_params['user_id'] = user_id
             
             try:
                 result = db.execute(count_query, filter_params).fetchone()
@@ -288,7 +293,7 @@ class BookmarkService:
                         is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
-                    WHERE ({where_clause})
+                    WHERE user_id = :user_id AND ({where_clause})
                         AND 1 - (embedding <=> CAST(:embedding AS vector)) > :threshold
                     ORDER BY similarity_score DESC
                     LIMIT :limit
@@ -456,9 +461,9 @@ class BookmarkService:
         
         return bookmarks
     
-    def get_bookmarks_grouped_by_category(self, db: Session) -> Dict[str, List[Bookmark]]:
+    def get_bookmarks_grouped_by_category(self, db: Session, user_id: int) -> Dict[str, List[Bookmark]]:
         """Get bookmarks grouped by category with counts."""
-        bookmarks = db.query(Bookmark).order_by(Bookmark.created_at.desc()).all()
+        bookmarks = db.query(Bookmark).filter(Bookmark.user_id == user_id).order_by(Bookmark.created_at.desc()).all()
         
         grouped = {}
         for bookmark in bookmarks:
@@ -469,14 +474,16 @@ class BookmarkService:
         
         return grouped
     
-    def get_bookmarks_by_category(self, db: Session, category: str, skip: int = 0, limit: int = 100) -> List[Bookmark]:
+    def get_bookmarks_by_category(self, db: Session, category: str, user_id: int, skip: int = 0, limit: int = 100) -> List[Bookmark]:
         """Get bookmarks for a specific category."""
         if category == "Others":
             # Handle null/empty categories
             return db.query(Bookmark).filter(
+                Bookmark.user_id == user_id,
                 (Bookmark.category.is_(None)) | (Bookmark.category == "")
             ).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
         else:
             return db.query(Bookmark).filter(
+                Bookmark.user_id == user_id,
                 Bookmark.category == category
             ).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
