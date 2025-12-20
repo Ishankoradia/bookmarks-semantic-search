@@ -5,6 +5,7 @@ from app.models.bookmark import Bookmark
 from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkSearchResult, MetadataFilters, DateRangeFilter
 from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
+from app.core.logging import get_logger
 from datetime import datetime, timedelta, date
 import uuid
 
@@ -12,6 +13,7 @@ class BookmarkService:
     def __init__(self):
         self.scraper = WebScraper()
         self.embedding_service = EmbeddingService()
+        self.logger = get_logger(__name__)
     
     async def create_bookmark(self, db: Session, bookmark_data: BookmarkCreate, user_id: int) -> Bookmark:
         url = str(bookmark_data.url)
@@ -57,7 +59,7 @@ class BookmarkService:
             )
             
         except Exception as e:
-            print(f"Failed to generate auto-tags: {e}")
+            self.logger.warning(f"Failed to generate auto-tags: {e}")
             # Continue without tags if auto-tagging fails
             auto_tags = []
         
@@ -69,7 +71,7 @@ class BookmarkService:
             )
             
         except Exception as e:
-            print(f"Failed to generate category: {e}")
+            self.logger.warning(f"Failed to generate category: {e}")
             # Use default category if generation fails
             category = "General"
         
@@ -177,7 +179,7 @@ class BookmarkService:
         
         if auto_parse_query:
             parsed = await self.embedding_service.parse_search_query(query)
-            print(f"Parsed query result: {parsed}")
+            self.logger.debug(f"Parsed query result: {parsed}")
             ambiguous_name = parsed.get("ambiguous_person_name")
             
             # Create filters from parsed query if not provided explicitly
@@ -265,9 +267,9 @@ class BookmarkService:
             """
             count_query = text(count_query_str)
             
-            print(f"Filter conditions: {filter_conditions}")
-            print(f"Filter params: {filter_params}")
-            print(f"Count query SQL: {count_query_str}")
+            self.logger.debug(f"Filter conditions: {filter_conditions}")
+            self.logger.debug(f"Filter params: {filter_params}")
+            self.logger.debug(f"Count query SQL: {count_query_str}")
             
             # Add user_id parameter
             filter_params['user_id'] = user_id
@@ -275,9 +277,9 @@ class BookmarkService:
             try:
                 result = db.execute(count_query, filter_params).fetchone()
                 filtered_count = result.count if result else 0
-                print(f"Filtered count: {filtered_count}")
+                self.logger.debug(f"Filtered count: {filtered_count}")
             except Exception as e:
-                print(f"Error executing count query: {e}")
+                self.logger.error(f"Error executing count query: {e}", exc_info=True)
                 # On error, fallback to searching entire database
                 filtered_count = 0
             
@@ -285,7 +287,7 @@ class BookmarkService:
                 # Filters returned results, use filtered search
                 vector_threshold = threshold
                 
-                print(f"Using threshold: {vector_threshold} for {filtered_count} filtered results")
+                self.logger.debug(f"Using threshold: {vector_threshold} for {filtered_count} filtered results")
                 
                 sql_query = text(f"""
                     SELECT 
@@ -305,7 +307,7 @@ class BookmarkService:
                                'limit': limit}
             else:
                 # No results from filters, search entire database
-                print(f"No results from metadata filters, searching entire database")
+                self.logger.debug("No results from metadata filters, searching entire database")
                 sql_query = text("""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
@@ -343,12 +345,12 @@ class BookmarkService:
         
         try:
             results = db.execute(sql_query, search_params).fetchall()
-            print(f"Vector search returned {len(results)} results")
+            self.logger.debug(f"Vector search returned {len(results)} results")
             
             # If vector search returned no results and we had metadata filters, 
             # return metadata-filtered results that meet the original threshold
             if len(results) == 0 and filter_conditions:
-                print(f"Vector search returned no results, falling back to metadata-filtered results with original threshold: {threshold}")
+                self.logger.debug(f"Vector search returned no results, falling back to metadata-filtered results with original threshold: {threshold}")
                 fallback_query = text(f"""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
@@ -367,11 +369,11 @@ class BookmarkService:
                                  'limit': limit}
                 
                 results = db.execute(fallback_query, fallback_params).fetchall()
-                print(f"Fallback returned {len(results)} results")
+                self.logger.debug(f"Fallback returned {len(results)} results")
                 
         except Exception as e:
-            print(f"Error executing search query: {e}")
-            print(f"Search params: {search_params}")
+            self.logger.error(f"Error executing search query: {e}", exc_info=True)
+            self.logger.debug(f"Search params: {search_params}")
             # Return empty results on error
             return []
         

@@ -59,10 +59,7 @@ export default function SimpleAuthButton() {
         </div>
       </div>
       <Button 
-        onClick={() => {
-          console.log("Logout clicked"); // Debug log
-          signOut();
-        }}
+        onClick={() => signOut()}
         variant="outline"
         size="sm"
         className="gap-2"

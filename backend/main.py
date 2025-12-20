@@ -1,5 +1,9 @@
+from app.core.logging import setup_logging
+
 def main():
-    print("Hello from bookmark-backend!")
+    # Initialize logging
+    logger = setup_logging()
+    logger.info("Starting bookmark backend application")
 
 
 if __name__ == "__main__":

@@ -6,12 +6,14 @@ from app.models.job import Job, JobType
 from app.models.bookmark import Bookmark
 from app.services.job_service import job_service
 from app.services.embedding import EmbeddingService
+from app.core.logging import get_logger
 
 class CategoryRefreshService:
     """Service for refreshing bookmark categories asynchronously."""
     
     def __init__(self):
         self.embedding_service = EmbeddingService()
+        self.logger = get_logger(__name__)
     
     async def start_category_refresh(
         self, 
@@ -116,7 +118,7 @@ class CategoryRefreshService:
                     await asyncio.sleep(0.5)
                     
                 except Exception as e:
-                    print(f"Error processing bookmark {bookmark.id}: {e}")
+                    self.logger.error(f"Error processing bookmark {bookmark.id}: {e}", exc_info=True)
                     migration_results["failed"].append({
                         "id": str(bookmark.id),
                         "title": bookmark.title,
@@ -128,7 +130,7 @@ class CategoryRefreshService:
             job_service.mark_completed(db, job_id, migration_results)
             
         except Exception as e:
-            print(f"Fatal error in category refresh job {job_id}: {e}")
+            self.logger.error(f"Fatal error in category refresh job {job_id}: {e}", exc_info=True)
             job_service.mark_failed(db, job_id, str(e))
             
         finally:

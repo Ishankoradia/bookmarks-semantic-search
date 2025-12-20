@@ -1,11 +1,13 @@
 from typing import List, Optional, Dict, Any
 from openai import AsyncOpenAI
 from app.core.config import settings
+from app.core.logging import get_logger
 import json
 
 class EmbeddingService:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.logger = get_logger(__name__)
         # Model configurations from settings
         self.embedding_model = settings.EMBEDDING_MODEL
         self.tag_generation_model = settings.TAG_GENERATION_MODEL
@@ -114,7 +116,7 @@ Classify the content format (article, tutorial, documentation, etc.) and choose 
             raise ValueError("Function call did not return expected format")
                 
         except Exception as e:
-            print(f"Error generating tags with GPT-4o mini function calling: {e}")
+            self.logger.error(f"Error generating tags with GPT-4o mini function calling: {e}", exc_info=True)
             raise Exception(f"Failed to generate tags: {str(e)}")
     
     async def generate_content_category(self, title: str, content: str) -> str:
@@ -175,7 +177,7 @@ Generate a concise category (1-3 words) that best describes both the content typ
             raise ValueError("Function call did not return expected category")
                 
         except Exception as e:
-            print(f"Error generating category with {self.category_generation_model}: {e}")
+            self.logger.error(f"Error generating category with {self.category_generation_model}: {e}", exc_info=True)
             # Return a default category on error rather than failing the entire bookmark creation
             return "General"
     
@@ -271,7 +273,7 @@ Query to parse: "{query}"
             }
                 
         except Exception as e:
-            print(f"Error parsing search query: {e}")
+            self.logger.error(f"Error parsing search query: {e}", exc_info=True)
             # Return original query on error
             return {
                 "domain_filter": None,

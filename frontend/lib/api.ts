@@ -1,13 +1,5 @@
-import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Types and interfaces for the bookmark API
+// Note: Actual API calls are handled by useBookmarkApi from auth-api.ts
 
 export interface Bookmark {
   id: string;
@@ -65,88 +57,7 @@ export interface TagPreviewResponse {
   domain: string;
 }
 
-export const bookmarkApi = {
-  async createBookmark(data: CreateBookmarkRequest): Promise<Bookmark> {
-    const response = await api.post<Bookmark>('/bookmarks/', data);
-    return response.data;
-  },
-
-  async getBookmarks(skip = 0, limit = 100): Promise<Bookmark[]> {
-    const response = await api.get<Bookmark[]>('/bookmarks/', {
-      params: { skip, limit },
-    });
-    return response.data;
-  },
-
-  async getBookmark(id: string): Promise<Bookmark> {
-    const response = await api.get<Bookmark>(`/bookmarks/${id}`);
-    return response.data;
-  },
-
-  async deleteBookmark(id: string): Promise<void> {
-    await api.delete(`/bookmarks/${id}`);
-  },
-
-  async searchBookmarks(query: SearchQuery): Promise<BookmarkSearchResult[]> {
-    const response = await api.post<BookmarkSearchResult[]>('/bookmarks/search', query);
-    return response.data;
-  },
-
-  async updateReadStatus(id: string, isRead: boolean): Promise<Bookmark> {
-    const response = await api.patch<Bookmark>(`/bookmarks/${id}/read-status`, {
-      is_read: isRead,
-    });
-    return response.data;
-  },
-
-  async previewTags(url: string): Promise<TagPreviewResponse> {
-    const response = await api.post<TagPreviewResponse>('/bookmarks/preview-tags', {
-      url: url,
-    });
-    return response.data;
-  },
-
-  async regenerateTags(bookmarkId: string): Promise<TagPreviewResponse> {
-    const response = await api.post<TagPreviewResponse>(`/bookmarks/${bookmarkId}/regenerate-tags`);
-    return response.data;
-  },
-
-  async parseQuery(query: string): Promise<ParsedSearchQuery> {
-    const response = await api.post<ParsedSearchQuery>('/bookmarks/parse-query', null, {
-      params: { query }
-    });
-    return response.data;
-  },
-
-  async getCategories(): Promise<Record<string, number>> {
-    const response = await api.get<Record<string, number>>('/bookmarks/categories');
-    return response.data;
-  },
-
-  async getBookmarksByCategory(category: string, skip = 0, limit = 100): Promise<Bookmark[]> {
-    const response = await api.get<Bookmark[]>(`/bookmarks/categories/${encodeURIComponent(category)}`, {
-      params: { skip, limit },
-    });
-    return response.data;
-  },
-
-  async refreshCategory(category: string): Promise<{ job_id: string; status: string; total_bookmarks?: number }> {
-    const response = await api.post<{ job_id: string; status: string; total_bookmarks?: number }>(
-      `/categories/${encodeURIComponent(category)}/refresh`
-    );
-    return response.data;
-  },
-
-  async getJobStatus(jobId: string): Promise<JobStatus> {
-    const response = await api.get<JobStatus>(`/jobs/${jobId}`);
-    return response.data;
-  },
-
-  async getActiveJobs(): Promise<JobStatus[]> {
-    const response = await api.get<JobStatus[]>('/jobs/active');
-    return response.data;
-  },
-};
+// Legacy API client removed - use useBookmarkApi from auth-api.ts instead
 
 export interface JobStatus {
   id: string;
@@ -166,4 +77,4 @@ export interface JobStatus {
   duration_seconds: number;
 }
 
-export default api;
+// Default export removed - use useBookmarkApi from auth-api.ts instead

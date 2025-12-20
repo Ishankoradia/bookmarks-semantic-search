@@ -4,11 +4,13 @@ from typing import List
 from uuid import UUID
 
 from app.core.database import get_db
+from app.core.logging import get_logger
 from app.services.job_service import job_service
 from app.services.category_refresh_service import category_refresh_service
 from app.models.job import JobType
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 @router.post("/categories/{category}/refresh")
 async def refresh_category(
@@ -37,7 +39,7 @@ async def refresh_category(
         }
         
     except Exception as e:
-        print(f"Error starting category refresh: {e}")
+        logger.error(f"Error starting category refresh: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/jobs/{job_id}")

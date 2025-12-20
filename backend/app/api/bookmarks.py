@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.logging import get_logger
 from app.models.user import User
 from app.schemas.bookmark import (
     BookmarkCreate, BookmarkResponse, BookmarkUpdate, 
@@ -19,6 +20,7 @@ router = APIRouter()
 bookmark_service = BookmarkService()
 scraper = WebScraper()
 embedding_service = EmbeddingService()
+logger = get_logger(__name__)
 
 @router.post("/", response_model=BookmarkResponse)
 async def create_bookmark(
@@ -42,7 +44,7 @@ async def create_bookmark(
     except TimeoutError:
         raise HTTPException(status_code=400, detail="The website took too long to respond. Please try again later.")
     except Exception as e:
-        print(f"Unexpected error creating bookmark: {e}")
+        logger.error(f"Unexpected error creating bookmark: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An unexpected error occurred while creating the bookmark. Please try again.")
 
 @router.get("/", response_model=List[BookmarkResponse])
@@ -67,7 +69,7 @@ def get_categories(
             categories[category] = len(bookmarks)
         return categories
     except Exception as e:
-        print(f"Error getting categories: {e}")
+        logger.error(f"Error getting categories: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get categories")
 
 @router.get("/categories/{category}", response_model=List[BookmarkResponse])
@@ -83,7 +85,7 @@ def get_bookmarks_by_category(
         bookmarks = bookmark_service.get_bookmarks_by_category(db, category, user_id=current_user.id, skip=skip, limit=limit)
         return bookmarks
     except Exception as e:
-        print(f"Error getting bookmarks for category {category}: {e}")
+        logger.error(f"Error getting bookmarks for category {category}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get bookmarks for category: {category}")
 
 @router.post("/search", response_model=List[BookmarkSearchResult])
@@ -139,7 +141,7 @@ async def preview_tags(request: TagPreviewRequest):
                 domain=scraped_data['domain']
             )
         except Exception as e:
-            print(f"Failed to generate tags: {e}")
+            logger.warning(f"Failed to generate tags: {e}")
             tags = []
         
         return TagPreviewResponse(
@@ -154,7 +156,7 @@ async def preview_tags(request: TagPreviewRequest):
     except TimeoutError:
         raise HTTPException(status_code=400, detail="The website took too long to respond")
     except Exception as e:
-        print(f"Error in preview_tags: {e}")
+        logger.error(f"Error in preview_tags: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to preview tags")
 
 @router.get("/{bookmark_id}", response_model=BookmarkResponse)
@@ -236,5 +238,5 @@ async def regenerate_tags_for_bookmark(
         }
         
     except Exception as e:
-        print(f"Failed to regenerate tags for bookmark {bookmark_id}: {e}")
+        logger.error(f"Failed to regenerate tags for bookmark {bookmark_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to regenerate tags")
