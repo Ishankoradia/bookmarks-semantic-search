@@ -72,6 +72,19 @@ def get_categories(
         logger.error(f"Error getting categories: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get categories")
 
+@router.get("/categories/list", response_model=List[str])
+def get_category_list(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get list of all category names for filtering."""
+    try:
+        grouped_bookmarks = bookmark_service.get_bookmarks_grouped_by_category(db, user_id=current_user.id)
+        return sorted(list(grouped_bookmarks.keys()))
+    except Exception as e:
+        logger.error(f"Error getting category list: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get category list")
+
 @router.get("/categories/{category}", response_model=List[BookmarkResponse])
 def get_bookmarks_by_category(
     category: str,

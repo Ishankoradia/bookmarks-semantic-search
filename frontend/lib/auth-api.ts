@@ -90,6 +90,14 @@ export const useBookmarkApi = () => {
       });
     },
 
+    // Get category list for filtering
+    getCategoryList: async (): Promise<string[]> => {
+      return makeRequest(async (api) => {
+        const response = await api.get<string[]>('/bookmarks/categories/list');
+        return response.data;
+      });
+    },
+
     // Get bookmarks by category
     getBookmarksByCategory: async (category: string, skip = 0, limit = 100): Promise<Bookmark[]> => {
       return makeRequest(async (api) => {

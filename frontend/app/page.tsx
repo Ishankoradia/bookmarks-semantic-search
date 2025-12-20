@@ -3,12 +3,15 @@
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2, Grid3X3, ArrowLeft } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SimpleAuthButton from "@/components/auth/simple-auth-button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -34,19 +37,16 @@ import { useBookmarkApi } from "@/lib/auth-api"
 import { Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
 
 type FilterTab = "all" | "unread" | "read"
-type ViewMode = "search" | "clusters"
 
 export default function BookmarkSearchApp() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const authApi = useBookmarkApi()
   
-  const [viewMode, setViewMode] = useState<ViewMode>("search")
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [categorySearchQuery, setCategorySearchQuery] = useState("")
   
   // Search mode state
   const [searchQuery, setSearchQuery] = useState("")
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([])
   const [newBookmarkUrl, setNewBookmarkUrl] = useState("")
   const [newBookmarkReference, setNewBookmarkReference] = useState("")
   const [isAddingBookmark, setIsAddingBookmark] = useState(false)
@@ -66,16 +66,12 @@ export default function BookmarkSearchApp() {
   const [bookmarkToDelete, setBookmarkToDelete] = useState<{id: string, title: string} | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   
-  // Clusters mode state
-  const [categories, setCategories] = useState<Record<string, number>>({})
-  const [categoryBookmarks, setCategoryBookmarks] = useState<(BookmarkType | BookmarkSearchResult)[]>([])
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false)
-  const [isLoadingCategoryBookmarks, setIsLoadingCategoryBookmarks] = useState(false)
+  // Category filter state
+  const [categoryList, setCategoryList] = useState<string[]>([])
+  const [isLoadingCategoryList, setIsLoadingCategoryList] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   
-  // Category refresh state
-  const [refreshingCategories, setRefreshingCategories] = useState<Record<string, JobStatus>>({})
-  const [activeJobs, setActiveJobs] = useState<string[]>([])
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
   
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -121,23 +117,28 @@ export default function BookmarkSearchApp() {
     }
   }
 
-  // Load data on component mount and restore active jobs
+  // Load data on component mount
   useEffect(() => {
-    if (viewMode === "search") {
-      loadBookmarks()
-    } else if (viewMode === "clusters") {
-      loadCategories()
-      restoreActiveJobs()
-    }
-    
-    // Cleanup polling on unmount or view change
-    return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current)
-        pollingInterval.current = null
+    loadBookmarks()
+    loadCategoryList()
+  }, [])
+
+  // Handle click outside dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
       }
     }
-  }, [viewMode])
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isDropdownOpen])
 
   const loadBookmarks = async () => {
     try {
@@ -154,47 +155,66 @@ export default function BookmarkSearchApp() {
     }
   }
 
-  const loadCategories = async () => {
+  const loadCategoryList = async () => {
     try {
-      setIsLoadingCategories(true)
-      setError(null)
-      const data = await authApi.getCategories()
-      setCategories(data)
+      setIsLoadingCategoryList(true)
+      const data = await authApi.getCategoryList()
+      console.log('About to set category list:', data)
+      setCategoryList(data)
+      console.log('Category list state after setting:', data)
     } catch (err: any) {
-      setError('Failed to load categories')
-      console.error('Error loading categories:', err)
+      console.error('Error loading category list:', err)
     } finally {
-      setIsLoadingCategories(false)
+      setIsLoadingCategoryList(false)
     }
   }
 
-  const loadCategoryBookmarks = async (category: string) => {
-    try {
-      setIsLoadingCategoryBookmarks(true)
-      setError(null)
-      setCategorySearchQuery("") // Clear search input when switching categories
-      const data = await authApi.getBookmarksByCategory(category)
-      setCategoryBookmarks(data)
-      setSelectedCategory(category)
-    } catch (err: any) {
-      setError('Failed to load category bookmarks')
-      console.error('Error loading category bookmarks:', err)
-    } finally {
-      setIsLoadingCategoryBookmarks(false)
-    }
-  }
+  const applyFilter = (data: (BookmarkType | BookmarkSearchResult)[], filter: FilterTab, customCategoryFilters?: string[]) => {
+    let filtered = data
 
-  const applyFilter = (data: (BookmarkType | BookmarkSearchResult)[], filter: FilterTab) => {
+    // Apply category filters
+    const filtersToUse = customCategoryFilters !== undefined ? customCategoryFilters : categoryFilters
+    if (filtersToUse.length > 0) {
+      filtered = filtered.filter(bookmark => {
+        const bookmarkCategory = bookmark.category || "Others"
+        return filtersToUse.some(selectedCategory => {
+          if (selectedCategory === "Others") {
+            return !bookmark.category || bookmark.category === ""
+          }
+          return bookmark.category === selectedCategory
+        })
+      })
+    }
+
+    // Apply read/unread filter
     switch (filter) {
       case "read":
-        setBookmarks(data.filter(bookmark => bookmark.is_read === true))
+        filtered = filtered.filter(bookmark => bookmark.is_read === true)
         break
       case "unread":
-        setBookmarks(data.filter(bookmark => bookmark.is_read !== true))
+        filtered = filtered.filter(bookmark => bookmark.is_read !== true)
         break
       default:
-        setBookmarks(data)
+        // "all" - no additional filtering
         break
+    }
+
+    setBookmarks(filtered)
+  }
+
+  const handleCategoryFilterToggle = (category: string) => {
+    const newFilters = categoryFilters.includes(category)
+      ? categoryFilters.filter(c => c !== category)
+      : [...categoryFilters, category]
+    
+    setCategoryFilters(newFilters)
+    
+    // Re-apply current filters when category changes
+    if (searchQuery.trim() === "") {
+      applyFilter(allBookmarks, activeFilter, newFilters)
+    } else {
+      // Re-run search with updated category filters
+      performSearch(searchQuery, newFilters)
     }
   }
 
@@ -223,9 +243,9 @@ export default function BookmarkSearchApp() {
     }
   }
 
-  const handleSearch = async () => {
-    if (searchQuery.trim() === "") {
-      // If no search query, load all bookmarks and apply filter
+  const performSearch = async (query: string, customCategoryFilters?: string[]) => {
+    if (query.trim() === "") {
+      // If no search query, load all bookmarks and apply filters
       await loadBookmarks()
     } else {
       // When searching, always reset filter to "All"
@@ -234,13 +254,19 @@ export default function BookmarkSearchApp() {
       try {
         setIsSearching(true)
         setError(null)
+        const filters: any = {}
+        const filtersToUse = customCategoryFilters !== undefined ? customCategoryFilters : categoryFilters
+        if (filtersToUse.length > 0) {
+          filters.category = filtersToUse
+        }
         const results = await authApi.searchBookmarks({
-          query: searchQuery,
+          query: query,
           limit: 50,
-          threshold: 0.3
+          threshold: 0.3,
+          filters: Object.keys(filters).length > 0 ? filters : undefined
         })
         // Apply "all" filter (which shows everything) to search results
-        applyFilter(results, "all")
+        applyFilter(results, "all", filtersToUse)
       } catch (err: any) {
         setError('Search failed')
         console.error('Search error:', err)
@@ -248,6 +274,10 @@ export default function BookmarkSearchApp() {
         setIsSearching(false)
       }
     }
+  }
+
+  const handleSearch = async () => {
+    await performSearch(searchQuery)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -273,14 +303,8 @@ export default function BookmarkSearchApp() {
       setNewBookmarkReference("")
       setIsDialogOpen(false) // Close the dialog
       // Reload data based on current view mode
-      if (viewMode === "search") {
-        await loadBookmarks()
-      } else if (viewMode === "clusters") {
-        await loadCategories()
-        if (selectedCategory) {
-          await loadCategoryBookmarks(selectedCategory)
-        }
-      }
+      await loadBookmarks()
+      await loadCategoryList()
     } catch (err: any) {
       let errorMessage = 'Failed to add bookmark'
       
@@ -347,7 +371,6 @@ export default function BookmarkSearchApp() {
       
       setAllBookmarks(prev => prev.map(updateBookmark))
       setBookmarks(prev => prev.map(updateBookmark))
-      setCategoryBookmarks(prev => prev.map(updateBookmark))
     } catch (err: any) {
       setError('Failed to update read status')
       console.error('Error updating read status:', err)
@@ -365,7 +388,6 @@ export default function BookmarkSearchApp() {
       
       setAllBookmarks(prev => prev.map(updateBookmark))
       setBookmarks(prev => prev.map(updateBookmark))
-      setCategoryBookmarks(prev => prev.map(updateBookmark))
       
       // Show success feedback (could add a toast here)
       setTimeout(() => setRegeneratingTagsId(null), 1000)
@@ -387,12 +409,9 @@ export default function BookmarkSearchApp() {
       // Remove from all state
       setAllBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
       setBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
-      setCategoryBookmarks(prev => prev.filter(b => b.id !== bookmarkToDelete.id))
       
-      // Update categories if in clusters view
-      if (viewMode === "clusters") {
-        await loadCategories()
-      }
+      // Update category list for filter
+      await loadCategoryList()
       
       // Close dialog and reset state
       setDeleteDialogOpen(false)
@@ -435,147 +454,10 @@ export default function BookmarkSearchApp() {
     }
   }
 
-  const handleCategorySearch = async () => {
-    if (!selectedCategory) return
-    
-    if (categorySearchQuery.trim() === "") {
-      // If no search query, load all bookmarks for this category
-      await loadCategoryBookmarks(selectedCategory)
-    } else {
-      // Perform semantic search within the category using backend filters
-      try {
-        setIsLoadingCategoryBookmarks(true)
-        setError(null)
-        const results = await authApi.searchBookmarks({
-          query: categorySearchQuery,
-          limit: 50,
-          threshold: 0.3,
-          filters: {
-            category: selectedCategory
-          }
-        })
-        setCategoryBookmarks(results)
-      } catch (err: any) {
-        setError('Search failed')
-        console.error('Search error:', err)
-      } finally {
-        setIsLoadingCategoryBookmarks(false)
-      }
-    }
-  }
 
-  const handleCategorySearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleCategorySearch()
-    }
-  }
 
-  const restoreActiveJobs = async () => {
-    try {
-      const jobs = await authApi.getActiveJobs()
-      const categoryJobs = jobs.filter(job => job.job_type === 'refresh_category')
-      
-      const newRefreshingCategories: Record<string, JobStatus> = {}
-      const newActiveJobs: string[] = []
-      
-      categoryJobs.forEach(job => {
-        const category = job.parameters.category
-        if (category) {
-          newRefreshingCategories[category] = job
-          newActiveJobs.push(job.id)
-        }
-      })
-      
-      setRefreshingCategories(newRefreshingCategories)
-      setActiveJobs(newActiveJobs)
-      
-      // Start polling if there are active jobs
-      if (newActiveJobs.length > 0) {
-        startJobPolling(newActiveJobs)
-      }
-    } catch (err) {
-      console.error('Failed to restore active jobs:', err)
-    }
-  }
-
-  const startJobPolling = (jobIds: string[]) => {
-    // Clear existing polling
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current)
-    }
-    
-    // Poll every 2 seconds
-    pollingInterval.current = setInterval(async () => {
-      const updatedJobs: string[] = []
-      const newRefreshingCategories = { ...refreshingCategories }
-      
-      for (const jobId of jobIds) {
-        try {
-          const jobStatus = await authApi.getJobStatus(jobId)
-          const category = jobStatus.parameters.category
-          
-          if (category) {
-            newRefreshingCategories[category] = jobStatus
-            
-            // Check if job is still active
-            if (jobStatus.status === 'running' || jobStatus.status === 'pending') {
-              updatedJobs.push(jobId)
-            } else if (jobStatus.status === 'completed') {
-              // Job completed, refresh categories
-              await loadCategories()
-              delete newRefreshingCategories[category]
-            } else if (jobStatus.status === 'failed') {
-              // Job failed, show error
-              setError(`Failed to refresh category ${category}: ${jobStatus.error_message}`)
-              delete newRefreshingCategories[category]
-            }
-          }
-        } catch (err) {
-          console.error(`Failed to get status for job ${jobId}:`, err)
-        }
-      }
-      
-      setRefreshingCategories(newRefreshingCategories)
-      setActiveJobs(updatedJobs)
-      
-      // Stop polling if no more active jobs
-      if (updatedJobs.length === 0 && pollingInterval.current) {
-        clearInterval(pollingInterval.current)
-        pollingInterval.current = null
-      }
-    }, 2000)
-  }
-
-  const handleCategoryRefresh = async (category: string) => {
-    try {
-      const response = await authApi.refreshCategory(category)
-      
-      if (response.status === 'already_running') {
-        setError(`A refresh is already in progress for ${category}`)
-        return
-      }
-      
-      // Get initial job status
-      const jobStatus = await authApi.getJobStatus(response.job_id)
-      
-      setRefreshingCategories(prev => ({
-        ...prev,
-        [category]: jobStatus
-      }))
-      
-      setActiveJobs(prev => [...prev, response.job_id])
-      
-      // Start polling for this job
-      startJobPolling([...activeJobs, response.job_id])
-      
-    } catch (err: any) {
-      setError(`Failed to start refresh for ${category}`)
-      console.error('Category refresh error:', err)
-    }
-  }
-
-  const totalBookmarks = Object.values(categories).reduce((sum, count) => sum + count, 0)
-  const categoryCount = Object.keys(categories).length
+  // Debug log for category list state
+  console.log('Component render - categoryList length:', categoryList.length, 'isLoading:', isLoadingCategoryList)
 
   // Show loading state while checking authentication
   if (status === "loading") {
@@ -620,31 +502,10 @@ export default function BookmarkSearchApp() {
           </div>
         )}
 
-        {/* View Mode Toggle */}
+        {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="inline-flex bg-slate-100 rounded-lg p-1 border border-slate-200">
-            <button
-              onClick={() => setViewMode("search")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                viewMode === "search"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
-              }`}
-            >
-              <Search className="w-4 h-4" />
-              Search
-            </button>
-            <button
-              onClick={() => setViewMode("clusters")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                viewMode === "clusters"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
-              }`}
-            >
-              <Grid3X3 className="w-4 h-4" />
-              Clusters
-            </button>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-slate-900">Your Bookmarks</h1>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
@@ -759,8 +620,7 @@ export default function BookmarkSearchApp() {
         </div>
 
         {/* Search View */}
-        {viewMode === "search" && (
-          <div>
+        <div>
             {/* Search Section */}
             <div className="mb-8 flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
@@ -781,8 +641,8 @@ export default function BookmarkSearchApp() {
               </div>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="mb-6">
+            {/* Filter Tabs and Category Filter */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start">
               <Tabs value={activeFilter} onValueChange={(value) => handleFilterChange(value as FilterTab)}>
                 <TabsList>
                   <TabsTrigger value="all">All</TabsTrigger>
@@ -790,6 +650,72 @@ export default function BookmarkSearchApp() {
                   <TabsTrigger value="read">Read</TabsTrigger>
                 </TabsList>
               </Tabs>
+              
+              {/* Category Filter */}
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-500" />
+                <div className="relative" ref={dropdownRef}>
+                  <Button 
+                    variant="outline" 
+                    className="w-[200px] justify-start"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  >
+                    {categoryFilters.length === 0 ? (
+                      "All categories"
+                    ) : categoryFilters.length === 1 ? (
+                      categoryFilters[0]
+                    ) : (
+                      `${categoryFilters.length} categories selected`
+                    )}
+                  </Button>
+                  
+                  {/* Clickable dropdown */}
+                  {isDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-[300px] bg-white border border-gray-200 shadow-lg rounded-md p-4 z-50 max-h-[400px] overflow-y-auto">
+                      <div className="text-sm font-medium mb-3">Filter by categories:</div>
+                      
+                      <div className="space-y-2">
+                        {categoryList.map((category) => (
+                          <div key={category} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`category-${category}`}
+                              checked={categoryFilters.includes(category)}
+                              onCheckedChange={() => handleCategoryFilterToggle(category)}
+                            />
+                            <label
+                              htmlFor={`category-${category}`}
+                              className="text-sm cursor-pointer flex-1"
+                            >
+                              {category}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {categoryFilters.length > 0 && (
+                        <div className="pt-3 mt-3 border-t border-gray-200">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setCategoryFilters([])
+                              // Re-apply current filters when clearing categories
+                              if (searchQuery.trim() === "") {
+                                applyFilter(allBookmarks, activeFilter)
+                              } else {
+                                handleSearch()
+                              }
+                            }}
+                            className="w-full"
+                          >
+                            Clear all filters
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Results Count */}
@@ -991,331 +917,7 @@ export default function BookmarkSearchApp() {
                 </p>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Clusters View */}
-        {viewMode === "clusters" && !selectedCategory && (
-          <div>
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Explore Your Bookmarks</h2>
-              <p className="text-slate-600">Click on a cluster to see articles in that category</p>
-            </div>
-
-            {/* Loading State for Categories */}
-            {isLoadingCategories && (
-              <div className="text-center py-16">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
-                <p className="text-slate-600">Loading categories...</p>
-              </div>
-            )}
-
-            {/* No Categories/Bookmarks State */}
-            {!isLoadingCategories && Object.keys(categories).length === 0 && (
-              <div className="text-center py-16">
-                <div className="p-3 bg-slate-100 rounded-xl mb-4 inline-block">
-                  <Bookmark className="w-8 h-8 text-slate-400" />
-                </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">No bookmarks yet</h3>
-                <p className="text-slate-600 mb-6">Start by adding your first bookmark to see categories here.</p>
-                <Button onClick={() => setViewMode("search")} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Your First Bookmark
-                </Button>
-              </div>
-            )}
-
-            {/* Categories Grid */}
-            {!isLoadingCategories && Object.keys(categories).length > 0 && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
-                  {Object.entries(categories)
-                    .sort(([, countA], [, countB]) => countB - countA) // Sort by count descending
-                    .map(([category, count]) => {
-                      const jobStatus = refreshingCategories[category]
-                      const isRefreshing = jobStatus && (jobStatus.status === 'running' || jobStatus.status === 'pending')
-                      
-                      return (
-                        <Card 
-                          key={category} 
-                          className="relative cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200"
-                        >
-                          {/* Refresh button - only show when not refreshing */}
-                          {!isRefreshing && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation() // Prevent card click
-                                handleCategoryRefresh(category)
-                              }}
-                              className="absolute top-2 right-2 z-10 opacity-60 hover:opacity-100"
-                              title="Refresh category"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                          )}
-                          
-                          <CardContent 
-                            className="p-6 text-center"
-                            onClick={() => !isRefreshing && loadCategoryBookmarks(category)}
-                          >
-                            <h3 className="text-lg font-semibold text-indigo-900 mb-2">{category}</h3>
-                            <p className="text-indigo-600 font-medium">
-                              {count} article{count !== 1 ? 's' : ''}
-                            </p>
-                            
-                            {/* Progress overlay when refreshing */}
-                            {isRefreshing && jobStatus && (
-                              <div className="mt-4">
-                                <div className="flex items-center justify-center gap-2 text-sm text-slate-600 mb-2">
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Refreshing...</span>
-                                </div>
-                                <Progress value={jobStatus.progress_percentage} className="h-2" />
-                                <p className="text-xs text-slate-500 mt-1 truncate">
-                                  {jobStatus.current_item && jobStatus.current_item.replace('Processing: ', '')}
-                                </p>
-                                <p className="text-xs text-slate-400 mt-1">
-                                  {jobStatus.progress_current}/{jobStatus.progress_total}
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                
-                </div>
-
-                {/* Summary */}
-                <div className="text-center text-slate-600">
-                  <p>
-                    You have {totalBookmarks} total bookmarks across {categoryCount} cluster{categoryCount !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Category Detail View */}
-        {viewMode === "clusters" && selectedCategory && (
-          <div>
-            {/* Header with Back Button */}
-            <div className="mb-8 flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSelectedCategory(null)
-                  setCategorySearchQuery("") // Clear search input when going back
-                }}
-                className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Clusters
-              </Button>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">{selectedCategory}</h2>
-                <p className="text-slate-600">{categoryBookmarks.length} bookmarks in this category</p>
-              </div>
-            </div>
-
-            {/* Search within Category */}
-            <div className="mb-8">
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  type="text"
-                  placeholder={`Search within ${selectedCategory}...`}
-                  value={categorySearchQuery}
-                  onChange={(e) => setCategorySearchQuery(e.target.value)}
-                  onKeyPress={handleCategorySearchKeyPress}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Loading State for Category Bookmarks */}
-            {isLoadingCategoryBookmarks && (
-              <div className="text-center py-16">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
-                <p className="text-slate-600">Loading bookmarks...</p>
-              </div>
-            )}
-
-            {/* Category Bookmarks Grid */}
-            {!isLoadingCategoryBookmarks && (
-              <div className="grid gap-6">
-                {categoryBookmarks.map((bookmark) => (
-                  <Card key={bookmark.id} className="hover:shadow-lg transition-shadow border-slate-200">
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <a 
-                              href={bookmark.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="flex-1 hover:text-indigo-600 transition-colors cursor-pointer"
-                            >
-                              <CardTitle className="text-xl text-balance">{bookmark.title}</CardTitle>
-                            </a>
-                            {'similarity_score' in bookmark && (
-                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                                {(bookmark.similarity_score * 100).toFixed(0)}% match
-                              </span>
-                            )}
-                          </div>
-                          <CardDescription className="text-base line-clamp-2">{bookmark.description}</CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
-                            className="hover:bg-slate-100"
-                            title={bookmark.is_read ? "Mark as unread" : "Mark as read"}
-                          >
-                            {bookmark.is_read ? (
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <Circle className="w-5 h-5 text-slate-400" />
-                            )}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
-                            className={`hover:bg-slate-100 transition-colors ${
-                              copiedId === bookmark.id ? 'bg-green-50' : ''
-                            }`}
-                            title={copiedId === bookmark.id ? "Copied!" : "Copy URL to clipboard"}
-                          >
-                            {copiedId === bookmark.id ? (
-                              <Check className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <Copy className="w-5 h-5 text-black" />
-                            )}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleDeleteClick(bookmark)}
-                            className="hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title="Delete bookmark"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" asChild>
-                            <a href={bookmark.url} target="_blank" rel="noopener noreferrer" title="Open in new tab">
-                              <ExternalLink className="w-5 h-5" />
-                            </a>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>{formatDate(bookmark.created_at)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <a 
-                            href={`https://${bookmark.domain}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors"
-                          >
-                            {bookmark.domain}
-                          </a>
-                        </div>
-                        {bookmark.reference && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-500 text-sm italic">via: {bookmark.reference}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Tag className="w-4 h-4" />
-                          {bookmark.tags && bookmark.tags.length > 0 ? (
-                            <>
-                              {bookmark.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRegenerateTags(bookmark.id)}
-                                disabled={regeneratingTagsId === bookmark.id}
-                                className="h-6 px-2 hover:bg-slate-100"
-                                title="Regenerate tags"
-                              >
-                                {regeneratingTagsId === bookmark.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="w-3 h-3" />
-                                )}
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRegenerateTags(bookmark.id)}
-                              disabled={regeneratingTagsId === bookmark.id}
-                              className="h-6 px-2 text-xs"
-                            >
-                              {regeneratingTagsId === bookmark.id ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                  Generating...
-                                </>
-                              ) : (
-                                <>
-                                  <RefreshCw className="w-3 h-3 mr-1" />
-                                  Generate Tags
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                        <span
-                          className={`px-2 py-1 rounded-md text-xs font-medium ${
-                            bookmark.is_read 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-orange-100 text-orange-700'
-                          }`}
-                        >
-                          {bookmark.is_read ? 'Read' : 'Unread'}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Empty State for Category */}
-            {!isLoadingCategoryBookmarks && categoryBookmarks.length === 0 && (
-              <div className="text-center py-16">
-                <div className="inline-flex p-4 bg-slate-200 rounded-full mb-4">
-                  <Search className="w-8 h-8 text-slate-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">No bookmarks found</h3>
-                <p className="text-slate-600">
-                  {categorySearchQuery ? "Try a different search term" : `No bookmarks in ${selectedCategory} category`}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        </div>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

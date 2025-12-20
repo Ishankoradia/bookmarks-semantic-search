@@ -54,7 +54,7 @@ class DateRangeFilter(str, Enum):
 class MetadataFilters(BaseModel):
     reference: Optional[str] = Field(default=None, description="Filter by reference/source (partial match)")
     domain: Optional[str] = Field(default=None, description="Filter by domain (regex match)")
-    category: Optional[str] = Field(default=None, description="Filter by category (exact match, use 'Others' for null/empty categories)")
+    category: Optional[List[str]] = Field(default=None, description="Filter by categories (exact match, use 'Others' for null/empty categories)")
     date_range: Optional[DateRangeFilter] = Field(default=None, description="Filter by creation date")
     date_from: Optional[date] = Field(default=None, description="Custom date range start")
     date_to: Optional[date] = Field(default=None, description="Custom date range end")

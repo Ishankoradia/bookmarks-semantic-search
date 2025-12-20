@@ -222,15 +222,22 @@ class BookmarkService:
                 filter_conditions.append("domain ~* :domain")
                 filter_params["domain"] = active_filters.domain
             
-            # Category filter
-            if active_filters.category:
-                if active_filters.category == "Others":
-                    # Filter for bookmarks with null or empty category
-                    filter_conditions.append("(category IS NULL OR category = '')")
-                else:
-                    # Filter for exact category match
-                    filter_conditions.append("category = :category")
-                    filter_params["category"] = active_filters.category
+            # Category filter (support multiple categories)
+            if active_filters.category and len(active_filters.category) > 0:
+                category_conditions = []
+                for i, category in enumerate(active_filters.category):
+                    if category == "Others":
+                        # Filter for bookmarks with null or empty category
+                        category_conditions.append("(category IS NULL OR category = '')")
+                    else:
+                        # Filter for exact category match
+                        param_name = f"category_{i}"
+                        category_conditions.append(f"category = :{param_name}")
+                        filter_params[param_name] = category
+                
+                if category_conditions:
+                    # Use OR logic between different categories
+                    filter_conditions.append(f"({' OR '.join(category_conditions)})")
             
             # Date range filter
             if active_filters.date_range:
