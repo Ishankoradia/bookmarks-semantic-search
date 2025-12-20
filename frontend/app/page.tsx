@@ -753,7 +753,10 @@ export default function BookmarkSearchApp() {
                       <div className="flex flex-col h-full">
                         <div className="flex-1 space-y-3">
                         {/* Title */}
-                        <h3 className="font-semibold text-lg leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2">
+                        <h3 
+                          className="font-semibold text-lg leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2 cursor-pointer"
+                          onClick={() => window.open(bookmark.url, '_blank', 'noopener,noreferrer')}
+                        >
                           {bookmark.title}
                         </h3>
                         
