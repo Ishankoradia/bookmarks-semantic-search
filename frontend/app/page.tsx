@@ -777,15 +777,18 @@ export default function BookmarkSearchApp() {
                         
                         {/* Tags */}
                         {bookmark.tags && bookmark.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {bookmark.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                          <div className="flex items-start gap-2">
+                            <Tag className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex flex-wrap gap-1">
+                              {bookmark.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )}
                         
