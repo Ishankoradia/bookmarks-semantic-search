@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # Authentication
     WHITELISTED_EMAILS: str = ""  # Comma-separated list of whitelisted emails
     
+    # JWT Configuration
+    JWT_SECRET_KEY: str = ""  # Will use SECRET_KEY if not set
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_DAYS: int = 30  # Token expiration in days
+    
     # Embedding model configuration
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536

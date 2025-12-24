@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.core.config import settings
+from app.core.jwt import create_user_token
 
 router = APIRouter()
 
@@ -26,13 +27,21 @@ def is_email_whitelisted(email: str) -> bool:
         return True
     return email.lower() in whitelisted
 
-@router.post("/user", response_model=UserResponse)
-async def create_or_update_user(
+from pydantic import BaseModel
+
+class LoginResponse(BaseModel):
+    user: UserResponse
+    access_token: str
+    token_type: str
+
+@router.post("/login", response_model=LoginResponse)
+async def login(
     user_data: UserCreate,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """
-    Create or update a user from Google OAuth.
+    Login endpoint that creates/updates user and issues JWT cookie.
     This endpoint is called by NextAuth after successful Google authentication.
     """
     # Check if email is whitelisted
@@ -59,7 +68,7 @@ async def create_or_update_user(
         
         db.commit()
         db.refresh(existing_user)
-        return existing_user
+        curr_user = existing_user
     else:
         # Create new user
         new_user = User(
@@ -72,7 +81,25 @@ async def create_or_update_user(
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        return new_user
+        curr_user = new_user
+    
+    # Create JWT token and return in response
+    token = create_user_token(str(curr_user.uuid), curr_user.email)
+    
+    # Return user data with JWT token
+    return {
+        "user": curr_user,
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+@router.post("/logout")
+async def logout(response: Response):
+    """
+    Logout endpoint that clears the JWT cookie.
+    """
+    response.delete_cookie(key="access_token", path="/")
+    return {"message": "Successfully logged out"}
 
 @router.get("/user/{user_uuid}", response_model=UserResponse)
 async def get_user(

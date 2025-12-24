@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bookmark-backend
+    expose:
+      - "6005"
+    env_file:
+      - ./backend/.env.prod
+    environment:
+      - ENVIRONMENT=production
+      - COOKIE_SECURE=true
+      - COOKIE_DOMAIN=.yourdomain.com  # Allows subdomain sharing
+    networks:
+      - bookmark-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bookmark-frontend
+    expose:
+      - "3002"
+    env_file:
+      - ./frontend/.env.prod
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=/api/v1  # Relative path through nginx
+      - NEXTAUTH_URL=https://yourdomain.com
+    depends_on:
+      - backend
+    networks:
+      - bookmark-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: bookmark-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro  # SSL certificates
+      - ./certbot/www:/var/www/certbot:ro  # For Let's Encrypt challenges
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - bookmark-network
+    restart: unless-stopped
+
+  # Optional: Auto-renew SSL certificates
+  certbot:
+    image: certbot/certbot
+    container_name: bookmark-certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+
+networks:
+  bookmark-network:
+    driver: bridge

@@ -3,15 +3,13 @@
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, RefreshCw, Trash2, Filter } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SimpleAuthButton from "@/components/auth/simple-auth-button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent} from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Dialog,
   DialogContent,
@@ -32,7 +30,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Progress } from "@/components/ui/progress"
 import { useBookmarkApi } from "@/lib/auth-api"
 import { Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
 

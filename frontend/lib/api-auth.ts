@@ -1,7 +1,7 @@
 import { getSession } from "next-auth/react";
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6005/api/v1';
 
 // Create authenticated API instance
 export const createAuthenticatedApi = async () => {
@@ -11,10 +11,9 @@ export const createAuthenticatedApi = async () => {
     baseURL: API_BASE_URL,
     headers: {
       'Content-Type': 'application/json',
-      // Add user UUID header for backend authentication
-      ...(session?.user?.id && { 'X-User-Id': session.user.id }),
+      // Add JWT Bearer token from session
+      ...(session?.accessToken && { 'Authorization': `Bearer ${session.accessToken}` }),
     },
-    withCredentials: true, // Send cookies with requests
   });
   
   return api;

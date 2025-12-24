@@ -1,11 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-// Parse whitelisted emails from environment variable
-const getWhitelistedEmails = (): string[] => {
-  const emails = process.env.WHITELISTED_EMAILS || "";
-  return emails.split(",").map(email => email.trim().toLowerCase()).filter(Boolean);
-};
+// Whitelist checking is now handled by the backend
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,64 +12,55 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Check if email is whitelisted
-      const whitelistedEmails = getWhitelistedEmails();
-      
-      // If no whitelist is configured, allow all
-      if (whitelistedEmails.length === 0) {
-        console.warn("No WHITELISTED_EMAILS configured - allowing all users");
-        return true;
-      }
-      
-      // Check if user email is in whitelist
-      if (user.email && whitelistedEmails.includes(user.email.toLowerCase())) {
-        // Save or update user in backend
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/auth/user`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: user.email,
-              name: user.name,
-              picture: user.image,
-              google_id: account?.providerAccountId,
-            }),
-          });
-          
-          if (!response.ok) {
-            console.error('Failed to save user to backend');
-            return false;
-          }
-          
-          const userData = await response.json();
-          // Store user UUID for later use
-          user.id = userData.uuid;
-          
-        } catch (error) {
-          console.error('Error saving user to backend:', error);
+      // Always try to login to backend - backend will handle whitelist checking
+      try {
+        const response = await fetch('http://backend:6005/api/v1/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: user.email,
+            name: user.name,
+            picture: user.image,
+            google_id: account?.providerAccountId,
+          }),
+        });
+        
+        if (!response.ok) {
+          console.error('Backend login failed:', response.status, response.statusText);
           return false;
         }
         
+        const loginData = await response.json();
+        // Store user data and JWT token in NextAuth session
+        user.id = loginData.user.uuid;
+        user.email = loginData.user.email;
+        user.name = loginData.user.name;
+        user.accessToken = loginData.access_token;
+        
         return true;
+      } catch (error) {
+        console.error('Error logging in to backend:', error);
+        return false;
       }
-      
-      // User not whitelisted
-      return false;
     },
     async session({ session, token }) {
-      // Add user UUID to session
+      // Add user data and JWT token to session
       if (token.id) {
         session.user.id = token.id;
+      }
+      if (token.accessToken) {
+        session.accessToken = token.accessToken;
       }
       return session;
     },
     async jwt({ token, user, account }) {
-      // Persist the user UUID in the token
+      // Persist user data and JWT token
       if (user?.id) {
-        token.sub = user.id; // NextAuth uses sub for user identifier
-        token.id = user.id;  // Store UUID in custom field
+        token.sub = user.id;
+        token.id = user.id;
+        token.accessToken = user.accessToken;
       }
       return token;
     },
