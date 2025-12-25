@@ -16,7 +16,7 @@ export const useBookmarkApi = () => {
     // Create bookmark
     createBookmark: async (data: CreateBookmarkRequest): Promise<Bookmark> => {
       return makeRequest(async (api) => {
-        const response = await api.post<Bookmark>('/bookmarks/', data);
+        const response = await api.post('/bookmarks/', data);
         return response.data;
       });
     },
@@ -24,7 +24,7 @@ export const useBookmarkApi = () => {
     // Get bookmarks
     getBookmarks: async (skip = 0, limit = 100): Promise<Bookmark[]> => {
       return makeRequest(async (api) => {
-        const response = await api.get<Bookmark[]>('/bookmarks/', {
+        const response = await api.get('/bookmarks/', {
           params: { skip, limit },
         });
         return response.data;
@@ -34,7 +34,7 @@ export const useBookmarkApi = () => {
     // Get single bookmark
     getBookmark: async (id: string): Promise<Bookmark> => {
       return makeRequest(async (api) => {
-        const response = await api.get<Bookmark>(`/bookmarks/${id}`);
+        const response = await api.get(`/bookmarks/${id}`);
         return response.data;
       });
     },
@@ -49,7 +49,7 @@ export const useBookmarkApi = () => {
     // Search bookmarks
     searchBookmarks: async (query: SearchQuery): Promise<BookmarkSearchResult[]> => {
       return makeRequest(async (api) => {
-        const response = await api.post<BookmarkSearchResult[]>('/bookmarks/search', query);
+        const response = await api.post('/bookmarks/search', query);
         return response.data;
       });
     },
@@ -57,7 +57,7 @@ export const useBookmarkApi = () => {
     // Update read status
     updateReadStatus: async (id: string, isRead: boolean): Promise<Bookmark> => {
       return makeRequest(async (api) => {
-        const response = await api.patch<Bookmark>(`/bookmarks/${id}/read-status`, {
+        const response = await api.patch(`/bookmarks/${id}/read-status`, {
           is_read: isRead,
         });
         return response.data;
@@ -67,7 +67,7 @@ export const useBookmarkApi = () => {
     // Preview tags
     previewTags: async (url: string): Promise<TagPreviewResponse> => {
       return makeRequest(async (api) => {
-        const response = await api.post<TagPreviewResponse>('/bookmarks/preview-tags', {
+        const response = await api.post('/bookmarks/preview-tags', {
           url: url,
         });
         return response.data;
@@ -77,7 +77,7 @@ export const useBookmarkApi = () => {
     // Regenerate tags
     regenerateTags: async (bookmarkId: string): Promise<TagPreviewResponse> => {
       return makeRequest(async (api) => {
-        const response = await api.post<TagPreviewResponse>(`/bookmarks/${bookmarkId}/regenerate-tags`);
+        const response = await api.post(`/bookmarks/${bookmarkId}/regenerate-tags`);
         return response.data;
       });
     },
@@ -85,15 +85,15 @@ export const useBookmarkApi = () => {
     // Get categories
     getCategories: async (): Promise<Record<string, number>> => {
       return makeRequest(async (api) => {
-        const response = await api.get<Record<string, number>>('/bookmarks/categories');
-        return response.data;
+        const response = await api.get('/bookmarks/categories');
+        return response.data as Record<string, number>;
       });
     },
 
     // Get category list for filtering
     getCategoryList: async (): Promise<string[]> => {
       return makeRequest(async (api) => {
-        const response = await api.get<string[]>('/bookmarks/categories/list');
+        const response = await api.get('/bookmarks/categories/list');
         return response.data;
       });
     },
@@ -101,7 +101,7 @@ export const useBookmarkApi = () => {
     // Get bookmarks by category
     getBookmarksByCategory: async (category: string, skip = 0, limit = 100): Promise<Bookmark[]> => {
       return makeRequest(async (api) => {
-        const response = await api.get<Bookmark[]>(`/bookmarks/categories/${encodeURIComponent(category)}`, {
+        const response = await api.get(`/bookmarks/categories/${encodeURIComponent(category)}`, {
           params: { skip, limit },
         });
         return response.data;
@@ -111,9 +111,9 @@ export const useBookmarkApi = () => {
     // Refresh category
     refreshCategory: async (category: string): Promise<{ job_id: string; status: string; total_bookmarks?: number }> => {
       return makeRequest(async (api) => {
-        const response = await api.post<{ job_id: string; status: string; total_bookmarks?: number }>(
+        const response = await api.post(
           `/categories/${encodeURIComponent(category)}/refresh`
-        );
+        ) as { data: { job_id: string; status: string; total_bookmarks?: number } };
         return response.data;
       });
     },
@@ -121,7 +121,7 @@ export const useBookmarkApi = () => {
     // Get job status
     getJobStatus: async (jobId: string): Promise<JobStatus> => {
       return makeRequest(async (api) => {
-        const response = await api.get<JobStatus>(`/jobs/${jobId}`);
+        const response = await api.get(`/jobs/${jobId}`);
         return response.data;
       });
     },
@@ -129,7 +129,7 @@ export const useBookmarkApi = () => {
     // Get active jobs
     getActiveJobs: async (): Promise<JobStatus[]> => {
       return makeRequest(async (api) => {
-        const response = await api.get<JobStatus[]>('/jobs/active');
+        const response = await api.get('/jobs/active');
         return response.data;
       });
     },

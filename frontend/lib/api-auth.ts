@@ -5,7 +5,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6005/a
 
 // Create authenticated API instance
 export const createAuthenticatedApi = async () => {
-  const session = await getSession();
+  const session: any = await getSession();
   
   const api = axios.create({
     baseURL: API_BASE_URL,

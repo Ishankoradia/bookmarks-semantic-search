@@ -1,7 +1,34 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-// Whitelist checking is now handled by the backend
+// Module augmentation for NextAuth types
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      image?: string;
+    };
+    accessToken?: string;
+  }
+
+  interface User {
+    id: string;
+    email: string;
+    name: string;
+    image?: string;
+    accessToken?: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    sub: string;
+    accessToken?: string;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
