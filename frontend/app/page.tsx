@@ -760,7 +760,7 @@ export default function BookmarkSearchApp() {
                         {/* Category */}
                         {bookmark.category && (
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
+                            <span className="text-slate-700 text-xs font-medium">
                               {bookmark.category}
                             </span>
                             {'similarity_score' in bookmark && (
