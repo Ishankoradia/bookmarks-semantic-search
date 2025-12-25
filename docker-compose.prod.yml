@@ -37,6 +37,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.prod.conf.template:/etc/nginx/templates/default.conf.template
+      #- ./nginx/nginx.initial.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt:ro  # SSL certificates
       - ./certbot/www:/var/www/certbot:ro  # For Let's Encrypt challenges
     environment:
