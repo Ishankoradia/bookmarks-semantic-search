@@ -448,7 +448,6 @@ export default function BookmarkSearchApp() {
       toast({
         title: "Bookmark copied!",
         description: "",
-        variant: "destructive",
         duration: 3000,
       })
     } catch (err) {
