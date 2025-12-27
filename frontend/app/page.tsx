@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SimpleAuthButton from "@/components/auth/simple-auth-button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -32,6 +38,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useBookmarkApi } from "@/lib/auth-api"
 import { Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 type FilterTab = "all" | "unread" | "read"
 
@@ -39,6 +46,7 @@ export default function BookmarkSearchApp() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const authApi = useBookmarkApi()
+  const { toast } = useToast()
   
   
   // Search mode state
@@ -55,13 +63,13 @@ export default function BookmarkSearchApp() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [tagPreview, setTagPreview] = useState<TagPreviewResponse | null>(null)
   const [isPreviewingTags, setIsPreviewingTags] = useState(false)
   const [regeneratingTagsId, setRegeneratingTagsId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bookmarkToDelete, setBookmarkToDelete] = useState<{id: string, title: string} | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   
   // Category filter state
   const [categoryList, setCategoryList] = useState<string[]>([])
@@ -126,16 +134,24 @@ export default function BookmarkSearchApp() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false)
       }
+      // Close mobile menu if clicking outside - check if target is inside menu
+      if (openMenuId !== null) {
+        const target = event.target as HTMLElement
+        const isMenuClick = target.closest('.mobile-menu-dropdown')
+        if (!isMenuClick) {
+          setOpenMenuId(null)
+        }
+      }
     }
 
-    if (isDropdownOpen) {
+    if (isDropdownOpen || openMenuId !== null) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isDropdownOpen])
+  }, [isDropdownOpen, openMenuId])
 
   const loadBookmarks = async () => {
     try {
@@ -429,8 +445,12 @@ export default function BookmarkSearchApp() {
   const handleCopyToClipboard = async (url: string, bookmarkId: string) => {
     try {
       await navigator.clipboard.writeText(url)
-      setCopiedId(bookmarkId)
-      setTimeout(() => setCopiedId(null), 2000) // Reset after 2 seconds
+      toast({
+        title: "Bookmark copied!",
+        description: "",
+        variant: "destructive",
+        duration: 3000,
+      })
     } catch (err) {
       console.error('Failed to copy to clipboard:', err)
       // Fallback for older browsers
@@ -441,12 +461,19 @@ export default function BookmarkSearchApp() {
         textArea.select()
         document.execCommand('copy')
         document.body.removeChild(textArea)
-        setCopiedId(bookmarkId)
-        setTimeout(() => setCopiedId(null), 2000) // Reset after 2 seconds
+        toast({
+          title: "Bookmark copied!",
+          description: "",
+          duration: 3000,
+        })
       } catch (fallbackErr) {
         console.error('Fallback copy also failed:', fallbackErr)
-        setError('Failed to copy to clipboard')
-        setTimeout(() => setError(null), 3000)
+        toast({
+          title: "Failed to copy bookmark",
+          description: "",
+          variant: "destructive",
+          duration: 3000,
+        })
       }
     }
   }
@@ -476,16 +503,16 @@ export default function BookmarkSearchApp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
-        {/* Header */}
-        <header className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-indigo-600 rounded-xl">
-                <Bookmark className="w-8 h-8 text-white" />
+        {/* Header - Mobile Optimized */}
+        <header className="mb-6 md:mb-12">
+          <div className="flex items-center justify-between mb-2 md:mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-3 bg-indigo-600 rounded-xl">
+                <Bookmark className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-slate-900">Semantic Bookmarks</h1>
-                <p className="text-slate-600 text-lg">Search your bookmarks by meaning, not just keywords</p>
+                <h1 className="text-2xl md:text-4xl font-bold text-slate-900">Semantic Bookmarks</h1>
+                <p className="text-slate-600 text-sm md:text-lg hidden sm:block">Search your bookmarks by meaning, not just keywords</p>
               </div>
             </div>
             <SimpleAuthButton />
@@ -500,9 +527,9 @@ export default function BookmarkSearchApp() {
         )}
 
         {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="mb-4 md:mb-8 flex flex-col sm:flex-row gap-2 sm:gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-slate-900">Your Bookmarks</h1>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900">Your Bookmarks</h2>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
@@ -619,7 +646,7 @@ export default function BookmarkSearchApp() {
         {/* Search View */}
         <div>
             {/* Search Section */}
-            <div className="mb-8 flex flex-col sm:flex-row gap-4">
+            <div className="mb-4 md:mb-8 flex flex-col sm:flex-row gap-2 md:gap-4">
               <div className="flex-1 relative">
                 {isSearching ? (
                   <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin" />
@@ -633,13 +660,13 @@ export default function BookmarkSearchApp() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
                   disabled={isSearching}
-                  className="pl-12 h-14 text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
+                  className="pl-12 h-12 md:h-14 text-base md:text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
             {/* Filter Tabs and Category Filter */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start">
+            <div className="mb-4 md:mb-6 flex flex-col gap-3 sm:flex-row sm:gap-4 sm:items-start">
               <Tabs value={activeFilter} onValueChange={(value) => handleFilterChange(value as FilterTab)}>
                 <TabsList>
                   <TabsTrigger value="all">All</TabsTrigger>
@@ -817,7 +844,8 @@ export default function BookmarkSearchApp() {
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Desktop Actions - Hidden on mobile */}
+                          <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button 
                               variant="ghost" 
                               size="sm"
@@ -835,16 +863,10 @@ export default function BookmarkSearchApp() {
                               variant="ghost" 
                               size="sm"
                               onClick={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
-                              className={`h-7 w-7 p-0 hover:bg-slate-100 transition-colors ${
-                                copiedId === bookmark.id ? 'bg-green-50' : ''
-                              }`}
-                              title={copiedId === bookmark.id ? "Copied!" : "Copy URL"}
+                              className="h-7 w-7 p-0 hover:bg-slate-100 transition-colors"
+                              title="Copy URL"
                             >
-                              {copiedId === bookmark.id ? (
-                                <Check className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
-                              )}
+                              <Copy className="w-4 h-4" />
                             </Button>
                             <Button 
                               variant="ghost" 
@@ -855,6 +877,86 @@ export default function BookmarkSearchApp() {
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
+                          </div>
+
+                          {/* Mobile Actions - 3-dot menu */}
+                          <div className="md:hidden relative">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7 w-7 p-0"
+                              onClick={() => setOpenMenuId(openMenuId === bookmark.id ? null : bookmark.id)}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                            
+                            {/* Custom dropdown menu */}
+                            {openMenuId === bookmark.id && (
+                              <div 
+                                className="mobile-menu-dropdown absolute right-0 top-8 w-48 bg-white rounded-md shadow-xl border border-gray-200 py-1 z-50"
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onMouseDown={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                  }}
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    setTimeout(() => {
+                                      handleReadStatusToggle(bookmark.id, bookmark.is_read || false)
+                                      setOpenMenuId(null)
+                                    }, 0)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                                >
+                                  {bookmark.is_read ? (
+                                    <Circle className="w-4 h-4 text-slate-400" />
+                                  ) : (
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                  )}
+                                  {bookmark.is_read ? "Mark as unread" : "Mark as read"}
+                                </button>
+                                <button
+                                  onMouseDown={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                  }}
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    setTimeout(() => {
+                                      handleCopyToClipboard(bookmark.url, bookmark.id)
+                                      setOpenMenuId(null)
+                                    }, 0)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                  Copy URL
+                                </button>
+                                <button
+                                  onMouseDown={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                  }}
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    setTimeout(() => {
+                                      handleDeleteClick(bookmark)
+                                      setOpenMenuId(null)
+                                    }, 0)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete bookmark
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
