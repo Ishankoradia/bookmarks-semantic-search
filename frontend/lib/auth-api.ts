@@ -64,16 +64,6 @@ export const useBookmarkApi = () => {
       });
     },
 
-    // Preview tags
-    previewTags: async (url: string): Promise<TagPreviewResponse> => {
-      return makeRequest(async (api) => {
-        const response = await api.post('/bookmarks/preview-tags', {
-          url: url,
-        });
-        return response.data;
-      });
-    },
-
     // Regenerate tags
     regenerateTags: async (bookmarkId: string): Promise<TagPreviewResponse> => {
       return makeRequest(async (api) => {

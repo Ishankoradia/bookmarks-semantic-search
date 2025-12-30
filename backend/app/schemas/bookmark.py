@@ -73,12 +73,3 @@ class ParsedSearchQuery(BaseModel):
 
 class ReadStatusUpdate(BaseModel):
     is_read: bool
-
-class TagPreviewRequest(BaseModel):
-    url: HttpUrl
-
-class TagPreviewResponse(BaseModel):
-    tags: List[str]
-    title: str
-    description: Optional[str] = None
-    domain: str

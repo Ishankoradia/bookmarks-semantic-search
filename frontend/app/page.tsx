@@ -63,8 +63,6 @@ export default function BookmarkSearchApp() {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
-  const [tagPreview, setTagPreview] = useState<TagPreviewResponse | null>(null)
-  const [isPreviewingTags, setIsPreviewingTags] = useState(false)
   const [regeneratingTagsId, setRegeneratingTagsId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bookmarkToDelete, setBookmarkToDelete] = useState<{id: string, title: string} | null>(null)
@@ -341,39 +339,13 @@ export default function BookmarkSearchApp() {
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open)
     if (!open) {
-      // Clear modal error, URL, reference, and tag preview when closing
+      // Clear modal error, URL, and reference when closing
       setModalError(null)
       setNewBookmarkUrl("")
       setNewBookmarkReference("")
-      setTagPreview(null)
     }
   }
 
-  const handlePreviewTags = async () => {
-    if (!newBookmarkUrl.trim()) {
-      setModalError('Please enter a valid URL')
-      return
-    }
-
-    try {
-      setIsPreviewingTags(true)
-      setModalError(null)
-      const preview = await authApi.previewTags(newBookmarkUrl)
-      setTagPreview(preview)
-    } catch (err: any) {
-      let errorMessage = 'Failed to preview tags'
-      
-      if (err.response?.status === 400) {
-        errorMessage = err.response.data?.detail || 'Unable to access the provided URL'
-      } else if (err.response?.status === 422) {
-        errorMessage = 'Please enter a valid URL format'
-      }
-      
-      setModalError(errorMessage)
-    } finally {
-      setIsPreviewingTags(false)
-    }
-  }
 
   const handleReadStatusToggle = async (bookmarkId: string, currentStatus: boolean) => {
     try {
@@ -561,7 +533,6 @@ export default function BookmarkSearchApp() {
                       value={newBookmarkUrl}
                       onChange={(e) => {
                         setNewBookmarkUrl(e.target.value)
-                        setTagPreview(null) // Clear preview when URL changes
                       }}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && !isAddingBookmark) {
@@ -570,19 +541,6 @@ export default function BookmarkSearchApp() {
                       }}
                       className="flex-1"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handlePreviewTags}
-                      disabled={isPreviewingTags || !newBookmarkUrl.trim()}
-                      className="px-4"
-                    >
-                      {isPreviewingTags ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        "Preview"
-                      )}
-                    </Button>
                   </div>
                 </div>
 
@@ -597,32 +555,6 @@ export default function BookmarkSearchApp() {
                   />
                 </div>
 
-                {/* Tag Preview Section */}
-                {tagPreview && (
-                  <div className="space-y-3 p-4 bg-slate-50 rounded-lg border">
-                    <div>
-                      <h4 className="font-medium text-slate-900">{tagPreview.title}</h4>
-                      {tagPreview.description && (
-                        <p className="text-sm text-slate-600 mt-1">{tagPreview.description}</p>
-                      )}
-                      <p className="text-xs text-slate-500 mt-1">{tagPreview.domain}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Auto-generated tags:</Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {tagPreview.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <Button
                   onClick={handleAddBookmark}
                   disabled={isAddingBookmark || !newBookmarkUrl.trim()}

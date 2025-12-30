@@ -133,45 +133,6 @@ async def parse_search_query(query: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/preview-tags", response_model=TagPreviewResponse)
-async def preview_tags(request: TagPreviewRequest):
-    """Preview auto-generated tags for a URL before saving the bookmark."""
-    try:
-        url = str(request.url)
-        
-        # Scrape the URL to get content
-        scraped_data = await scraper.scrape_url(url)
-        
-        if not scraped_data.get('title'):
-            raise HTTPException(status_code=400, detail="Unable to extract content from this URL")
-        
-        # Generate tags using GPT-4o mini
-        try:
-            tags = await embedding_service.generate_content_tags(
-                title=scraped_data['title'],
-                description=scraped_data.get('description', ''),
-                content=scraped_data['content'],
-                domain=scraped_data['domain']
-            )
-        except Exception as e:
-            logger.warning(f"Failed to generate tags: {e}")
-            tags = []
-        
-        return TagPreviewResponse(
-            tags=tags,
-            title=scraped_data['title'],
-            description=scraped_data.get('description'),
-            domain=scraped_data['domain']
-        )
-        
-    except ConnectionError:
-        raise HTTPException(status_code=400, detail="Unable to access the provided URL")
-    except TimeoutError:
-        raise HTTPException(status_code=400, detail="The website took too long to respond")
-    except Exception as e:
-        logger.error(f"Error in preview_tags: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to preview tags")
-
 @router.get("/{bookmark_id}", response_model=BookmarkResponse)
 def get_bookmark(
     bookmark_id: UUID,
