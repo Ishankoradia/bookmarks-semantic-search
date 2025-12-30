@@ -9,8 +9,7 @@ from app.core.logging import get_logger
 from app.models.user import User
 from app.schemas.bookmark import (
     BookmarkCreate, BookmarkResponse, BookmarkUpdate, 
-    BookmarkSearchResult, SearchQuery, ReadStatusUpdate,
-    TagPreviewRequest, TagPreviewResponse, ParsedSearchQuery
+    BookmarkSearchResult, SearchQuery, ReadStatusUpdate, ParsedSearchQuery
 )
 from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
