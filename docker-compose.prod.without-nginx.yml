@@ -6,6 +6,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: bookmark-backend
+    ports:
+      - "6005:6005"
     expose:
       - "6005"
     env_file:
@@ -19,6 +21,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: bookmark-frontend
+    ports:
+      - "3002:3002"
     expose:
       - "3002"
     env_file:
