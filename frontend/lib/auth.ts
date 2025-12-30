@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       // Always try to login to backend - backend will handle whitelist checking
       try {
-        const response = await fetch('http://backend:6005/api/v1/auth/login', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
