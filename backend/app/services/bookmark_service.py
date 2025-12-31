@@ -6,6 +6,7 @@ from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkSearchR
 from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
 from app.core.logging import get_logger
+from app.core.config import settings, SearchMode
 from datetime import datetime, timedelta, date
 import uuid
 
@@ -155,9 +156,9 @@ class BookmarkService:
         return date_from, date_to
     
     async def search_bookmarks_with_filters(
-        self, 
-        db: Session, 
-        query: str, 
+        self,
+        db: Session,
+        query: str,
         user_id: int,
         limit: int = 10,
         threshold: float = 0.5,
@@ -165,12 +166,29 @@ class BookmarkService:
         auto_parse_query: bool = True
     ) -> List[BookmarkSearchResult]:
         """
-        Two-step search: 
+        Two-step search:
         1. Apply metadata filters (OR logic)
         2. Perform vector search on filtered results
         If no results from filtering, fallback to entire database
+
+        Search method is determined by SEARCH_MODE setting:
+        - "semantic": AI embeddings with vector similarity
+        - "fulltext": PostgreSQL full-text search
         """
-        
+        # Route to full-text search if configured
+        if settings.SEARCH_MODE == SearchMode.FULLTEXT:
+            self.logger.debug("Using full-text search mode")
+            return await self.search_bookmarks_fulltext(
+                db=db,
+                query=query,
+                user_id=user_id,
+                limit=limit,
+                filters=filters
+            )
+
+        # Semantic search (default)
+        self.logger.debug("Using semantic search mode")
+
         # Parse the query to extract filters if auto_parse_query is True
         # Use the original query for vector search (no cleaning)
         parsed_filters = None
@@ -467,9 +485,110 @@ class BookmarkService:
                 'similarity_score': float(row.similarity_score)
             }
             bookmarks.append(BookmarkSearchResult(**bookmark_dict))
-        
+
         return bookmarks
-    
+
+    async def search_bookmarks_fulltext(
+        self,
+        db: Session,
+        query: str,
+        user_id: int,
+        limit: int = 10,
+        filters: Optional[MetadataFilters] = None
+    ) -> List[BookmarkSearchResult]:
+        """
+        Full-text search using PostgreSQL tsvector/tsquery.
+        Uses websearch_to_tsquery for user-friendly query parsing.
+        Ranks results using ts_rank_cd (cover density ranking).
+        """
+        # Build filter conditions
+        filter_conditions = ["user_id = :user_id"]
+        filter_params = {"user_id": user_id, "query": query, "limit": limit}
+
+        if filters:
+            # Category filter
+            if filters.category and len(filters.category) > 0:
+                category_conditions = []
+                for i, category in enumerate(filters.category):
+                    if category == "Others":
+                        category_conditions.append("(category IS NULL OR category = '')")
+                    else:
+                        param_name = f"category_{i}"
+                        category_conditions.append(f"category = :{param_name}")
+                        filter_params[param_name] = category
+                if category_conditions:
+                    filter_conditions.append(f"({' OR '.join(category_conditions)})")
+
+            # Date range filter
+            if filters.date_range:
+                date_from, date_to = self._get_date_range(filters.date_range)
+                if date_from:
+                    filter_conditions.append("created_at >= :date_from")
+                    filter_params["date_from"] = date_from
+                if date_to:
+                    filter_conditions.append("created_at <= :date_to")
+                    filter_params["date_to"] = date_to
+
+            # Custom date range
+            if filters.date_from:
+                filter_conditions.append("created_at >= :custom_date_from")
+                filter_params["custom_date_from"] = datetime.combine(filters.date_from, datetime.min.time())
+            if filters.date_to:
+                filter_conditions.append("created_at <= :custom_date_to")
+                filter_params["custom_date_to"] = datetime.combine(filters.date_to, datetime.max.time())
+
+            # Domain filter
+            if filters.domain:
+                filter_conditions.append("domain ~* :domain")
+                filter_params["domain"] = filters.domain
+
+            # Reference filter
+            if filters.reference:
+                filter_conditions.append("LOWER(COALESCE(reference, '')) LIKE LOWER(:reference)")
+                filter_params["reference"] = f"%{filters.reference}%"
+
+        where_clause = " AND ".join(filter_conditions)
+
+        sql_query = text(f"""
+            SELECT
+                id, url, title, description, content, domain, tags, meta_data,
+                is_read, reference, category, created_at, updated_at,
+                ts_rank_cd(search_vector, websearch_to_tsquery('english', :query), 32) AS similarity_score
+            FROM bookmarks
+            WHERE {where_clause}
+                AND search_vector @@ websearch_to_tsquery('english', :query)
+            ORDER BY similarity_score DESC
+            LIMIT :limit
+        """)
+
+        try:
+            results = db.execute(sql_query, filter_params).fetchall()
+            self.logger.debug(f"Full-text search returned {len(results)} results")
+        except Exception as e:
+            self.logger.error(f"Error executing full-text search: {e}", exc_info=True)
+            return []
+
+        bookmarks = []
+        for row in results:
+            bookmark_dict = {
+                'id': row.id,
+                'url': row.url,
+                'title': row.title,
+                'description': row.description,
+                'domain': row.domain,
+                'tags': row.tags or [],
+                'meta_data': row.meta_data or {},
+                'is_read': row.is_read,
+                'reference': row.reference,
+                'category': row.category,
+                'created_at': row.created_at,
+                'updated_at': row.updated_at,
+                'similarity_score': float(row.similarity_score) if row.similarity_score else 0.0
+            }
+            bookmarks.append(BookmarkSearchResult(**bookmark_dict))
+
+        return bookmarks
+
     def get_bookmarks_grouped_by_category(self, db: Session, user_id: int) -> Dict[str, List[Bookmark]]:
         """Get bookmarks grouped by category with counts."""
         bookmarks = db.query(Bookmark).filter(Bookmark.user_id == user_id).order_by(Bookmark.created_at.desc()).all()

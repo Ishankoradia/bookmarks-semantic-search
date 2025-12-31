@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean, ForeignKey, Index, Computed
+from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -24,7 +24,16 @@ class Bookmark(Base):
     is_read = Column(Boolean, default=False, nullable=True)
     reference = Column(Text, nullable=True)  # How user found this bookmark
     category = Column(String, nullable=True)  # Category that best describes the content
-    
+
+    # Full-text search vector (generated from content + reference)
+    search_vector = Column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('english', COALESCE(content, '') || ' ' || COALESCE(reference, ''))",
+            persisted=True
+        )
+    )
+
     # User relationship
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     user = relationship("User", back_populates="bookmarks")
