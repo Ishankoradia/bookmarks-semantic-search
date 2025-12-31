@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter, MoreVertical } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter, MoreVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SimpleAuthButton from "@/components/auth/simple-auth-button"
 import { Input } from "@/components/ui/input"
@@ -578,21 +578,45 @@ export default function BookmarkSearchApp() {
         <div>
             {/* Search Section */}
             <div className="mb-4 md:mb-8 flex flex-col sm:flex-row gap-2 md:gap-4">
-              <div className="flex-1 relative">
+              <div className="flex-1 relative group">
                 {isSearching ? (
-                  <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin" />
+                  <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 animate-spin z-10" />
                 ) : (
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Search
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors duration-200 z-10 cursor-pointer hover:text-indigo-600"
+                    onClick={handleSearch}
+                  />
                 )}
                 <Input
                   type="text"
-                  placeholder="Search bookmarks semantically..."
+                  placeholder="Search bookmarks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
                   disabled={isSearching}
-                  className="pl-12 h-12 md:h-14 text-base md:text-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500"
+                  className="pl-12 pr-10 h-12 md:h-14 text-base md:text-lg
+                    border-slate-200 bg-white
+                    hover:border-slate-300 hover:bg-slate-50/50
+                    focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20
+                    focus:shadow-lg focus:shadow-indigo-500/10 focus:bg-white
+                    selection:bg-indigo-100 selection:text-indigo-900
+                    transition-all duration-200 ease-out"
                 />
+                {/* Clear button */}
+                {searchQuery && !isSearching && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      applyFilter(allBookmarks, activeFilter, categoryFilters)
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full
+                      text-slate-400 hover:text-slate-600 hover:bg-slate-100
+                      transition-all duration-150 z-10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
 
