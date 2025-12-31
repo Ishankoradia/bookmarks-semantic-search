@@ -18,8 +18,10 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationship to bookmarks
+    # Relationships
     bookmarks = relationship("Bookmark", back_populates="user")
+    preferences = relationship("UserPreference", back_populates="user", uselist=False)
+    feed_articles = relationship("FeedArticle", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.email}>"
