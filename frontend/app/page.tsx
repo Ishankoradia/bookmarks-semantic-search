@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter, MoreVertical, X } from "lucide-react"
+import { Search, Plus, Bookmark, ExternalLink, Calendar, Tag, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter, MoreVertical, X, RefreshCw, Settings2, Compass } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SimpleAuthButton from "@/components/auth/simple-auth-button"
 import { Input } from "@/components/ui/input"
@@ -36,19 +36,38 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useBookmarkApi } from "@/lib/auth-api"
-import { Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus } from "@/lib/api"
+import { useBookmarkApi, usePreferencesApi, useFeedApi } from "@/lib/auth-api"
+import { Bookmark as BookmarkType, BookmarkSearchResult, TagPreviewResponse, JobStatus, FeedArticle, UserPreference } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { OnboardingModal } from "@/components/explore/OnboardingModal"
+import { TopicSelector } from "@/components/explore/TopicSelector"
 
 type FilterTab = "all" | "unread" | "read"
+type MainView = "explore" | "bookmarks"
 
 export default function BookmarkSearchApp() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const authApi = useBookmarkApi()
+  const preferencesApi = usePreferencesApi()
+  const feedApi = useFeedApi()
   const { toast } = useToast()
-  
-  
+
+  // Main view state (Explore vs Bookmarks)
+  const [mainView, setMainView] = useState<MainView>("explore")
+
+  // Explore/Feed state
+  const [feedArticles, setFeedArticles] = useState<FeedArticle[]>([])
+  const [isLoadingFeed, setIsLoadingFeed] = useState(false)
+  const [isRefreshingFeed, setIsRefreshingFeed] = useState(false)
+  const [userPreferences, setUserPreferences] = useState<UserPreference | null>(null)
+  const [availableTopics, setAvailableTopics] = useState<string[]>([])
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [isEditingInterests, setIsEditingInterests] = useState(false)
+  const [editedInterests, setEditedInterests] = useState<string[]>([])
+  const [isSavingInterests, setIsSavingInterests] = useState(false)
+  const [savingArticleId, setSavingArticleId] = useState<string | null>(null)
+
   // Search mode state
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilters, setCategoryFilters] = useState<string[]>([])
@@ -124,7 +143,166 @@ export default function BookmarkSearchApp() {
   useEffect(() => {
     loadBookmarks()
     loadCategoryList()
+    loadPreferencesAndFeed()
   }, [])
+
+  // Load preferences and feed
+  const loadPreferencesAndFeed = async () => {
+    try {
+      // Load available topics
+      const topics = await preferencesApi.getTopics()
+      setAvailableTopics(topics)
+
+      // Load user preferences
+      const prefs = await preferencesApi.getPreferences()
+      setUserPreferences(prefs)
+
+      // Check if user needs onboarding (no interests selected)
+      if (!prefs.interests || prefs.interests.length === 0) {
+        setShowOnboarding(true)
+      } else {
+        // Load feed if user has interests
+        await loadFeed()
+      }
+    } catch (err: any) {
+      console.error('Error loading preferences:', err)
+    }
+  }
+
+  const loadFeed = async () => {
+    try {
+      setIsLoadingFeed(true)
+      const response = await feedApi.getFeed(0, 50)
+      setFeedArticles(response.articles)
+
+      // Check if there's a running refresh job
+      const jobStatus = await feedApi.getRefreshStatus()
+      if ('status' in jobStatus && (jobStatus.status === 'pending' || jobStatus.status === 'running')) {
+        setIsRefreshingFeed(true)
+        // Start polling for completion
+        pollRefreshStatus()
+      }
+    } catch (err: any) {
+      console.error('Error loading feed:', err)
+      toast({
+        title: "Failed to load feed",
+        description: "Please try again later",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingFeed(false)
+    }
+  }
+
+  const pollRefreshStatus = () => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await feedApi.getRefreshStatus()
+        if ('status' in status && (status.status === 'completed' || status.status === 'failed')) {
+          clearInterval(pollInterval)
+          setIsRefreshingFeed(false)
+
+          if (status.status === 'completed') {
+            await loadFeed()
+            const jobResult = 'result' in status ? status.result as Record<string, unknown> | null : null
+            const articlesNew = jobResult?.articles_new as number | undefined
+            if (articlesNew && articlesNew > 0) {
+              toast({
+                title: "Feed refreshed",
+                description: `Found ${articlesNew} new articles`,
+              })
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error polling refresh status:', err)
+      }
+    }, 2000)
+  }
+
+  const handleRefreshFeed = async () => {
+    try {
+      setIsRefreshingFeed(true)
+      await feedApi.refreshFeed()
+      // Start polling for completion
+      pollRefreshStatus()
+    } catch (err: any) {
+      console.error('Error refreshing feed:', err)
+      setIsRefreshingFeed(false)
+      toast({
+        title: "Failed to refresh feed",
+        description: err.response?.data?.detail || "Please try again",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveArticle = async (articleId: string) => {
+    try {
+      setSavingArticleId(articleId)
+      await feedApi.saveArticle(articleId)
+      // Update the article in the list to show it's saved
+      setFeedArticles(prev =>
+        prev.map(article =>
+          article.id === articleId ? { ...article, is_saved: true } : article
+        )
+      )
+      toast({
+        title: "Article saved",
+        description: "Added to your bookmarks",
+      })
+      // Reload bookmarks in case user switches to that tab
+      await loadBookmarks()
+      await loadCategoryList()
+    } catch (err: any) {
+      console.error('Error saving article:', err)
+      toast({
+        title: "Failed to save",
+        description: err.response?.data?.detail || "Please try again",
+        variant: "destructive",
+      })
+    } finally {
+      setSavingArticleId(null)
+    }
+  }
+
+  const handleOnboardingComplete = async () => {
+    setShowOnboarding(false)
+    // Reload preferences and feed
+    await loadPreferencesAndFeed()
+  }
+
+  const handleEditInterests = () => {
+    setEditedInterests(userPreferences?.interests || [])
+    setIsEditingInterests(true)
+  }
+
+  const handleSaveInterests = async () => {
+    if (editedInterests.length < 2) {
+      toast({
+        title: "Select at least 2 topics",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSavingInterests(true)
+      await preferencesApi.updatePreferences({ interests: editedInterests })
+      setUserPreferences(prev => prev ? { ...prev, interests: editedInterests } : null)
+      setIsEditingInterests(false)
+      // Refresh feed with new interests
+      await handleRefreshFeed()
+    } catch (err: any) {
+      console.error('Error saving interests:', err)
+      toast({
+        title: "Failed to save interests",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingInterests(false)
+    }
+  }
 
   // Handle click outside dropdown to close it
   useEffect(() => {
@@ -497,12 +675,68 @@ export default function BookmarkSearchApp() {
           </div>
         )}
 
+        {/* Onboarding Modal */}
+        <OnboardingModal
+          open={showOnboarding}
+          onComplete={handleOnboardingComplete}
+          topics={availableTopics}
+        />
+
+        {/* Main View Tabs */}
+        <div className="mb-6">
+          <Tabs value={mainView} onValueChange={(value) => setMainView(value as MainView)}>
+            <TabsList className="grid w-full max-w-[300px] grid-cols-2">
+              <TabsTrigger value="explore" className="flex items-center gap-2">
+                <Compass className="w-4 h-4" />
+                Explore
+              </TabsTrigger>
+              <TabsTrigger value="bookmarks" className="flex items-center gap-2">
+                <Bookmark className="w-4 h-4" />
+                Bookmarks
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* Header */}
         <div className="mb-4 md:mb-8 flex flex-col sm:flex-row gap-2 sm:gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl md:text-2xl font-bold text-slate-900">Your Bookmarks</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900">
+              {mainView === "explore" ? "Explore" : "Your Bookmarks"}
+            </h2>
+            {mainView === "explore" && userPreferences?.interests && userPreferences.interests.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleEditInterests}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                <Settings2 className="w-4 h-4 mr-1" />
+                Edit Interests
+              </Button>
+            )}
           </div>
 
+          {mainView === "explore" ? (
+            <Button
+              size="lg"
+              className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700"
+              onClick={handleRefreshFeed}
+              disabled={isRefreshingFeed}
+            >
+              {isRefreshingFeed ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-5 h-5 mr-2" />
+                  Refresh Feed
+                </>
+              )}
+            </Button>
+          ) : (
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
               <Button size="lg" className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700">
@@ -582,9 +816,194 @@ export default function BookmarkSearchApp() {
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
-        {/* Search View */}
+        {/* Edit Interests Dialog */}
+        <Dialog open={isEditingInterests} onOpenChange={setIsEditingInterests}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Edit Your Interests</DialogTitle>
+              <DialogDescription>
+                Select topics you're interested in. We'll update your Explore feed accordingly.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <TopicSelector
+                topics={availableTopics}
+                selectedTopics={editedInterests}
+                onSelectionChange={setEditedInterests}
+                minSelection={2}
+                disabled={isSavingInterests}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsEditingInterests(false)} disabled={isSavingInterests}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveInterests} disabled={isSavingInterests || editedInterests.length < 2}>
+                {isSavingInterests ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save & Refresh'
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Explore View */}
+        {mainView === "explore" && (
+          <div>
+            {/* Interests summary */}
+            {userPreferences?.interests && userPreferences.interests.length > 0 && (
+              <div className="mb-6 flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-slate-500">Based on:</span>
+                {userPreferences.interests.map((interest) => (
+                  <span
+                    key={interest}
+                    className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium"
+                  >
+                    {interest}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Loading State */}
+            {isLoadingFeed && (
+              <div className="text-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-slate-400" />
+                <p className="text-slate-600">Loading your feed...</p>
+              </div>
+            )}
+
+            {/* Feed Articles Grid */}
+            {!isLoadingFeed && feedArticles.length > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
+                {feedArticles.map((article) => (
+                  <Card
+                    key={article.id}
+                    className="hover:shadow-lg transition-all duration-200 group border-slate-200 h-full"
+                  >
+                    <CardContent className="p-6 h-full">
+                      <div className="flex flex-col h-full">
+                        <div className="flex-1 space-y-3">
+                          {/* Title */}
+                          <h3
+                            className="font-semibold text-lg leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2 cursor-pointer"
+                            onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
+                          >
+                            {article.title}
+                          </h3>
+
+                          {/* Topic and Source */}
+                          {article.topic && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-700 text-xs font-medium">
+                                {article.topic}
+                              </span>
+                              {article.source_type && (
+                                <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium">
+                                  {article.source_type === 'hn' ? 'Hacker News' : 'RSS'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* CTA Button */}
+                          <div className="pt-2">
+                            <Button
+                              onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
+                              variant="outline"
+                              className="w-full border-slate-300 text-slate-700 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white transition-colors cursor-pointer"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Read Article
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Actions and meta info */}
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100">
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span>{article.domain}</span>
+                            {article.is_saved && (
+                              <span className="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700">
+                                Saved
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          {!article.is_saved && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSaveArticle(article.id)}
+                              disabled={savingArticleId === article.id}
+                              className="h-8 px-3 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                              title="Save to bookmarks"
+                            >
+                              {savingArticleId === article.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Bookmark className="w-4 h-4 mr-1" />
+                                  Save
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoadingFeed && feedArticles.length === 0 && (
+              <div className="text-center py-16">
+                {isRefreshingFeed ? (
+                  <>
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-600" />
+                    <h3 className="text-xl font-semibold text-slate-900 mb-2">Fetching your feed...</h3>
+                    <p className="text-slate-600">
+                      We're gathering articles based on your interests. This may take a moment.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="inline-flex p-4 bg-slate-200 rounded-full mb-4">
+                      <Compass className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-slate-900 mb-2">No articles yet</h3>
+                    <p className="text-slate-600 mb-4">
+                      {userPreferences?.interests?.length ? (
+                        "Click 'Refresh Feed' to fetch new articles based on your interests"
+                      ) : (
+                        "Select your interests to start seeing personalized articles"
+                      )}
+                    </p>
+                    {!userPreferences?.interests?.length && (
+                      <Button onClick={() => setShowOnboarding(true)}>
+                        Select Interests
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bookmarks View */}
+        {mainView === "bookmarks" && (
         <div>
             {/* Search Section */}
             <div className="mb-4 md:mb-8 flex flex-col sm:flex-row gap-2 md:gap-4">
@@ -962,6 +1381,7 @@ export default function BookmarkSearchApp() {
               </div>
             )}
         </div>
+        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

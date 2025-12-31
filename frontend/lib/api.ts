@@ -78,3 +78,49 @@ export interface JobStatus {
 }
 
 // Default export removed - use useBookmarkApi from auth-api.ts instead
+
+// Feed Article types
+export interface FeedArticle {
+  id: string;
+  user_id: number;
+  url: string;
+  title: string;
+  description: string | null;
+  domain: string | null;
+  image_url: string | null;
+  topic: string | null;
+  source_type: string | null;
+  published_at: string | null;
+  fetched_at: string;
+  is_saved: boolean;
+  is_not_interested: boolean;
+}
+
+export interface FeedArticleListResponse {
+  articles: FeedArticle[];
+  total: number;
+  has_more: boolean;
+}
+
+export interface FeedRefreshResponse {
+  message: string;
+  articles_fetched: number;
+  articles_new: number;
+}
+
+// User Preference types
+export interface UserPreference {
+  id: number;
+  user_id: number;
+  interests: string[];
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface TopicsListResponse {
+  topics: string[];
+}
+
+export interface UserPreferenceUpdate {
+  interests: string[];
+}

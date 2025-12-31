@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.logging import setup_logging
-from app.api import bookmarks, jobs, auth
+from app.core.scheduler import start_scheduler, stop_scheduler
+from app.api import bookmarks, jobs, auth, preferences, feed
 
 # Initialize logging
 logger = setup_logging()
@@ -42,9 +44,29 @@ app.include_router(
     tags=["auth"]
 )
 
+app.include_router(
+    preferences.router,
+    prefix=f"{settings.API_V1_STR}/preferences",
+    tags=["preferences"]
+)
+
+app.include_router(
+    feed.router,
+    prefix=f"{settings.API_V1_STR}/feed",
+    tags=["feed"]
+)
+
 @app.on_event("startup")
 async def startup_event():
     logger.info(f"FastAPI application started successfully on {settings.PROJECT_NAME} v{settings.VERSION}")
+    # Start background scheduler for feed refresh
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down application")
+    stop_scheduler()
 
 @app.get("/")
 def read_root():

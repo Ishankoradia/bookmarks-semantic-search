@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     # Search mode: "semantic" (AI embeddings) or "fulltext" (PostgreSQL FTS)
     SEARCH_MODE: SearchMode = SearchMode.FULLTEXT
 
+    # Explore Feed Configuration
+    FEED_REFRESH_INTERVAL_HOURS: int = 24  # How often to refresh feeds
+    FEED_ARTICLES_PER_TOPIC: int = 10  # Max articles to fetch per topic
+    FEED_MAX_ARTICLES_PER_USER: int = 100  # Max articles in user's feed
+    FEED_ARTICLE_MAX_AGE_DAYS: int = 7  # Remove articles older than this
+
     class Config:
         env_file = ".env"
         extra = "ignore"

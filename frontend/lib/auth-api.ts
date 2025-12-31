@@ -1,11 +1,17 @@
 import { useAuthenticatedApi } from "./api-auth";
-import { 
-  Bookmark, 
-  BookmarkSearchResult, 
-  CreateBookmarkRequest, 
-  SearchQuery, 
+import {
+  Bookmark,
+  BookmarkSearchResult,
+  CreateBookmarkRequest,
+  SearchQuery,
   TagPreviewResponse,
-  JobStatus 
+  JobStatus,
+  FeedArticle,
+  FeedArticleListResponse,
+  FeedRefreshResponse,
+  UserPreference,
+  TopicsListResponse,
+  UserPreferenceUpdate,
 } from "./api";
 
 // Authenticated API helper functions
@@ -120,6 +126,94 @@ export const useBookmarkApi = () => {
     getActiveJobs: async (): Promise<JobStatus[]> => {
       return makeRequest(async (api) => {
         const response = await api.get('/jobs/active');
+        return response.data;
+      });
+    },
+  };
+};
+
+// User Preferences API
+export const usePreferencesApi = () => {
+  const { makeRequest } = useAuthenticatedApi();
+
+  return {
+    // Get user preferences
+    getPreferences: async (): Promise<UserPreference> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/preferences');
+        return response.data;
+      });
+    },
+
+    // Update user preferences
+    updatePreferences: async (data: UserPreferenceUpdate): Promise<UserPreference> => {
+      return makeRequest(async (api) => {
+        const response = await api.put('/preferences', data);
+        return response.data;
+      });
+    },
+
+    // Get available topics
+    getTopics: async (): Promise<string[]> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/preferences/topics');
+        return (response.data as TopicsListResponse).topics;
+      });
+    },
+  };
+};
+
+// Feed API
+export const useFeedApi = () => {
+  const { makeRequest } = useAuthenticatedApi();
+
+  return {
+    // Get user's feed articles
+    getFeed: async (skip = 0, limit = 50): Promise<FeedArticleListResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/feed', {
+          params: { skip, limit },
+        });
+        return response.data;
+      });
+    },
+
+    // Trigger feed refresh (returns job info)
+    refreshFeed: async (): Promise<JobStatus> => {
+      return makeRequest(async (api) => {
+        const response = await api.post('/feed/refresh');
+        return response.data;
+      });
+    },
+
+    // Get refresh job status
+    getRefreshStatus: async (): Promise<JobStatus | { status: string; message: string }> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/feed/refresh/status');
+        return response.data;
+      });
+    },
+
+    // Save article to bookmarks
+    saveArticle: async (articleId: string): Promise<Bookmark> => {
+      return makeRequest(async (api) => {
+        const response = await api.post(`/feed/${articleId}/save`);
+        return response.data;
+      });
+    },
+
+    // Mark article as not interested
+    markNotInterested: async (articleId: string): Promise<FeedArticle> => {
+      return makeRequest(async (api) => {
+        const response = await api.post(`/feed/${articleId}/not-interested`);
+        return response.data;
+      });
+    },
+
+    // Get single article
+    getArticle: async (articleId: string): Promise<FeedArticle> => {
+      return makeRequest(async (api) => {
+        const response = await api.get(`/feed/${articleId}`);
         return response.data;
       });
     },

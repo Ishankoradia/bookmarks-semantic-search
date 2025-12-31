@@ -16,6 +16,7 @@ class JobStatus(str, enum.Enum):
 class JobType(str, enum.Enum):
     """Types of background jobs."""
     REFRESH_CATEGORY = "refresh_category"  # Refresh bookmarks in a category
+    REFRESH_FEED = "refresh_feed"          # Refresh user's explore feed
 
 class Job(Base):
     """Generic job tracking table for all background operations."""
