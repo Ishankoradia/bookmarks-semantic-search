@@ -643,9 +643,9 @@ export default function BookmarkSearchApp() {
               {/* Category Filter */}
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-slate-500" />
-                <div className="relative" ref={dropdownRef}>
-                  <Button 
-                    variant="outline" 
+                <div className="relative flex items-center gap-1" ref={dropdownRef}>
+                  <Button
+                    variant="outline"
                     className="w-[200px] justify-start"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   >
@@ -657,6 +657,24 @@ export default function BookmarkSearchApp() {
                       `${categoryFilters.length} categories selected`
                     )}
                   </Button>
+                  {/* Quick clear button - visible when filters are active */}
+                  {categoryFilters.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCategoryFilters([])
+                        if (searchQuery.trim() === "") {
+                          applyFilter(allBookmarks, activeFilter, [])
+                        } else {
+                          performSearch(searchQuery, [])
+                        }
+                      }}
+                      className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-150"
+                      title="Clear category filters"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                   
                   {/* Clickable dropdown */}
                   {isDropdownOpen && (
