@@ -539,7 +539,12 @@ export default function BookmarkSearchApp() {
                           handleAddBookmark()
                         }
                       }}
-                      className="flex-1"
+                      className="flex-1 border-slate-200 bg-white
+                        hover:border-slate-300 hover:bg-slate-50/50
+                        focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20
+                        focus:shadow-md focus:shadow-indigo-500/10 focus:bg-white
+                        selection:bg-indigo-100 selection:text-indigo-900
+                        transition-all duration-200 ease-out"
                     />
                   </div>
                 </div>
@@ -551,7 +556,12 @@ export default function BookmarkSearchApp() {
                     placeholder="How did you find this bookmark? (e.g., 'Recommended by John', 'Found on HackerNews', 'From newsletter X')"
                     value={newBookmarkReference}
                     onChange={(e) => setNewBookmarkReference(e.target.value)}
-                    className="mt-2 min-h-[80px]"
+                    className="mt-2 min-h-[80px] border-slate-200 bg-white
+                      hover:border-slate-300 hover:bg-slate-50/50
+                      focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20
+                      focus:shadow-md focus:shadow-indigo-500/10 focus:bg-white
+                      selection:bg-indigo-100 selection:text-indigo-900
+                      transition-all duration-200 ease-out"
                   />
                 </div>
 
