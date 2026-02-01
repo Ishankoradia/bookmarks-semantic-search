@@ -20,6 +20,7 @@ AVAILABLE_TOPICS = [
 
 class UserPreferenceBase(BaseModel):
     interests: List[str] = Field(default=[], description="List of topics the user is interested in")
+    is_discoverable: bool = Field(default=True, description="Whether the user can be found by other users")
 
 
 class UserPreferenceCreate(UserPreferenceBase):
@@ -28,6 +29,7 @@ class UserPreferenceCreate(UserPreferenceBase):
 
 class UserPreferenceUpdate(BaseModel):
     interests: Optional[List[str]] = Field(default=None, description="List of topics the user is interested in")
+    is_discoverable: Optional[bool] = Field(default=None, description="Whether the user can be found by other users")
 
 
 class UserPreferenceResponse(UserPreferenceBase):

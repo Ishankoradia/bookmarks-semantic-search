@@ -18,12 +18,14 @@ from app.models.user_preference import UserPreference
 from app.models.job import Job, JobType, JobStatus
 from app.services.feed_service import FeedService
 from app.services.bookmark_service import BookmarkService
+from app.services.follow_service import follow_service
 from app.schemas.feed_article import (
     FeedArticleResponse,
     FeedArticleListResponse,
     FeedRefreshResponse,
 )
 from app.schemas.bookmark import BookmarkCreate, BookmarkResponse
+from app.schemas.follow import FriendsFeedResponse
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -73,6 +75,27 @@ def _run_feed_refresh_job(job_id: str, user_id: int, interests: list):
     finally:
         db.close()
         loop.close()
+
+
+@router.get("/friends", response_model=FriendsFeedResponse)
+async def get_friends_feed(
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get bookmarks from users you follow.
+
+    Returns paginated list of bookmarks from all followed users,
+    sorted by most recent first.
+    """
+    return await follow_service.get_friends_feed(
+        db=db,
+        user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("", response_model=FeedArticleListResponse)

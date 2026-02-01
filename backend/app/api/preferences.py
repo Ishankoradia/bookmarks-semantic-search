@@ -29,7 +29,8 @@ async def get_preferences(
         # Create default preferences for the user
         preferences = UserPreference(
             user_id=current_user.id,
-            interests=[]
+            interests=[],
+            is_discoverable=True
         )
         db.add(preferences)
         db.commit()
@@ -53,7 +54,8 @@ async def update_preferences(
         # Create new preferences
         preferences = UserPreference(
             user_id=current_user.id,
-            interests=preferences_update.interests or []
+            interests=preferences_update.interests or [],
+            is_discoverable=preferences_update.is_discoverable if preferences_update.is_discoverable is not None else True
         )
         db.add(preferences)
     else:
@@ -67,6 +69,9 @@ async def update_preferences(
                     detail=f"Invalid topics: {invalid_topics}. Valid topics are: {AVAILABLE_TOPICS}"
                 )
             preferences.interests = preferences_update.interests
+
+        if preferences_update.is_discoverable is not None:
+            preferences.is_discoverable = preferences_update.is_discoverable
 
     db.commit()
     db.refresh(preferences)

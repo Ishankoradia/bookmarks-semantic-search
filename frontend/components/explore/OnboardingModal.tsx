@@ -68,8 +68,8 @@ export function OnboardingModal({
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader className="text-center sm:text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
-            <Sparkles className="h-6 w-6 text-indigo-600" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <DialogTitle className="text-xl">Welcome! What interests you?</DialogTitle>
           <DialogDescription className="text-base">
@@ -89,7 +89,7 @@ export function OnboardingModal({
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 text-center">{error}</p>
+          <p className="text-sm text-destructive text-center">{error}</p>
         )}
 
         <DialogFooter className="sm:justify-center">

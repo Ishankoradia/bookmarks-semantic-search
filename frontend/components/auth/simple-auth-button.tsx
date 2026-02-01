@@ -11,13 +11,13 @@ export default function SimpleAuthButton() {
 
 
   if (status === "loading") {
-    return <div className="h-10 w-10 animate-pulse bg-gray-200 rounded-full" />;
+    return <div className="h-10 w-10 animate-pulse bg-muted rounded-full" />;
   }
 
   if (status === "unauthenticated") {
     return (
-      <Button 
-        onClick={() => signIn("google")} 
+      <Button
+        onClick={() => signIn("google")}
         variant="outline"
         className="gap-2"
       >
@@ -48,8 +48,8 @@ export default function SimpleAuthButton() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-full">
-          <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-indigo-300 hover:ring-offset-2 transition-all">
+        <button className="focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
+          <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary/50 hover:ring-offset-2 transition-all">
             <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
             <AvatarFallback>
               <User className="h-5 w-5" />
@@ -68,19 +68,19 @@ export default function SimpleAuthButton() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{session?.user?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{session?.user?.email}</p>
+              <p className="text-sm font-medium text-foreground truncate">{session?.user?.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{session?.user?.email}</p>
             </div>
           </div>
-          
+
           {/* Divider */}
-          <div className="border-t border-gray-200"></div>
-          
+          <div className="border-t"></div>
+
           {/* Logout Button */}
-          <Button 
+          <Button
             onClick={() => signOut()}
             variant="outline"
-            className="w-full gap-2 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+            className="w-full gap-2 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
           >
             <LogOut className="h-4 w-4" />
             Log out

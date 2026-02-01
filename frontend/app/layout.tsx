@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import AuthSessionProvider from '@/components/auth/session-provider'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from '@/components/ui/sonner'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
           {children}
         </AuthSessionProvider>
         <Toaster />
+        <SonnerToaster position="top-center" />
         <Analytics />
       </body>
     </html>
