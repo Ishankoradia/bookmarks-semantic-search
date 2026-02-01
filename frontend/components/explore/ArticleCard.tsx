@@ -11,7 +11,6 @@ import {
   Trash2,
   MoreVertical,
   Bookmark,
-  ThumbsDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -54,7 +53,6 @@ interface ArticleCardProps {
   onDelete?: () => void;
   // Feed-specific actions
   onSave?: () => void;
-  onNotInterested?: () => void;
   // State
   isSaving?: boolean;
   formatDate?: (date: string) => string;
@@ -67,7 +65,6 @@ export function ArticleCard({
   onToggleRead,
   onDelete,
   onSave,
-  onNotInterested,
   isSaving = false,
   formatDate = (date) => {
     const d = new Date(date);
@@ -233,27 +230,16 @@ export function ArticleCard({
               )}
 
               {isFeed && !(article as FeedArticle).is_saved && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onSave}
-                    disabled={isSaving}
-                    className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary transition-colors"
-                    title="Save to bookmarks"
-                  >
-                    <Bookmark className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onNotInterested}
-                    className="h-7 w-7 p-0 hover:bg-muted transition-colors"
-                    title="Not interested"
-                  >
-                    <ThumbsDown className="w-4 h-4" />
-                  </Button>
-                </>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onSave}
+                  disabled={isSaving}
+                  className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary transition-colors"
+                  title="Save to bookmarks"
+                >
+                  <Bookmark className="w-4 h-4" />
+                </Button>
               )}
             </div>
 
@@ -315,29 +301,17 @@ export function ArticleCard({
                   )}
 
                   {isFeed && !(article as FeedArticle).is_saved && (
-                    <>
-                      <button
-                        onClick={() => {
-                          onSave?.();
-                          setOpenMenu(false);
-                        }}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                      >
-                        <Bookmark className="w-4 h-4" />
-                        Save to bookmarks
-                      </button>
-                      <button
-                        onClick={() => {
-                          onNotInterested?.();
-                          setOpenMenu(false);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                      >
-                        <ThumbsDown className="w-4 h-4" />
-                        Not interested
-                      </button>
-                    </>
+                    <button
+                      onClick={() => {
+                        onSave?.();
+                        setOpenMenu(false);
+                      }}
+                      disabled={isSaving}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                      Save to bookmarks
+                    </button>
                   )}
                 </div>
               )}

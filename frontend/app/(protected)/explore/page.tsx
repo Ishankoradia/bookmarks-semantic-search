@@ -111,17 +111,6 @@ export default function ExplorePage() {
     }
   };
 
-  const handleNotInterested = async (articleId: string) => {
-    try {
-      await feedApi.markNotInterested(articleId);
-      setArticles((prev) =>
-        prev.map((a) => (a.id === articleId ? { ...a, is_not_interested: true } : a))
-      );
-    } catch (error) {
-      toast.error('Failed to update');
-    }
-  };
-
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     loadData();
@@ -134,8 +123,6 @@ export default function ExplorePage() {
       </div>
     );
   }
-
-  const visibleArticles = articles.filter((a) => !a.is_not_interested);
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-6">
@@ -179,7 +166,7 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      {visibleArticles.length === 0 ? (
+      {articles.length === 0 ? (
         <div className="text-center py-16">
           <Compass className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">No articles yet</h2>
@@ -197,12 +184,11 @@ export default function ExplorePage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {visibleArticles.map((article) => (
+          {articles.map((article) => (
             <ArticleCard
               key={article.id}
               article={{ ...article, type: 'feed' as const }}
               onSave={() => handleSaveArticle(article.id)}
-              onNotInterested={() => handleNotInterested(article.id)}
               isSaving={savingArticleId === article.id}
             />
           ))}

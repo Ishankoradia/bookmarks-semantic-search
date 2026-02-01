@@ -492,9 +492,16 @@ export default function BookmarksPage() {
             <Card key={bookmark.id}>
               <CardContent className="p-5">
                 {/* Title */}
-                <h3 className="font-semibold text-lg line-clamp-2 mb-1">
-                  {bookmark.title}
-                </h3>
+                <a
+                  href={bookmark.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <h3 className="font-semibold text-lg line-clamp-2 mb-1 hover:text-primary transition-colors cursor-pointer">
+                    {bookmark.title}
+                  </h3>
+                </a>
 
                 {/* Category */}
                 {bookmark.category && (
