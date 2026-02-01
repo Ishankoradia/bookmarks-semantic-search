@@ -122,10 +122,10 @@ export function ArticleCard({
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 group border h-full">
-      <CardContent className="p-5 h-full">
-        <div className="flex flex-col h-full">
-          <div className="flex-1 space-y-3">
+    <Card className="hover:shadow-lg transition-all duration-200 group border h-full overflow-hidden">
+      <CardContent className="p-5 h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex-1 space-y-3 overflow-hidden">
             {/* Owner info for friend bookmarks */}
             {isFriend && (
               <div className="flex items-center gap-2">
@@ -152,16 +152,24 @@ export function ArticleCard({
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block"
+              className="flex items-start gap-1.5 group/title"
             >
-              <h3 className="font-semibold text-lg leading-tight hover:text-primary transition-colors line-clamp-2 cursor-pointer">
+              <h3 className="font-semibold text-lg leading-tight hover:text-primary transition-colors line-clamp-2 cursor-pointer flex-1 min-w-0">
                 {article.title}
               </h3>
+              <ExternalLink className="w-4 h-4 flex-shrink-0 mt-1 text-muted-foreground group-hover/title:text-primary transition-colors" />
             </a>
+
+            {/* Description */}
+            {article.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {article.description}
+              </p>
+            )}
 
             {/* Category/Topic as subtitle */}
             {categoryLabel && (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm font-medium">
                 {categoryLabel}
               </p>
             )}
@@ -189,18 +197,6 @@ export function ArticleCard({
                 </div>
               </div>
             )}
-
-            {/* CTA Button */}
-            <div className="pt-2">
-              <Button
-                onClick={handleReadClick}
-                variant="outline"
-                className="w-full hover:bg-primary hover:border-primary hover:text-primary-foreground transition-colors cursor-pointer"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Read Article
-              </Button>
-            </div>
           </div>
 
           {/* Actions and meta info */}
