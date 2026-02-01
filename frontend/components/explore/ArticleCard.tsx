@@ -123,7 +123,7 @@ export function ArticleCard({
 
   return (
     <Card className="hover:shadow-lg transition-all duration-200 group border h-full overflow-hidden">
-      <CardContent className="p-5 h-full overflow-hidden">
+      <CardContent className="px-5 py-3 h-full overflow-hidden">
         <div className="flex flex-col h-full overflow-hidden">
           <div className="flex-1 space-y-3 overflow-hidden">
             {/* Owner info for friend bookmarks */}
