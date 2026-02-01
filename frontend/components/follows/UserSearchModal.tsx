@@ -91,11 +91,11 @@ export function UserSearchModal({ trigger, onUserFollowed }: UserSearchModalProp
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md overflow-hidden">
         <DialogHeader>
           <DialogTitle>Find People to Follow</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-hidden">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -107,7 +107,7 @@ export function UserSearchModal({ trigger, onUserFollowed }: UserSearchModalProp
             />
           </div>
 
-          <div className="max-h-[300px] overflow-y-auto space-y-2">
+          <div className="max-h-[300px] overflow-y-auto overflow-x-hidden space-y-2">
             {loading && (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

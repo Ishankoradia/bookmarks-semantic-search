@@ -35,27 +35,27 @@ export function UserCard({
     : user.email[0].toUpperCase();
 
   return (
-    <Card>
-      <CardContent className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
+    <Card className="overflow-hidden">
+      <CardContent className="flex items-center justify-between p-3 gap-2 overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+          <Avatar className="h-9 w-9 flex-shrink-0">
             <AvatarImage src={user.picture || undefined} alt={user.name || user.email} />
             <AvatarFallback>
-              {initials || <User className="h-5 w-5" />}
+              {initials || <User className="h-4 w-4" />}
             </AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
-            <p className="font-medium truncate">{user.name || 'Unknown'}</p>
-            <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+          <div className="min-w-0 overflow-hidden">
+            <p className="font-medium truncate text-sm">{user.name || 'Unknown'}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             {showStats && isUserProfile(user) && (
-              <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+              <div className="flex gap-2 text-xs text-muted-foreground mt-0.5">
                 <span>{user.followers_count} followers</span>
                 <span>{user.following_count} following</span>
               </div>
             )}
           </div>
         </div>
-        <div className="flex-shrink-0 ml-2">
+        <div className="flex-shrink-0">
           {action ? (
             action
           ) : showFollowButton && isUserProfile(user) && (
