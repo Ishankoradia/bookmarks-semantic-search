@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.logging import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
-from app.api import bookmarks, jobs, auth, preferences, feed
+from app.api import bookmarks, jobs, auth, preferences, feed, follows
 
 # Initialize logging
 logger = setup_logging()
@@ -54,6 +54,12 @@ app.include_router(
     feed.router,
     prefix=f"{settings.API_V1_STR}/feed",
     tags=["feed"]
+)
+
+app.include_router(
+    follows.router,
+    prefix=f"{settings.API_V1_STR}/follows",
+    tags=["follows"]
 )
 
 @app.on_event("startup")

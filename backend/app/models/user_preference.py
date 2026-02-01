@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -12,6 +12,9 @@ class UserPreference(Base):
 
     # User interests for Explore feed
     interests = Column(JSON, default=[])  # ["Technology", "AI & Machine Learning", ...]
+
+    # Discoverability setting - allows other users to find and follow
+    is_discoverable = Column(Boolean, default=True, nullable=False)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

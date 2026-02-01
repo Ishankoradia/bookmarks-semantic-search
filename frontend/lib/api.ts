@@ -113,6 +113,7 @@ export interface UserPreference {
   id: number;
   user_id: number;
   interests: string[];
+  is_discoverable: boolean;
   created_at: string;
   updated_at: string | null;
 }
@@ -122,5 +123,62 @@ export interface TopicsListResponse {
 }
 
 export interface UserPreferenceUpdate {
-  interests: string[];
+  interests?: string[];
+  is_discoverable?: boolean;
+}
+
+// Follow/Social types
+export type FollowStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface UserSummary {
+  uuid: string;
+  name: string | null;
+  email: string;
+  picture: string | null;
+}
+
+export interface FollowRequest {
+  id: number;
+  follower: UserSummary;
+  following: UserSummary;
+  status: FollowStatus;
+  created_at: string;
+  responded_at: string | null;
+}
+
+export interface FollowListResponse {
+  users: UserSummary[];
+  total: number;
+}
+
+export interface PendingRequestsResponse {
+  requests: FollowRequest[];
+  total: number;
+}
+
+export interface UserProfileResponse extends UserSummary {
+  followers_count: number;
+  following_count: number;
+  is_following: boolean | null;
+  is_followed_by: boolean | null;
+  follow_request_status: FollowStatus | null;
+  follow_request_id: number | null;
+}
+
+export interface FriendBookmark {
+  id: string;
+  url: string;
+  title: string;
+  description: string | null;
+  domain: string | null;
+  tags: string[];
+  category: string | null;
+  created_at: string;
+  owner: UserSummary;
+}
+
+export interface FriendsFeedResponse {
+  bookmarks: FriendBookmark[];
+  total: number;
+  has_more: boolean;
 }

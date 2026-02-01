@@ -24,32 +24,32 @@ export default function AuthErrorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
       <div className="container mx-auto px-4 max-w-md">
-        
+
         {/* Logo and Brand */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="p-2 bg-indigo-600 rounded-lg">
-              <Bookmark className="w-6 h-6 text-white" />
+            <div className="p-2 bg-primary rounded-lg">
+              <Bookmark className="w-6 h-6 text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">Semantic Bookmarks</h1>
+            <h1 className="text-3xl font-bold text-foreground">Semantic Bookmarks</h1>
           </div>
-          <p className="text-slate-600">Search your bookmarks by meaning, not just keywords</p>
+          <p className="text-muted-foreground">Search your bookmarks by meaning, not just keywords</p>
         </div>
 
-        <Card className="w-full border-slate-200 shadow-lg">
+        <Card className="w-full border-border shadow-lg">
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <AlertCircle className="h-6 w-6 text-red-500" />
-              <CardTitle className="text-2xl font-bold text-slate-900">Authentication Error</CardTitle>
+              <AlertCircle className="h-6 w-6 text-destructive" />
+              <CardTitle className="text-2xl font-bold text-foreground">Authentication Error</CardTitle>
             </div>
-            <CardDescription className="text-center text-slate-600">
+            <CardDescription className="text-center text-muted-foreground">
               {getErrorMessage()}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-muted-foreground">
               {error === "AccessDenied" && (
                 <p className="text-center">
                   If you believe you should have access, please contact your administrator
@@ -58,10 +58,10 @@ export default function AuthErrorPage() {
               )}
             </div>
             <div className="flex gap-2">
-              <Button asChild className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+              <Button asChild className="flex-1">
                 <Link href="/auth/signin">Try Again</Link>
               </Button>
-              <Button asChild variant="outline" className="flex-1 border-slate-300 text-slate-600 hover:bg-slate-50">
+              <Button asChild variant="outline" className="flex-1">
                 <Link href="/">Go Home</Link>
               </Button>
             </div>

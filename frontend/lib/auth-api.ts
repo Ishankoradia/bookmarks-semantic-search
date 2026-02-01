@@ -12,6 +12,12 @@ import {
   UserPreference,
   TopicsListResponse,
   UserPreferenceUpdate,
+  FollowRequest,
+  FollowListResponse,
+  PendingRequestsResponse,
+  UserProfileResponse,
+  FriendsFeedResponse,
+  FollowStatus,
 } from "./api";
 
 // Authenticated API helper functions
@@ -214,6 +220,122 @@ export const useFeedApi = () => {
     getArticle: async (articleId: string): Promise<FeedArticle> => {
       return makeRequest(async (api) => {
         const response = await api.get(`/feed/${articleId}`);
+        return response.data;
+      });
+    },
+
+    // Get friends feed (bookmarks from followed users)
+    getFriendsFeed: async (skip = 0, limit = 20): Promise<FriendsFeedResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/feed/friends', {
+          params: { skip, limit },
+        });
+        return response.data;
+      });
+    },
+  };
+};
+
+// Follow/Social API
+export const useFollowApi = () => {
+  const { makeRequest } = useAuthenticatedApi();
+
+  return {
+    // Send follow request
+    sendFollowRequest: async (userUuid: string): Promise<FollowRequest> => {
+      return makeRequest(async (api) => {
+        const response = await api.post('/follows/request', { user_uuid: userUuid });
+        return response.data;
+      });
+    },
+
+    // Get pending requests I sent
+    getSentPendingRequests: async (): Promise<PendingRequestsResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/follows/requests/pending');
+        return response.data;
+      });
+    },
+
+    // Get pending requests I received
+    getReceivedPendingRequests: async (): Promise<PendingRequestsResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/follows/requests/received');
+        return response.data;
+      });
+    },
+
+    // Get pending requests count
+    getPendingRequestsCount: async (): Promise<number> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/follows/requests/count');
+        return response.data.count;
+      });
+    },
+
+    // Accept/reject request
+    respondToRequest: async (requestId: number, status: 'accepted' | 'rejected'): Promise<FollowRequest> => {
+      return makeRequest(async (api) => {
+        const response = await api.put(`/follows/requests/${requestId}`, { status });
+        return response.data;
+      });
+    },
+
+    // Cancel my sent request
+    cancelRequest: async (requestId: number): Promise<void> => {
+      return makeRequest(async (api) => {
+        await api.delete(`/follows/requests/${requestId}`);
+      });
+    },
+
+    // Get my followers
+    getFollowers: async (skip = 0, limit = 50): Promise<FollowListResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/follows/followers', {
+          params: { skip, limit },
+        });
+        return response.data;
+      });
+    },
+
+    // Get users I follow
+    getFollowing: async (skip = 0, limit = 50): Promise<FollowListResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/follows/following', {
+          params: { skip, limit },
+        });
+        return response.data;
+      });
+    },
+
+    // Unfollow a user
+    unfollow: async (userUuid: string): Promise<void> => {
+      return makeRequest(async (api) => {
+        await api.delete(`/follows/following/${userUuid}`);
+      });
+    },
+
+    // Remove a follower
+    removeFollower: async (userUuid: string): Promise<void> => {
+      return makeRequest(async (api) => {
+        await api.delete(`/follows/followers/${userUuid}`);
+      });
+    },
+
+    // Get user profile
+    getUserProfile: async (userUuid: string): Promise<UserProfileResponse> => {
+      return makeRequest(async (api) => {
+        const response = await api.get(`/follows/users/${userUuid}/profile`);
+        return response.data;
+      });
+    },
+
+    // Search users
+    searchUsers: async (query: string, skip = 0, limit = 20): Promise<UserProfileResponse[]> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/follows/search', {
+          params: { q: query, skip, limit },
+        });
         return response.data;
       });
     },

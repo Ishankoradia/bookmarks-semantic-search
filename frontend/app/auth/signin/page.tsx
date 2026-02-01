@@ -7,31 +7,31 @@ import { Bookmark } from "lucide-react";
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
       <div className="container mx-auto px-4 max-w-md">
-        
+
         {/* Logo and Brand */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="p-2 bg-indigo-600 rounded-lg">
-              <Bookmark className="w-6 h-6 text-white" />
+            <div className="p-2 bg-primary rounded-lg">
+              <Bookmark className="w-6 h-6 text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">Semantic Bookmarks</h1>
+            <h1 className="text-3xl font-bold text-foreground">Semantic Bookmarks</h1>
           </div>
-          <p className="text-slate-600">Search your bookmarks by meaning, not just keywords</p>
+          <p className="text-muted-foreground">Search your bookmarks by meaning, not just keywords</p>
         </div>
 
-        <Card className="w-full border-slate-200 shadow-lg">
+        <Card className="w-full border-border shadow-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center text-slate-900">Welcome Back</CardTitle>
-            <CardDescription className="text-center text-slate-600">
+            <CardTitle className="text-2xl font-bold text-center text-foreground">Welcome Back</CardTitle>
+            <CardDescription className="text-center text-muted-foreground">
               Sign in to access your personal bookmark collection
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
-              onClick={() => signIn("google", { callbackUrl: "/" })} 
-              className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+            <Button
+              onClick={() => signIn("google", { callbackUrl: "/" })}
+              className="w-full gap-2"
               size="lg"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

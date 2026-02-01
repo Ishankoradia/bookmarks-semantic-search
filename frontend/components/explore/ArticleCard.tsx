@@ -98,13 +98,13 @@ export function ArticleCard({
     : (article as FeedArticle).topic;
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 group border-slate-200 h-full">
+    <Card className="hover:shadow-lg transition-all duration-200 group border h-full">
       <CardContent className="p-6 h-full">
         <div className="flex flex-col h-full">
           <div className="flex-1 space-y-3">
             {/* Title */}
             <h3
-              className="font-semibold text-lg leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2 cursor-pointer"
+              className="font-semibold text-lg leading-tight group-hover:text-primary transition-colors line-clamp-2 cursor-pointer"
               onClick={handleReadClick}
             >
               {article.title}
@@ -117,19 +117,19 @@ export function ArticleCard({
                   <span
                     className={cn(
                       'text-xs font-medium',
-                      isFeed ? 'text-indigo-600' : 'text-slate-700'
+                      isFeed ? 'text-primary' : 'text-foreground'
                     )}
                   >
                     {categoryLabel}
                   </span>
                 )}
                 {isBookmark && (article as BookmarkArticle).similarity_score && (
-                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                  <span className="px-2 py-1 bg-success/10 text-success rounded text-xs font-medium">
                     {((article as BookmarkArticle).similarity_score! * 100).toFixed(0)}% match
                   </span>
                 )}
                 {isFeed && (article as FeedArticle).source_type && (
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">
+                  <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs">
                     via {(article as FeedArticle).source_type === 'hn' ? 'Hacker News' : 'RSS'}
                   </span>
                 )}
@@ -139,12 +139,12 @@ export function ArticleCard({
             {/* Tags (for bookmarks) */}
             {isBookmark && article.tags && article.tags.length > 0 && (
               <div className="flex items-start gap-2">
-                <Tag className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                <Tag className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div className="flex flex-wrap gap-1">
                   {article.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium"
+                      className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium"
                     >
                       {tag}
                     </span>
@@ -158,7 +158,7 @@ export function ArticleCard({
               <Button
                 onClick={handleReadClick}
                 variant="outline"
-                className="w-full border-slate-300 text-slate-700 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white transition-colors cursor-pointer"
+                className="w-full hover:bg-primary hover:border-primary hover:text-primary-foreground transition-colors cursor-pointer"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Read Article
@@ -167,8 +167,8 @@ export function ArticleCard({
           </div>
 
           {/* Actions and meta info */}
-          <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center justify-between pt-3 mt-3 border-t">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3 h-3" />
               <span>{displayDate ? formatDate(displayDate) : 'Unknown'}</span>
               {isBookmark && (
@@ -176,15 +176,15 @@ export function ArticleCard({
                   className={cn(
                     'px-1.5 py-0.5 rounded text-xs',
                     (article as BookmarkArticle).is_read
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-orange-100 text-orange-700'
+                      ? 'bg-success/10 text-success'
+                      : 'bg-warning/10 text-warning'
                   )}
                 >
                   {(article as BookmarkArticle).is_read ? 'Read' : 'Unread'}
                 </span>
               )}
               {isFeed && (article as FeedArticle).is_saved && (
-                <span className="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700">
+                <span className="px-1.5 py-0.5 rounded text-xs bg-success/10 text-success">
                   Saved
                 </span>
               )}
@@ -198,7 +198,7 @@ export function ArticleCard({
                     variant="ghost"
                     size="sm"
                     onClick={onToggleRead}
-                    className="h-7 w-7 p-0 hover:bg-slate-100"
+                    className="h-7 w-7 p-0 hover:bg-muted"
                     title={
                       (article as BookmarkArticle).is_read
                         ? 'Mark as unread'
@@ -206,16 +206,16 @@ export function ArticleCard({
                     }
                   >
                     {(article as BookmarkArticle).is_read ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <CheckCircle className="w-4 h-4 text-success" />
                     ) : (
-                      <Circle className="w-4 h-4 text-slate-400" />
+                      <Circle className="w-4 h-4 text-muted-foreground" />
                     )}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={onCopyUrl}
-                    className="h-7 w-7 p-0 hover:bg-slate-100 transition-colors"
+                    className="h-7 w-7 p-0 hover:bg-muted transition-colors"
                     title="Copy URL"
                   >
                     <Copy className="w-4 h-4" />
@@ -224,7 +224,7 @@ export function ArticleCard({
                     variant="ghost"
                     size="sm"
                     onClick={onDelete}
-                    className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    className="h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
                     title="Delete bookmark"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -239,7 +239,7 @@ export function ArticleCard({
                     size="sm"
                     onClick={onSave}
                     disabled={isSaving}
-                    className="h-7 w-7 p-0 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary transition-colors"
                     title="Save to bookmarks"
                   >
                     <Bookmark className="w-4 h-4" />
@@ -248,7 +248,7 @@ export function ArticleCard({
                     variant="ghost"
                     size="sm"
                     onClick={onNotInterested}
-                    className="h-7 w-7 p-0 hover:bg-slate-100 transition-colors"
+                    className="h-7 w-7 p-0 hover:bg-muted transition-colors"
                     title="Not interested"
                   >
                     <ThumbsDown className="w-4 h-4" />
@@ -270,7 +270,7 @@ export function ArticleCard({
 
               {openMenu && (
                 <div
-                  className="absolute right-0 top-8 w-48 bg-white rounded-md shadow-xl border border-gray-200 py-1 z-50"
+                  className="absolute right-0 top-8 w-48 bg-card rounded-md shadow-xl border py-1 z-50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {isBookmark && (
@@ -280,12 +280,12 @@ export function ArticleCard({
                           onToggleRead?.();
                           setOpenMenu(false);
                         }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
                       >
                         {(article as BookmarkArticle).is_read ? (
-                          <Circle className="w-4 h-4 text-slate-400" />
+                          <Circle className="w-4 h-4 text-muted-foreground" />
                         ) : (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <CheckCircle className="w-4 h-4 text-success" />
                         )}
                         {(article as BookmarkArticle).is_read
                           ? 'Mark as unread'
@@ -296,7 +296,7 @@ export function ArticleCard({
                           onCopyUrl?.();
                           setOpenMenu(false);
                         }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
                       >
                         <Copy className="w-4 h-4" />
                         Copy URL
@@ -306,7 +306,7 @@ export function ArticleCard({
                           onDelete?.();
                           setOpenMenu(false);
                         }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 text-left"
                       >
                         <Trash2 className="w-4 h-4" />
                         Delete bookmark
@@ -322,7 +322,7 @@ export function ArticleCard({
                           setOpenMenu(false);
                         }}
                         disabled={isSaving}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
                       >
                         <Bookmark className="w-4 h-4" />
                         Save to bookmarks
@@ -332,7 +332,7 @@ export function ArticleCard({
                           onNotInterested?.();
                           setOpenMenu(false);
                         }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-100 text-left"
+                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
                       >
                         <ThumbsDown className="w-4 h-4" />
                         Not interested
