@@ -48,7 +48,7 @@ interface FriendBookmarkArticle extends BaseArticle {
   type: 'friend';
   category?: string | null;
   owner: {
-    id: string;
+    id?: string;
     email: string;
     name: string | null;
     picture: string | null;
@@ -85,6 +85,24 @@ export function ArticleCard({
   },
 }: ArticleCardProps) {
   const [openMenu, setOpenMenu] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenu(false);
+      }
+    };
+
+    if (openMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openMenu]);
 
   const handleReadClick = () => {
     if (onReadArticle) {
@@ -122,10 +140,10 @@ export function ArticleCard({
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 group border h-full overflow-hidden">
-      <CardContent className="px-5 py-3 h-full overflow-hidden">
-        <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex-1 space-y-3 overflow-hidden">
+    <Card className="hover:shadow-lg transition-all duration-200 group border h-full">
+      <CardContent className="px-5 py-3 h-full">
+        <div className="flex flex-col h-full">
+          <div className="flex-1 space-y-3 min-w-0">
             {/* Owner info for friend bookmarks */}
             {isFriend && (
               <div className="flex items-center gap-2">
@@ -152,7 +170,7 @@ export function ArticleCard({
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-1.5 group/title"
+              className="block"
             >
               <h3 className="font-semibold text-lg leading-tight hover:text-primary transition-colors line-clamp-2 cursor-pointer flex-1 min-w-0">
                 {article.title}
@@ -160,9 +178,9 @@ export function ArticleCard({
               <ExternalLink className="w-4 h-4 flex-shrink-0 mt-1 text-muted-foreground group-hover/title:text-primary transition-colors" />
             </a>
 
-            {/* Description */}
-            {article.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
+            {/* Description - hide for feed articles */}
+            {article.description && !isFeed && (
+              <p className="text-sm text-muted-foreground line-clamp-2 overflow-hidden break-words">
                 {article.description}
               </p>
             )}
@@ -293,7 +311,7 @@ export function ArticleCard({
 
             {/* Mobile Actions - 3-dot menu (only for bookmark and unsaved feed types) */}
             {(isBookmark || (isFeed && !(article as FeedArticle).is_saved)) && (
-              <div className="md:hidden relative">
+              <div className="md:hidden relative" ref={menuRef}>
                 <Button
                   variant="ghost"
                   size="sm"
