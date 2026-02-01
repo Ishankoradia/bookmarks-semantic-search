@@ -7,6 +7,7 @@ import { usePreferencesApi, useFeedApi, useBookmarkApi } from '@/lib/auth-api';
 import { FeedArticle, UserPreference } from '@/lib/api';
 import { OnboardingModal } from '@/components/explore/OnboardingModal';
 import { ArticleCard } from '@/components/explore/ArticleCard';
+import { formatRelativeDate } from '@/lib/utils';
 import { Loader2, RefreshCw, Compass, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -190,6 +191,7 @@ export default function ExplorePage() {
               article={{ ...article, type: 'feed' as const }}
               onSave={() => handleSaveArticle(article.id)}
               isSaving={savingArticleId === article.id}
+              formatDate={formatRelativeDate}
             />
           ))}
         </div>

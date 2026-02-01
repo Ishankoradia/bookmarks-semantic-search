@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, ExternalLink, Loader2, CheckCircle, Circle, Copy, Check, Trash2, Filter, MoreVertical, X, Tag, Calendar } from 'lucide-react';
+import { Search, Plus, Loader2, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArticleCard } from '@/components/explore/ArticleCard';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useBookmarkApi } from '@/lib/auth-api';
 import { Bookmark as BookmarkType, BookmarkSearchResult } from '@/lib/api';
+import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type FilterTab = 'all' | 'unread' | 'read';
@@ -53,7 +54,6 @@ export default function BookmarksPage() {
   const [bookmarkToDelete, setBookmarkToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const [categoryList, setCategoryList] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -80,38 +80,6 @@ export default function BookmarksPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isDropdownOpen]);
-
-  // Close action menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (openMenuId) {
-        setOpenMenuId(null);
-      }
-    };
-
-    if (openMenuId) {
-      document.addEventListener('click', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [openMenuId]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-    if (diffMinutes < 1) return 'just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
 
   const loadBookmarks = async () => {
     try {
@@ -489,133 +457,18 @@ export default function BookmarksPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {bookmarks.map((bookmark) => (
-            <Card key={bookmark.id}>
-              <CardContent className="p-5">
-                {/* Title */}
-                <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <h3 className="font-semibold text-lg line-clamp-2 mb-1 hover:text-primary transition-colors cursor-pointer">
-                    {bookmark.title}
-                  </h3>
-                </a>
-
-                {/* Category */}
-                {bookmark.category && (
-                  <p className="text-muted-foreground text-sm mb-3">
-                    {bookmark.category}
-                  </p>
-                )}
-
-                {/* Tags */}
-                {bookmark.tags && bookmark.tags.length > 0 && (
-                  <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    <Tag className="h-4 w-4 text-muted-foreground" />
-                    {bookmark.tags.slice(0, 4).map((tag) => (
-                      <span key={tag} className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Read Article Button */}
-                <Button
-                  variant="outline"
-                  className="w-full mb-4"
-                  asChild
-                >
-                  <a
-                    href={bookmark.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Read Article
-                  </a>
-                </Button>
-
-                {/* Bottom row: Date, Status, Menu */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {formatDate(bookmark.created_at)}
-                    </div>
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded-full border ${
-                        bookmark.is_read
-                          ? 'bg-success/10 text-success border-success/30'
-                          : 'bg-warning/10 text-warning border-warning/30'
-                      }`}
-                    >
-                      {bookmark.is_read ? 'Read' : 'Unread'}
-                    </span>
-                    {'similarity_score' in bookmark && (
-                      <span className="px-2 py-0.5 bg-info/10 text-info border border-info/30 text-xs rounded-full">
-                        {Math.round(bookmark.similarity_score * 100)}% match
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={() => setOpenMenuId(openMenuId === bookmark.id ? null : bookmark.id)}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-
-                    {openMenuId === bookmark.id && (
-                      <div
-                        className="absolute right-0 top-8 w-48 bg-card rounded-md shadow-xl border py-1 z-50"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() => {
-                            handleReadStatusToggle(bookmark.id, bookmark.is_read || false);
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                        >
-                          {bookmark.is_read ? (
-                            <Circle className="w-4 h-4 text-muted-foreground" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4 text-success" />
-                          )}
-                          {bookmark.is_read ? 'Mark as unread' : 'Mark as read'}
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleCopyToClipboard(bookmark.url, bookmark.id);
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                        >
-                          <Copy className="w-4 h-4" />
-                          Copy URL
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleDeleteClick(bookmark);
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 text-left"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete bookmark
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ArticleCard
+              key={bookmark.id}
+              article={{
+                ...bookmark,
+                type: 'bookmark' as const,
+                similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
+              }}
+              onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+              onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+              onDelete={() => handleDeleteClick(bookmark)}
+              formatDate={formatRelativeDate}
+            />
           ))}
         </div>
       )}

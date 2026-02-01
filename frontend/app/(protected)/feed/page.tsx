@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFeedApi } from '@/lib/auth-api';
 import { FriendBookmark, FriendsFeedResponse } from '@/lib/api';
-import { Loader2, ExternalLink, Users, UserPlus, User } from 'lucide-react';
+import { Loader2, Users, UserPlus } from 'lucide-react';
 import { UserSearchModal } from '@/components/follows';
+import { ArticleCard } from '@/components/explore/ArticleCard';
+import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function FeedPage() {
@@ -52,33 +52,6 @@ export default function FeedPage() {
     loadFeed();
   }, []);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-    if (diffMinutes < 1) return 'just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const getInitials = (name: string | null, email: string) => {
-    if (name) {
-      return name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    return email[0].toUpperCase();
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -90,7 +63,7 @@ export default function FeedPage() {
   const bookmarks = feedData?.bookmarks || [];
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-6">
+    <div className="container max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Friends Feed</h1>
       </div>
@@ -113,76 +86,22 @@ export default function FeedPage() {
           />
         </div>
       ) : (
-        <div className="space-y-4">
-          {bookmarks.map((bookmark) => (
-            <Card key={bookmark.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                {/* Owner info */}
-                <div className="flex items-center gap-2 mb-3">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage
-                      src={bookmark.owner.picture || undefined}
-                      alt={bookmark.owner.name || bookmark.owner.email}
-                    />
-                    <AvatarFallback className="text-xs">
-                      {getInitials(bookmark.owner.name, bookmark.owner.email) || (
-                        <User className="h-3 w-3" />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium">
-                    {bookmark.owner.name || bookmark.owner.email}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(bookmark.created_at)}
-                  </span>
-                </div>
-
-                {/* Bookmark content */}
-                <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block group"
-                >
-                  <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-2">
-                    {bookmark.title}
-                  </h3>
-                  {bookmark.description && (
-                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                      {bookmark.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{bookmark.domain}</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </div>
-                </a>
-
-                {/* Tags and category */}
-                {(bookmark.category || bookmark.tags.length > 0) && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {bookmark.category && (
-                      <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
-                        {bookmark.category}
-                      </span>
-                    )}
-                    {bookmark.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+        <>
+          <div className="grid gap-4 md:grid-cols-2">
+            {bookmarks.map((bookmark) => (
+              <ArticleCard
+                key={bookmark.id}
+                article={{
+                  ...bookmark,
+                  type: 'friend' as const,
+                }}
+                formatDate={formatRelativeDate}
+              />
+            ))}
+          </div>
 
           {feedData?.has_more && (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-6">
               <Button
                 variant="outline"
                 onClick={() => loadFeed(bookmarks.length)}
@@ -199,7 +118,7 @@ export default function FeedPage() {
               </Button>
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

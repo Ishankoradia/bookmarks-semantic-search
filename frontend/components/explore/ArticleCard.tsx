@@ -11,9 +11,11 @@ import {
   Trash2,
   MoreVertical,
   Bookmark,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface BaseArticle {
@@ -42,7 +44,18 @@ interface FeedArticle extends BaseArticle {
   is_saved: boolean;
 }
 
-type Article = BookmarkArticle | FeedArticle;
+interface FriendBookmarkArticle extends BaseArticle {
+  type: 'friend';
+  category?: string | null;
+  owner: {
+    id: string;
+    email: string;
+    name: string | null;
+    picture: string | null;
+  };
+}
+
+type Article = BookmarkArticle | FeedArticle | FriendBookmarkArticle;
 
 interface ArticleCardProps {
   article: Article;
@@ -83,65 +96,92 @@ export function ArticleCard({
 
   const isBookmark = article.type === 'bookmark';
   const isFeed = article.type === 'feed';
+  const isFriend = article.type === 'friend';
 
   // Get the date to display
-  const displayDate = isBookmark
+  const displayDate = isBookmark || isFriend
     ? article.created_at
     : (article as FeedArticle).published_at || (article as FeedArticle).fetched_at;
 
   // Get category/topic label
-  const categoryLabel = isBookmark
-    ? (article as BookmarkArticle).category
+  const categoryLabel = isBookmark || isFriend
+    ? (article as BookmarkArticle | FriendBookmarkArticle).category
     : (article as FeedArticle).topic;
+
+  // Helper to get initials from name/email
+  const getInitials = (name: string | null, email: string) => {
+    if (name) {
+      return name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return email[0].toUpperCase();
+  };
 
   return (
     <Card className="hover:shadow-lg transition-all duration-200 group border h-full">
-      <CardContent className="p-6 h-full">
+      <CardContent className="p-5 h-full">
         <div className="flex flex-col h-full">
           <div className="flex-1 space-y-3">
-            {/* Title */}
-            <h3
-              className="font-semibold text-lg leading-tight group-hover:text-primary transition-colors line-clamp-2 cursor-pointer"
-              onClick={handleReadClick}
-            >
-              {article.title}
-            </h3>
-
-            {/* Category/Topic and Match Score */}
-            {(categoryLabel || (isBookmark && (article as BookmarkArticle).similarity_score)) && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {categoryLabel && (
-                  <span
-                    className={cn(
-                      'text-xs font-medium',
-                      isFeed ? 'text-primary' : 'text-foreground'
-                    )}
-                  >
-                    {categoryLabel}
-                  </span>
-                )}
-                {isBookmark && (article as BookmarkArticle).similarity_score && (
-                  <span className="px-2 py-1 bg-success/10 text-success rounded text-xs font-medium">
-                    {((article as BookmarkArticle).similarity_score! * 100).toFixed(0)}% match
-                  </span>
-                )}
-                {isFeed && (article as FeedArticle).source_type && (
-                  <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs">
-                    via {(article as FeedArticle).source_type === 'hn' ? 'Hacker News' : 'RSS'}
-                  </span>
-                )}
+            {/* Owner info for friend bookmarks */}
+            {isFriend && (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage
+                    src={(article as FriendBookmarkArticle).owner.picture || undefined}
+                    alt={(article as FriendBookmarkArticle).owner.name || (article as FriendBookmarkArticle).owner.email}
+                  />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(
+                      (article as FriendBookmarkArticle).owner.name,
+                      (article as FriendBookmarkArticle).owner.email
+                    ) || <User className="h-3 w-3" />}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">
+                  {(article as FriendBookmarkArticle).owner.name || (article as FriendBookmarkArticle).owner.email}
+                </span>
               </div>
             )}
 
-            {/* Tags (for bookmarks) */}
-            {isBookmark && article.tags && article.tags.length > 0 && (
+            {/* Title with link */}
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <h3 className="font-semibold text-lg leading-tight hover:text-primary transition-colors line-clamp-2 cursor-pointer">
+                {article.title}
+              </h3>
+            </a>
+
+            {/* Category/Topic as subtitle */}
+            {categoryLabel && (
+              <p className="text-muted-foreground text-sm">
+                {categoryLabel}
+              </p>
+            )}
+
+            {/* Source type for feed articles */}
+            {isFeed && (article as FeedArticle).source_type && (
+              <span className="inline-block px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs">
+                via {(article as FeedArticle).source_type === 'hn' ? 'Hacker News' : 'RSS'}
+              </span>
+            )}
+
+            {/* Tags - shown for both bookmarks and feed articles if available */}
+            {article.tags && article.tags.length > 0 && (
               <div className="flex items-start gap-2">
                 <Tag className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div className="flex flex-wrap gap-1">
-                  {article.tags.map((tag) => (
+                <div className="flex flex-wrap gap-1.5">
+                  {article.tags.slice(0, 4).map((tag) => (
                     <span
                       key={tag}
-                      className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium"
+                      className="px-2.5 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium"
                     >
                       {tag}
                     </span>
@@ -165,29 +205,41 @@ export function ArticleCard({
 
           {/* Actions and meta info */}
           <div className="flex items-center justify-between pt-3 mt-3 border-t">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="w-3 h-3" />
-              <span>{displayDate ? formatDate(displayDate) : 'Unknown'}</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{displayDate ? formatDate(displayDate) : 'Unknown'}</span>
+              </div>
               {isBookmark && (
                 <span
                   className={cn(
-                    'px-1.5 py-0.5 rounded text-xs',
+                    'px-2 py-0.5 rounded-full text-xs border',
                     (article as BookmarkArticle).is_read
-                      ? 'bg-success/10 text-success'
-                      : 'bg-warning/10 text-warning'
+                      ? 'bg-success/10 text-success border-success/30'
+                      : 'bg-warning/10 text-warning border-warning/30'
                   )}
                 >
                   {(article as BookmarkArticle).is_read ? 'Read' : 'Unread'}
                 </span>
               )}
+              {isBookmark && (article as BookmarkArticle).similarity_score && (
+                <span className="px-2 py-0.5 bg-info/10 text-info border border-info/30 text-xs rounded-full">
+                  {((article as BookmarkArticle).similarity_score! * 100).toFixed(0)}% match
+                </span>
+              )}
               {isFeed && (article as FeedArticle).is_saved && (
-                <span className="px-1.5 py-0.5 rounded text-xs bg-success/10 text-success">
+                <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success border border-success/30">
                   Saved
+                </span>
+              )}
+              {isFriend && article.domain && (
+                <span className="text-muted-foreground">
+                  {article.domain}
                 </span>
               )}
             </div>
 
-            {/* Desktop Actions */}
+            {/* Desktop Actions - only for bookmark and feed types */}
             <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {isBookmark && (
                 <>
@@ -243,79 +295,81 @@ export function ArticleCard({
               )}
             </div>
 
-            {/* Mobile Actions - 3-dot menu */}
-            <div className="md:hidden relative">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => setOpenMenu(!openMenu)}
-              >
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-
-              {openMenu && (
-                <div
-                  className="absolute right-0 top-8 w-48 bg-card rounded-md shadow-xl border py-1 z-50"
-                  onClick={(e) => e.stopPropagation()}
+            {/* Mobile Actions - 3-dot menu (only for bookmark and unsaved feed types) */}
+            {(isBookmark || (isFeed && !(article as FeedArticle).is_saved)) && (
+              <div className="md:hidden relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setOpenMenu(!openMenu)}
                 >
-                  {isBookmark && (
-                    <>
-                      <button
-                        onClick={() => {
-                          onToggleRead?.();
-                          setOpenMenu(false);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                      >
-                        {(article as BookmarkArticle).is_read ? (
-                          <Circle className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4 text-success" />
-                        )}
-                        {(article as BookmarkArticle).is_read
-                          ? 'Mark as unread'
-                          : 'Mark as read'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          onCopyUrl?.();
-                          setOpenMenu(false);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Copy URL
-                      </button>
-                      <button
-                        onClick={() => {
-                          onDelete?.();
-                          setOpenMenu(false);
-                        }}
-                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 text-left"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete bookmark
-                      </button>
-                    </>
-                  )}
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
 
-                  {isFeed && !(article as FeedArticle).is_saved && (
-                    <button
-                      onClick={() => {
-                        onSave?.();
-                        setOpenMenu(false);
-                      }}
-                      disabled={isSaving}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
-                    >
-                      <Bookmark className="w-4 h-4" />
-                      Save to bookmarks
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                {openMenu && (
+                  <div
+                    className="absolute right-0 top-8 w-48 bg-card rounded-md shadow-xl border py-1 z-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {isBookmark && (
+                      <>
+                        <button
+                          onClick={() => {
+                            onToggleRead?.();
+                            setOpenMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
+                        >
+                          {(article as BookmarkArticle).is_read ? (
+                            <Circle className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 text-success" />
+                          )}
+                          {(article as BookmarkArticle).is_read
+                            ? 'Mark as unread'
+                            : 'Mark as read'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            onCopyUrl?.();
+                            setOpenMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
+                        >
+                          <Copy className="w-4 h-4" />
+                          Copy URL
+                        </button>
+                        <button
+                          onClick={() => {
+                            onDelete?.();
+                            setOpenMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 text-left"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete bookmark
+                        </button>
+                      </>
+                    )}
+
+                    {isFeed && !(article as FeedArticle).is_saved && (
+                      <button
+                        onClick={() => {
+                          onSave?.();
+                          setOpenMenu(false);
+                        }}
+                        disabled={isSaving}
+                        className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-muted text-left"
+                      >
+                        <Bookmark className="w-4 h-4" />
+                        Save to bookmarks
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
