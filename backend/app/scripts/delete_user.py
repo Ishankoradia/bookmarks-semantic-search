@@ -11,8 +11,8 @@ Usage:
 import sys
 import os
 
-# Add the backend directory to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add current working directory to path (run from backend root: /app)
+sys.path.insert(0, os.getcwd())
 
 from app.core.database import SessionLocal
 from app.services.user_service import UserService
