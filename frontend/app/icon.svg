@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Super light blue background -->
+  <rect x="2" y="2" width="28" height="28" rx="6" fill="#e0f4ff"/>
+  <!-- Bookmark shape in primary blue -->
+  <path d="M9 6h14a1 1 0 0 1 1 1v19.5a0.5 0.5 0 0 1-0.8 0.4L16 21.5l-7.2 5.4a0.5 0.5 0 0 1-0.8-0.4V7a1 1 0 0 1 1-1z" fill="#4387f5"/>
+  <!-- Small sparkle/AI dot -->
+  <circle cx="23" cy="9" r="2.5" fill="#60a5fa"/>
+</svg>
