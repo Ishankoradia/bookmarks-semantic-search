@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Loader2, Filter, X } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, Plus, Loader2, Filter, X, LayoutGrid, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,12 +27,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useBookmarkApi } from '@/lib/auth-api';
 import { Bookmark as BookmarkType, BookmarkSearchResult } from '@/lib/api';
 import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type FilterTab = 'all' | 'unread' | 'read';
+type ViewMode = 'grid' | 'category';
 
 export default function BookmarksPage() {
   const authApi = useBookmarkApi();
@@ -65,9 +67,21 @@ export default function BookmarksPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // View mode state
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadBookmarks();
     loadCategoryList();
+  }, []);
+
+  // Load view mode from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('bookmarks-view-mode') as ViewMode;
+    if (saved === 'grid' || saved === 'category') {
+      setViewMode(saved);
+    }
   }, []);
 
   // Handle click outside dropdown
@@ -357,18 +371,72 @@ export default function BookmarksPage() {
     }
   };
 
+  // View mode handlers
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('bookmarks-view-mode', mode);
+  };
+
+  const toggleFolder = (category: string) => {
+    setOpenFolders((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  // Group bookmarks by category for category view
+  const groupedBookmarks = useMemo(() => {
+    const grouped: Record<string, (BookmarkType | BookmarkSearchResult)[]> = {};
+    bookmarks.forEach((bookmark) => {
+      const category = bookmark.category || 'Others';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(bookmark);
+    });
+    return grouped;
+  }, [bookmarks]);
+
+  const sortedCategories = useMemo(() => {
+    return Object.keys(groupedBookmarks).sort((a, b) => a.localeCompare(b));
+  }, [groupedBookmarks]);
+
   return (
     <div className="container max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Your Bookmarks</h1>
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogTrigger asChild>
-            <Button size="lg">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Your Bookmarks</h1>
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex border rounded-lg">
+              <button
+                onClick={() => handleViewModeChange('grid')}
+                className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'} rounded-l-lg`}
+                title="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('category')}
+                className={`p-2 ${viewMode === 'category' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'} rounded-r-lg`}
+                title="Category view"
+              >
+                <FolderClosed className="h-4 w-4" />
+              </button>
+            </div>
+            <Button size="default" onClick={() => setIsDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Bookmark
             </Button>
-          </DialogTrigger>
+          </div>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Bookmark</DialogTitle>
@@ -582,13 +650,21 @@ export default function BookmarksPage() {
       )}
 
       {/* Bookmark Count */}
-      {!isLoading && bookmarks.length > 0 && (
+      {!isLoading && bookmarks.length > 0 && viewMode === 'grid' && (
         <p className="text-muted-foreground mb-4">
           Found <span className="font-semibold text-foreground">{bookmarks.length}</span> bookmarks
         </p>
       )}
 
-      {/* Bookmarks Grid */}
+      {/* Category View Summary */}
+      {!isLoading && bookmarks.length > 0 && viewMode === 'category' && (
+        <p className="text-muted-foreground mb-4">
+          <span className="font-semibold text-foreground">{sortedCategories.length}</span> categories,{' '}
+          <span className="font-semibold text-foreground">{bookmarks.length}</span> bookmarks
+        </p>
+      )}
+
+      {/* Content */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -600,7 +676,8 @@ export default function BookmarksPage() {
             {searchQuery ? 'Try a different search term' : 'Add your first bookmark to get started'}
           </p>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
+        /* Grid View */
         <div className="grid gap-4 md:grid-cols-2">
           {bookmarks.map((bookmark) => (
             <ArticleCard
@@ -616,6 +693,63 @@ export default function BookmarksPage() {
               formatDate={formatRelativeDate}
             />
           ))}
+        </div>
+      ) : (
+        /* Category View */
+        <div className="space-y-3">
+          {sortedCategories.map((category) => {
+            const categoryBookmarks = groupedBookmarks[category] || [];
+            const isOpen = openFolders.has(category);
+
+            return (
+              <Collapsible key={category} open={isOpen} onOpenChange={() => toggleFolder(category)}>
+                <div className="border rounded-lg bg-card">
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {isOpen ? (
+                          <FolderOpen className="h-5 w-5 text-primary" />
+                        ) : (
+                          <Folder className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <span className="font-medium">{category}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {categoryBookmarks.length} {categoryBookmarks.length === 1 ? 'bookmark' : 'bookmarks'}
+                        </span>
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="border-t px-4 py-4 bg-muted/20">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {categoryBookmarks.map((bookmark) => (
+                          <ArticleCard
+                            key={bookmark.id}
+                            article={{
+                              ...bookmark,
+                              type: 'bookmark' as const,
+                              similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
+                            }}
+                            onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+                            onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+                            onDelete={() => handleDeleteClick(bookmark)}
+                            formatDate={formatRelativeDate}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })}
         </div>
       )}
 
