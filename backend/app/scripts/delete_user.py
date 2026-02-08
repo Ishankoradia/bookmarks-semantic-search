@@ -3,6 +3,7 @@
 Script to delete a user and all their related data.
 
 Usage:
+    cd backend/
     uv run python app/scripts/delete_user.py <email>
     uv run python app/scripts/delete_user.py <email> --dry-run  # Preview without deleting
     uv run python app/scripts/delete_user.py <email> --force    # Skip confirmation prompt
