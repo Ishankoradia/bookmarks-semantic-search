@@ -8,33 +8,45 @@ from app.core.auth import get_current_user
 from app.core.logging import get_logger
 from app.models.user import User
 from app.schemas.bookmark import (
-    BookmarkCreate, BookmarkResponse, BookmarkUpdate, 
-    BookmarkSearchResult, SearchQuery, ReadStatusUpdate, ParsedSearchQuery
+    BookmarkResponse, BookmarkUpdate,
+    BookmarkSearchResult, SearchQuery, ReadStatusUpdate, ParsedSearchQuery,
+    BookmarkPreviewRequest, BookmarkPreviewResponse, BookmarkSave
 )
-from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
 from app.services.bookmark_service import BookmarkService
 
 router = APIRouter()
 bookmark_service = BookmarkService()
-scraper = WebScraper()
 embedding_service = EmbeddingService()
 logger = get_logger(__name__)
 
-@router.post("/", response_model=BookmarkResponse)
-async def create_bookmark(
-    bookmark: BookmarkCreate,
+
+@router.post("/preview", response_model=BookmarkPreviewResponse)
+async def preview_bookmark(
+    request: BookmarkPreviewRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Preview a URL - scrapes content, generates embeddings/tags/category,
+    and creates a pending bookmark. Returns preview data with bookmark ID.
+    """
     try:
-        result = await bookmark_service.create_bookmark(db, bookmark, current_user.id)
-        return result
+        result = await bookmark_service.preview_bookmark(db, str(request.url))
+        bookmark = result['bookmark']
+        scrape_failed = result['scrape_failed']
+        return BookmarkPreviewResponse(
+            id=bookmark.id,
+            title=bookmark.title,
+            description=bookmark.description,
+            domain=bookmark.domain,
+            suggested_category=bookmark.category or "General",
+            tags=bookmark.tags or [],
+            scrape_failed=scrape_failed
+        )
     except ValueError as e:
         error_msg = str(e)
-        if "already exists" in error_msg.lower():
-            raise HTTPException(status_code=400, detail="A bookmark with this URL already exists")
-        elif "invalid url" in error_msg.lower():
+        if "invalid url" in error_msg.lower():
             raise HTTPException(status_code=422, detail="Please provide a valid URL")
         else:
             raise HTTPException(status_code=400, detail=error_msg)
@@ -43,8 +55,33 @@ async def create_bookmark(
     except TimeoutError:
         raise HTTPException(status_code=400, detail="The website took too long to respond. Please try again later.")
     except Exception as e:
-        logger.error(f"Unexpected error creating bookmark: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred while creating the bookmark. Please try again.")
+        logger.error(f"Unexpected error previewing bookmark: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred. Please try again.")
+
+
+@router.post("/save", response_model=BookmarkResponse)
+def save_bookmark(
+    save_data: BookmarkSave,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Save/claim a previewed bookmark. Sets the user_id and updates category/reference.
+    """
+    try:
+        result = bookmark_service.save_bookmark(db, save_data, current_user.id)
+        return result
+    except ValueError as e:
+        error_msg = str(e)
+        if "already" in error_msg.lower():
+            raise HTTPException(status_code=400, detail=error_msg)
+        elif "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg)
+        else:
+            raise HTTPException(status_code=400, detail=error_msg)
+    except Exception as e:
+        logger.error(f"Unexpected error saving bookmark: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred. Please try again.")
 
 @router.get("/", response_model=List[BookmarkResponse])
 def get_bookmarks(

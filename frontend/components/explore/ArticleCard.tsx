@@ -195,7 +195,7 @@ export function ArticleCard({
             {/* Source type for feed articles */}
             {isFeed && (article as FeedArticle).source_type && (
               <span className="inline-block px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs">
-                via {(article as FeedArticle).source_type === 'hn' ? 'Hacker News' : 'RSS'}
+                via {(article as FeedArticle).source_type === 'hn' ? 'Hacker News' : 'RSS feed'}
               </span>
             )}
 

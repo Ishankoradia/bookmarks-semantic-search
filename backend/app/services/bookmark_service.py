@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.models.bookmark import Bookmark
-from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkSearchResult, MetadataFilters, DateRangeFilter
+from app.schemas.bookmark import BookmarkUpdate, BookmarkSearchResult, MetadataFilters, DateRangeFilter, BookmarkSave
 from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
 from app.core.logging import get_logger
@@ -15,22 +15,167 @@ class BookmarkService:
         self.scraper = WebScraper()
         self.embedding_service = EmbeddingService()
         self.logger = get_logger(__name__)
-    
-    async def create_bookmark(self, db: Session, bookmark_data: BookmarkCreate, user_id: int) -> Bookmark:
-        url = str(bookmark_data.url)
-        
+
+    def _extract_domain(self, url: str) -> str:
+        """Extract domain from URL."""
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            return parsed.netloc or parsed.path.split('/')[0]
+        except:
+            return "unknown"
+
+    async def preview_bookmark(self, db: Session, url: str) -> Dict[str, Any]:
+        """
+        Preview a URL - scrapes content, generates embeddings/tags/category,
+        creates a pending bookmark (user_id=NULL), and returns it.
+        Returns dict with 'bookmark' and 'scrape_failed' flag.
+        """
+        domain = self._extract_domain(url)
+        scrape_failed = False
+        scraped_data = None
+
+        # Try to scrape the URL
+        try:
+            scraped_data = await self.scraper.scrape_url(url)
+            if not scraped_data.get('title'):
+                scrape_failed = True
+                self.logger.warning(f"Scraping returned no title for {url}")
+        except Exception as e:
+            scrape_failed = True
+            self.logger.warning(f"Scraping failed for {url}: {e}")
+            # For invalid URL, still raise - user needs to fix it
+            if "Invalid URL" in str(e):
+                raise ValueError("Please provide a valid URL")
+
+        # If scraping succeeded, generate embeddings/tags/category
+        embedding = None
+        auto_tags = []
+        suggested_category = "General"
+
+        if not scrape_failed and scraped_data:
+            # Generate embedding
+            try:
+                content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}"
+                embedding = await self.embedding_service.create_embedding(content_for_embedding)
+            except Exception as e:
+                self.logger.warning(f"Failed to create embedding: {e}")
+
+            # Generate tags
+            try:
+                auto_tags = await self.embedding_service.generate_content_tags(
+                    title=scraped_data['title'],
+                    description=scraped_data.get('description', ''),
+                    content=scraped_data['content'],
+                    domain=scraped_data['domain']
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to generate auto-tags: {e}")
+
+            # Generate category
+            try:
+                suggested_category = await self.embedding_service.generate_content_category(
+                    title=scraped_data['title'],
+                    content=scraped_data['content']
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to generate category: {e}")
+
+        # Create pending bookmark (no user_id)
+        # Use placeholder title if scraping failed (DB requires non-null title)
+        title = scraped_data['title'] if scraped_data and scraped_data.get('title') else ""
+
+        try:
+            bookmark = Bookmark(
+                url=url,
+                title=title,
+                description=scraped_data.get('description') if scraped_data else None,
+                content=scraped_data['content'] if scraped_data else None,
+                raw_html=scraped_data.get('raw_html') if scraped_data else None,
+                domain=scraped_data['domain'] if scraped_data else domain,
+                embedding=embedding,
+                tags=auto_tags,
+                category=suggested_category,
+                meta_data=scraped_data.get('metadata', {}) if scraped_data else {},
+                user_id=None,  # Pending - not claimed yet
+            )
+
+            db.add(bookmark)
+            db.commit()
+            db.refresh(bookmark)
+
+            return {
+                'bookmark': bookmark,
+                'scrape_failed': scrape_failed
+            }
+
+        except Exception as e:
+            db.rollback()
+            self.logger.error(f"Failed to create pending bookmark: {e}")
+            raise ValueError("Failed to create bookmark preview. Please try again.")
+
+    def save_bookmark(self, db: Session, save_data: BookmarkSave, user_id: int) -> Bookmark:
+        """
+        Save/claim a previewed bookmark by setting the user_id and updating category/reference/title.
+        """
+        # Find the pending bookmark
+        bookmark = db.query(Bookmark).filter(
+            Bookmark.id == save_data.id,
+            Bookmark.user_id.is_(None)  # Must be unclaimed
+        ).first()
+
+        if not bookmark:
+            raise ValueError("Bookmark not found or already saved")
+
+        # If bookmark has no title (scrape failed), require user-provided title
+        if not bookmark.title and not save_data.title:
+            raise ValueError("Title is required for this bookmark")
+
+        # Check if user already has this URL bookmarked
+        existing = db.query(Bookmark).filter(
+            Bookmark.url == bookmark.url,
+            Bookmark.user_id == user_id
+        ).first()
+        if existing:
+            # Clean up the pending bookmark
+            db.delete(bookmark)
+            db.commit()
+            raise ValueError("You already have this URL bookmarked")
+
+        # Claim the bookmark and update fields
+        bookmark.user_id = user_id
+        bookmark.category = save_data.category
+        bookmark.reference = save_data.reference
+        if save_data.title:
+            bookmark.title = save_data.title
+
+        try:
+            db.commit()
+            db.refresh(bookmark)
+            return bookmark
+        except Exception as e:
+            db.rollback()
+            self.logger.error(f"Failed to save bookmark: {e}")
+            raise ValueError("Failed to save bookmark. Please try again.")
+
+    async def create_bookmark(self, db: Session, url: str, user_id: int) -> Bookmark:
+        """
+        Create a bookmark directly (for feed save, etc.) without preview step.
+        Scrapes, generates embeddings/tags/category, and saves with user_id.
+        """
         # Check if bookmark already exists for this user
-        existing = db.query(Bookmark).filter(Bookmark.url == url, Bookmark.user_id == user_id).first()
+        existing = db.query(Bookmark).filter(
+            Bookmark.url == url,
+            Bookmark.user_id == user_id
+        ).first()
         if existing:
             raise ValueError("A bookmark with this URL already exists")
-        
+
+        # Scrape the URL
         try:
-            # Scrape the URL
             scraped_data = await self.scraper.scrape_url(url)
-            
             if not scraped_data.get('title'):
-                raise ValueError("Unable to extract content from this URL. Please check if the URL is accessible.")
-            
+                raise ValueError("Unable to extract content from this URL.")
         except Exception as e:
             if "Invalid URL" in str(e):
                 raise ValueError("Please provide a valid URL")
@@ -40,69 +185,63 @@ class BookmarkService:
                 raise ConnectionError("Unable to connect to the website")
             else:
                 raise ValueError(f"Failed to process URL: {str(e)}")
-        
+
+        # Generate embedding
         try:
-            # Create embedding - include reference in the embedding if provided
-            reference_text = f" Reference: {bookmark_data.reference}" if bookmark_data.reference else ""
-            content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}{reference_text}"
+            content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}"
             embedding = await self.embedding_service.create_embedding(content_for_embedding)
-            
         except Exception as e:
-            raise ValueError("Failed to create content embeddings. Please try again.")
-        
+            self.logger.warning(f"Failed to create embedding: {e}")
+            embedding = None
+
+        # Generate tags
         try:
-            # Generate auto-tags using GPT-4o mini
             auto_tags = await self.embedding_service.generate_content_tags(
                 title=scraped_data['title'],
                 description=scraped_data.get('description', ''),
                 content=scraped_data['content'],
                 domain=scraped_data['domain']
             )
-            
         except Exception as e:
             self.logger.warning(f"Failed to generate auto-tags: {e}")
-            # Continue without tags if auto-tagging fails
             auto_tags = []
-        
+
+        # Generate category
         try:
-            # Generate category using GPT-4o mini
             category = await self.embedding_service.generate_content_category(
                 title=scraped_data['title'],
                 content=scraped_data['content']
             )
-            
         except Exception as e:
             self.logger.warning(f"Failed to generate category: {e}")
-            # Use default category if generation fails
             category = "General"
-        
+
+        # Create bookmark with user_id
         try:
-            # Create bookmark with auto-generated tags and category
             bookmark = Bookmark(
                 url=url,
                 title=scraped_data['title'],
                 description=scraped_data.get('description'),
                 content=scraped_data['content'],
-                raw_html=scraped_data['raw_html'],
+                raw_html=scraped_data.get('raw_html'),
                 domain=scraped_data['domain'],
                 embedding=embedding,
-                tags=auto_tags,  # Use auto-generated tags
-                category=category,  # Use auto-generated category
-                meta_data=scraped_data['metadata'],
+                tags=auto_tags,
+                category=category,
+                meta_data=scraped_data.get('metadata', {}),
                 user_id=user_id,
-                reference=bookmark_data.reference if hasattr(bookmark_data, 'reference') else None
             )
-            
+
             db.add(bookmark)
             db.commit()
             db.refresh(bookmark)
-            
             return bookmark
-            
+
         except Exception as e:
             db.rollback()
-            raise ValueError("Failed to save bookmark to database. Please try again.")
-    
+            self.logger.error(f"Failed to create bookmark: {e}")
+            raise ValueError("Failed to save bookmark. Please try again.")
+
     def get_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> Optional[Bookmark]:
         return db.query(Bookmark).filter(Bookmark.id == bookmark_id, Bookmark.user_id == user_id).first()
     

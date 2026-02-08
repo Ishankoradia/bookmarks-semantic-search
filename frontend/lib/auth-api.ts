@@ -2,7 +2,8 @@ import { useAuthenticatedApi } from "./api-auth";
 import {
   Bookmark,
   BookmarkSearchResult,
-  CreateBookmarkRequest,
+  BookmarkPreviewResponse,
+  BookmarkSaveRequest,
   SearchQuery,
   TagPreviewResponse,
   JobStatus,
@@ -25,10 +26,18 @@ export const useBookmarkApi = () => {
   const { makeRequest } = useAuthenticatedApi();
 
   return {
-    // Create bookmark
-    createBookmark: async (data: CreateBookmarkRequest): Promise<Bookmark> => {
+    // Preview bookmark - scrapes URL, creates pending bookmark, returns preview
+    previewBookmark: async (url: string): Promise<BookmarkPreviewResponse> => {
       return makeRequest(async (api) => {
-        const response = await api.post('/bookmarks/', data);
+        const response = await api.post('/bookmarks/preview', { url });
+        return response.data;
+      });
+    },
+
+    // Save bookmark - claims a previewed bookmark
+    saveBookmark: async (data: BookmarkSaveRequest): Promise<Bookmark> => {
+      return makeRequest(async (api) => {
+        const response = await api.post('/bookmarks/save', data);
         return response.data;
       });
     },
