@@ -3,10 +3,9 @@
 Script to delete a user and all their related data.
 
 Usage:
-    cd backend
-    uv run python scripts/delete_user.py <email>
-    uv run python scripts/delete_user.py <email> --dry-run  # Preview without deleting
-    uv run python scripts/delete_user.py <email> --force    # Skip confirmation prompt
+    uv run python app/scripts/delete_user.py <email>
+    uv run python app/scripts/delete_user.py <email> --dry-run  # Preview without deleting
+    uv run python app/scripts/delete_user.py <email> --force    # Skip confirmation prompt
 """
 
 import sys
@@ -21,7 +20,9 @@ from app.services.user_service import UserService
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: uv run python scripts/delete_user.py <email> [--dry-run] [--force]")
+        print(
+            "Usage: uv run python scripts/delete_user.py <email> [--dry-run] [--force]"
+        )
         sys.exit(1)
 
     email = sys.argv[1]
@@ -65,7 +66,9 @@ def main():
 
         # Confirm deletion
         if not force:
-            confirm = input("\nAre you sure you want to delete this user and all their data? (yes/no): ")
+            confirm = input(
+                "\nAre you sure you want to delete this user and all their data? (yes/no): "
+            )
             if confirm.lower() != "yes":
                 print("Deletion cancelled.")
                 sys.exit(0)
