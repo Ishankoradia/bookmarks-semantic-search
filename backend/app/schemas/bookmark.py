@@ -14,8 +14,27 @@ class BookmarkBase(BaseModel):
     reference: Optional[str] = None
     category: Optional[str] = None
 
-class BookmarkCreate(BaseModel):
+class BookmarkPreviewRequest(BaseModel):
+    """Request for bookmark preview."""
     url: HttpUrl
+
+
+class BookmarkPreviewResponse(BaseModel):
+    """Response for bookmark preview - pending bookmark created."""
+    id: UUID  # Bookmark ID to use when saving
+    title: Optional[str] = None  # None if scraping failed
+    description: Optional[str] = None
+    domain: str
+    suggested_category: str
+    tags: List[str] = Field(default_factory=list)
+    scrape_failed: bool = False  # True if scraping failed, user must provide title
+
+
+class BookmarkSave(BaseModel):
+    """Request to save/claim a previewed bookmark."""
+    id: UUID  # Bookmark ID from preview
+    category: str  # User-confirmed or edited category
+    title: Optional[str] = None  # Required if scraping failed
     reference: Optional[str] = None
 
 class BookmarkUpdate(BaseModel):

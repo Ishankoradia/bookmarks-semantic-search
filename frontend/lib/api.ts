@@ -20,9 +20,25 @@ export interface BookmarkSearchResult extends Bookmark {
   similarity_score: number;
 }
 
-export interface CreateBookmarkRequest {
+export interface BookmarkPreviewRequest {
   url: string;
+}
+
+export interface BookmarkPreviewResponse {
+  id: string;
+  title: string | null;  // null if scraping failed
+  description: string | null;
+  domain: string;
+  suggested_category: string;
+  tags: string[];
+  scrape_failed: boolean;
+}
+
+export interface BookmarkSaveRequest {
+  id: string;
+  category: string;
   reference?: string;
+  title?: string;  // Required if scraping failed
 }
 
 export type DateRangeFilter = 'today' | 'last_week' | 'last_month' | 'last_3_months' | 'last_year' | 'all_time';

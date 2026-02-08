@@ -24,7 +24,7 @@ from app.schemas.feed_article import (
     FeedArticleListResponse,
     FeedRefreshResponse,
 )
-from app.schemas.bookmark import BookmarkCreate, BookmarkResponse
+from app.schemas.bookmark import BookmarkResponse
 from app.schemas.follow import FriendsFeedResponse
 
 logger = get_logger(__name__)
@@ -255,10 +255,9 @@ async def save_article_to_bookmarks(
 
     try:
         # Create bookmark from the article
-        bookmark_data = BookmarkCreate(url=article.url)
         bookmark = await bookmark_service.create_bookmark(
             db=db,
-            bookmark_data=bookmark_data,
+            url=article.url,
             user_id=current_user.id,
         )
 

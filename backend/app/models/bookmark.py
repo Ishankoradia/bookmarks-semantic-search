@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean, ForeignKey, Index, Computed
+from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean, ForeignKey, Index, Computed, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.sql import func
@@ -8,9 +8,9 @@ from app.core.database import Base
 
 class Bookmark(Base):
     __tablename__ = "bookmarks"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    url = Column(String, unique=True, nullable=False, index=True)
+    url = Column(String, nullable=False, index=True)  # Unique per user, not globally
     title = Column(String, nullable=False)
     description = Column(Text)
     content = Column(Text)
@@ -40,6 +40,11 @@ class Bookmark(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
+    # Unique URL per user (allows pending bookmarks with user_id=NULL)
+    __table_args__ = (
+        UniqueConstraint('url', 'user_id', name='uq_bookmark_url_user'),
+    )
+
     def __repr__(self):
         return f"<Bookmark {self.title}>"

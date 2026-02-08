@@ -41,6 +41,12 @@ export default function BookmarksPage() {
   const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
   const [newBookmarkUrl, setNewBookmarkUrl] = useState('');
   const [newBookmarkReference, setNewBookmarkReference] = useState('');
+  const [newBookmarkCategory, setNewBookmarkCategory] = useState('');
+  const [suggestedCategory, setSuggestedCategory] = useState('');
+  const [newBookmarkTitle, setNewBookmarkTitle] = useState('');
+  const [scrapeFailed, setScrapeFailed] = useState(false);
+  const [previewData, setPreviewData] = useState<{ id: string; title: string | null; domain: string; tags: string[] } | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isAddingBookmark, setIsAddingBookmark] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState<(BookmarkType | BookmarkSearchResult)[]>([]);
@@ -206,21 +212,70 @@ export default function BookmarksPage() {
     }
   };
 
-  const handleAddBookmark = async () => {
+  const handlePreviewBookmark = async () => {
     if (!newBookmarkUrl.trim()) {
       setModalError('Please enter a valid URL');
       return;
     }
 
     try {
+      setIsPreviewing(true);
+      setModalError(null);
+      const preview = await authApi.previewBookmark(newBookmarkUrl);
+      setPreviewData({
+        id: preview.id,
+        title: preview.title,
+        domain: preview.domain,
+        tags: preview.tags,
+      });
+      setSuggestedCategory(preview.suggested_category);
+      setNewBookmarkCategory(preview.suggested_category);
+      setScrapeFailed(preview.scrape_failed);
+      if (preview.scrape_failed) {
+        setNewBookmarkTitle('');
+      }
+    } catch (err: any) {
+      let errorMessage = 'Failed to preview URL';
+      if (err.response?.status === 400) {
+        errorMessage = err.response.data?.detail || 'Unable to access URL';
+      } else if (err.response?.status === 422) {
+        errorMessage = 'Please enter a valid URL format';
+      }
+      setModalError(errorMessage);
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const handleAddBookmark = async () => {
+    if (!previewData) {
+      setModalError('Please preview the URL first');
+      return;
+    }
+    if (!newBookmarkCategory.trim()) {
+      setModalError('Please select or enter a category');
+      return;
+    }
+    if (scrapeFailed && !newBookmarkTitle.trim()) {
+      setModalError('Please enter a title');
+      return;
+    }
+
+    try {
       setIsAddingBookmark(true);
       setModalError(null);
-      await authApi.createBookmark({
-        url: newBookmarkUrl,
+      await authApi.saveBookmark({
+        id: previewData.id,
+        category: newBookmarkCategory.trim(),
         reference: newBookmarkReference.trim() || undefined,
+        title: scrapeFailed ? newBookmarkTitle.trim() : undefined,
       });
       setNewBookmarkUrl('');
       setNewBookmarkReference('');
+      setNewBookmarkCategory('');
+      setNewBookmarkTitle('');
+      setScrapeFailed(false);
+      setPreviewData(null);
       setIsDialogOpen(false);
       await loadBookmarks();
       await loadCategoryList();
@@ -229,8 +284,8 @@ export default function BookmarksPage() {
       let errorMessage = 'Failed to add bookmark';
       if (err.response?.status === 400) {
         errorMessage = err.response.data?.detail || 'Invalid URL or bookmark already exists';
-      } else if (err.response?.status === 422) {
-        errorMessage = 'Please enter a valid URL format';
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Preview expired. Please preview again.';
       }
       setModalError(errorMessage);
     } finally {
@@ -244,6 +299,11 @@ export default function BookmarksPage() {
       setModalError(null);
       setNewBookmarkUrl('');
       setNewBookmarkReference('');
+      setNewBookmarkCategory('');
+      setSuggestedCategory('');
+      setNewBookmarkTitle('');
+      setScrapeFailed(false);
+      setPreviewData(null);
     }
   };
 
@@ -317,25 +377,111 @@ export default function BookmarksPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="url">URL</Label>
-                <Input
-                  id="url"
-                  placeholder="https://example.com/article"
-                  value={newBookmarkUrl}
-                  onChange={(e) => setNewBookmarkUrl(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="url"
+                    placeholder="https://example.com/article"
+                    value={newBookmarkUrl}
+                    onChange={(e) => {
+                      setNewBookmarkUrl(e.target.value);
+                      setPreviewData(null);
+                      setNewBookmarkCategory('');
+                    }}
+                    disabled={isPreviewing}
+                  />
+                  <Button
+                    onClick={handlePreviewBookmark}
+                    disabled={isPreviewing || !newBookmarkUrl.trim()}
+                    variant="outline"
+                  >
+                    {isPreviewing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Preview'
+                    )}
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="reference">Reference (optional)</Label>
-                <Textarea
-                  id="reference"
-                  placeholder="Who shared this? Where did you find it?"
-                  value={newBookmarkReference}
-                  onChange={(e) => setNewBookmarkReference(e.target.value)}
-                  rows={2}
-                />
-              </div>
+
+              {previewData && (
+                <>
+                  {scrapeFailed ? (
+                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md space-y-1">
+                      <p className="font-medium text-sm text-yellow-800 dark:text-yellow-200">
+                        Could not fetch page content
+                      </p>
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                        The website may block automated access. Please enter the title manually or try again.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{previewData.domain}</p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted rounded-md space-y-1">
+                      <p className="font-medium text-sm line-clamp-2">{previewData.title}</p>
+                      <p className="text-xs text-muted-foreground">{previewData.domain}</p>
+                    </div>
+                  )}
+
+                  {scrapeFailed && (
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        placeholder="Enter a title for this bookmark"
+                        value={newBookmarkTitle}
+                        onChange={(e) => setNewBookmarkTitle(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="category"
+                        placeholder="e.g. Technology, Health, Finance"
+                        value={newBookmarkCategory}
+                        onChange={(e) => setNewBookmarkCategory(e.target.value)}
+                      />
+                      {newBookmarkCategory !== suggestedCategory && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setNewBookmarkCategory(suggestedCategory)}
+                          className="shrink-0"
+                        >
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+                    {!scrapeFailed && (
+                      <p className="text-xs text-muted-foreground">
+                        AI suggested: {suggestedCategory || 'General'}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="reference">Reference (optional)</Label>
+                    <Textarea
+                      id="reference"
+                      placeholder="Who shared this? Where did you find it?"
+                      value={newBookmarkReference}
+                      onChange={(e) => setNewBookmarkReference(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                </>
+              )}
+
               {modalError && <p className="text-sm text-destructive">{modalError}</p>}
-              <Button onClick={handleAddBookmark} disabled={isAddingBookmark} className="w-full">
+
+              <Button
+                onClick={handleAddBookmark}
+                disabled={isAddingBookmark || !previewData}
+                className="w-full"
+              >
                 {isAddingBookmark ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

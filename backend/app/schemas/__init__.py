@@ -1,7 +1,9 @@
 from .user import UserBase, UserCreate, UserUpdate, UserResponse
 from .bookmark import (
     BookmarkBase,
-    BookmarkCreate,
+    BookmarkPreviewRequest,
+    BookmarkPreviewResponse,
+    BookmarkSave,
     BookmarkResponse,
     BookmarkSearchResult,
     SearchQuery,
@@ -36,7 +38,9 @@ __all__ = [
     "UserResponse",
     # Bookmark
     "BookmarkBase",
-    "BookmarkCreate",
+    "BookmarkPreviewRequest",
+    "BookmarkPreviewResponse",
+    "BookmarkSave",
     "BookmarkResponse",
     "BookmarkSearchResult",
     "SearchQuery",
