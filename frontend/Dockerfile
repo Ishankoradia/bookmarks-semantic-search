@@ -12,6 +12,9 @@ RUN npm ci
 # Copy all application files
 COPY . .
 
+# Copy .env.prod as .env for build-time variables (NEXT_PUBLIC_*)
+COPY .env.prod .env
+
 # Build the application
 RUN npm run build
 
@@ -27,6 +30,9 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
+
+# Copy .env.prod for runtime variables (secrets, etc.)
+COPY .env.prod .env
 
 EXPOSE 3002
 
