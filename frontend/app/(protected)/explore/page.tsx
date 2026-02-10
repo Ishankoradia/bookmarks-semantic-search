@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { usePreferencesApi, useFeedApi, useBookmarkApi } from '@/lib/auth-api';
 import { FeedArticle, UserPreference } from '@/lib/api';
 import { OnboardingModal } from '@/components/explore/OnboardingModal';
@@ -11,6 +11,29 @@ import { formatRelativeDate } from '@/lib/utils';
 import { Loader2, RefreshCw, Compass, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+
+function ExploreCardSkeleton() {
+  return (
+    <div className="border rounded-xl p-5 space-y-3 bg-card">
+      {/* Title */}
+      <Skeleton className="h-5 w-3/4" />
+      <Skeleton className="h-5 w-1/2" />
+      {/* Topic */}
+      <Skeleton className="h-4 w-24" />
+      {/* Source badge */}
+      <Skeleton className="h-5 w-28 rounded" />
+      {/* Tags */}
+      <div className="flex gap-2">
+        <Skeleton className="h-6 w-16 rounded-full" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t">
+        <Skeleton className="h-4 w-24" />
+      </div>
+    </div>
+  );
+}
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -119,8 +142,22 @@ export default function ExplorePage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="container max-w-4xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Explore</h1>
+            <Skeleton className="h-4 w-48 mt-1" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-20" />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[...Array(6)].map((_, i) => (
+            <ExploreCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

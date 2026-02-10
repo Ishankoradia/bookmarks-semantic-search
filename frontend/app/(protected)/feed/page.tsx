@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedApi } from '@/lib/auth-api';
 import { FriendBookmark, FriendsFeedResponse } from '@/lib/api';
 import { Loader2, Users, UserPlus } from 'lucide-react';
@@ -10,6 +11,31 @@ import { UserSearchModal } from '@/components/follows';
 import { ArticleCard } from '@/components/explore/ArticleCard';
 import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
+
+function FeedCardSkeleton() {
+  return (
+    <div className="border rounded-xl p-5 space-y-3 bg-card">
+      {/* Owner avatar and name */}
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-6 rounded-full" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      {/* Title */}
+      <Skeleton className="h-5 w-3/4" />
+      <Skeleton className="h-5 w-1/2" />
+      {/* Description */}
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-2/3" />
+      {/* Category */}
+      <Skeleton className="h-4 w-24" />
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-16" />
+      </div>
+    </div>
+  );
+}
 
 export default function FeedPage() {
   const router = useRouter();
@@ -52,15 +78,22 @@ export default function FeedPage() {
     loadFeed();
   }, []);
 
+  const bookmarks = feedData?.bookmarks || [];
+
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="container max-w-4xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Friends Feed</h1>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[...Array(6)].map((_, i) => (
+            <FeedCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
-
-  const bookmarks = feedData?.bookmarks || [];
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-6">

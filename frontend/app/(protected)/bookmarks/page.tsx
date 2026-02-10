@@ -32,6 +32,33 @@ import { useBookmarkApi } from '@/lib/auth-api';
 import { Bookmark as BookmarkType, BookmarkSearchResult } from '@/lib/api';
 import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Skeleton that mimics ArticleCard shape
+function BookmarkCardSkeleton() {
+  return (
+    <div className="border rounded-xl p-5 space-y-3 bg-card">
+      {/* Title */}
+      <Skeleton className="h-5 w-3/4" />
+      <Skeleton className="h-5 w-1/2" />
+      {/* Description */}
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-2/3" />
+      {/* Category */}
+      <Skeleton className="h-4 w-24" />
+      {/* Tags */}
+      <div className="flex gap-2">
+        <Skeleton className="h-6 w-16 rounded-full" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-6 w-16 rounded-full" />
+      </div>
+    </div>
+  );
+}
 
 type FilterTab = 'all' | 'unread' | 'read';
 type ViewMode = 'grid' | 'category';
@@ -666,8 +693,10 @@ export default function BookmarksPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="grid gap-4 md:grid-cols-2">
+          {[...Array(6)].map((_, i) => (
+            <BookmarkCardSkeleton key={i} />
+          ))}
         </div>
       ) : bookmarks.length === 0 ? (
         <div className="text-center py-12">
