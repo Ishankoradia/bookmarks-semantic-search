@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { usePreferencesApi, useFeedApi, useBookmarkApi } from '@/lib/auth-api';
+import { usePreferencesApi, useFeedApi } from '@/lib/auth-api';
 import { FeedArticle, UserPreference } from '@/lib/api';
 import { OnboardingModal } from '@/components/explore/OnboardingModal';
 import { ArticleCard } from '@/components/explore/ArticleCard';
@@ -40,44 +40,58 @@ export default function ExplorePage() {
   const [articles, setArticles] = useState<FeedArticle[]>([]);
   const [preferences, setPreferences] = useState<UserPreference | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [savingArticleId, setSavingArticleId] = useState<string | null>(null);
   const preferencesApi = usePreferencesApi();
   const feedApi = useFeedApi();
-  const bookmarkApi = useBookmarkApi();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [availableTopics, setAvailableTopics] = useState<string[]>([]);
 
-  const loadData = async () => {
+  const loadData = async (skip = 0) => {
     try {
-      const [prefs, topics] = await Promise.all([
-        preferencesApi.getPreferences(),
-        preferencesApi.getTopics(),
-      ]);
-      setPreferences(prefs);
-      setAvailableTopics(topics);
+      if (skip === 0) {
+        const [prefs, topics] = await Promise.all([
+          preferencesApi.getPreferences(),
+          preferencesApi.getTopics(),
+        ]);
+        setPreferences(prefs);
+        setAvailableTopics(topics);
 
-      if (!prefs.interests || prefs.interests.length === 0) {
-        setShowOnboarding(true);
-        setLoading(false);
-        return;
+        if (!prefs.interests || prefs.interests.length === 0) {
+          setShowOnboarding(true);
+          setLoading(false);
+          return;
+        }
       }
 
-      const response = await feedApi.getFeed(0, 50);
-      setArticles(response.articles);
+      const response = await feedApi.getFeed(skip, 20);
 
-      // Check for running refresh job
-      const jobStatus = await feedApi.getRefreshStatus();
-      if ('status' in jobStatus && (jobStatus.status === 'pending' || jobStatus.status === 'running')) {
-        setRefreshing(true);
-        pollRefreshStatus();
+      if (skip === 0) {
+        setArticles(response.articles);
+      } else {
+        setArticles((prev) => [...prev, ...response.articles]);
+      }
+
+      setHasMore(response.articles.length === 20);
+
+      // Check for running refresh job (only on initial load)
+      if (skip === 0) {
+        const jobStatus = await feedApi.getRefreshStatus();
+        if ('status' in jobStatus && (jobStatus.status === 'pending' || jobStatus.status === 'running')) {
+          setRefreshing(true);
+          pollRefreshStatus();
+        }
       }
     } catch (error) {
       console.error('Failed to load explore data:', error);
       toast.error('Failed to load articles');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -108,8 +122,34 @@ export default function ExplorePage() {
     loadData();
   }, []);
 
+  // Infinite scroll
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      setLoadingMore(true);
+      loadData(articles.length);
+    }
+  }, [loadingMore, hasMore, loading, articles.length]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleLoadMore]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
+    setHasMore(true);
     try {
       await feedApi.refreshFeed();
       pollRefreshStatus();
@@ -221,17 +261,26 @@ export default function ExplorePage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {articles.map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={{ ...article, type: 'feed' as const }}
-              onSave={() => handleSaveArticle(article.id)}
-              isSaving={savingArticleId === article.id}
-              formatDate={formatRelativeDate}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-2">
+            {articles.map((article) => (
+              <ArticleCard
+                key={article.id}
+                article={{ ...article, type: 'feed' as const }}
+                onSave={() => handleSaveArticle(article.id)}
+                isSaving={savingArticleId === article.id}
+                formatDate={formatRelativeDate}
+              />
+            ))}
+          </div>
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-4" />
+          {loadingMore && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

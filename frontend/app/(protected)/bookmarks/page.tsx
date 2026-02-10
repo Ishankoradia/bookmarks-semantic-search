@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, Plus, Loader2, Filter, X, LayoutGrid, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,17 +98,37 @@ export default function BookmarksPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadBookmarks();
-    loadCategoryList();
-  }, []);
+  // Infinite scroll state
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Load view mode from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('bookmarks-view-mode') as ViewMode;
-    if (saved === 'grid' || saved === 'category') {
-      setViewMode(saved);
+    const savedViewMode = localStorage.getItem('bookmarks-view-mode') as ViewMode;
+    if (savedViewMode === 'grid' || savedViewMode === 'category') {
+      setViewMode(savedViewMode);
     }
+
+    const initLoad = async () => {
+      // Load all bookmarks if category view, otherwise load paginated
+      const limit = savedViewMode === 'category' ? 1000 : 20;
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await authApi.getBookmarks(0, limit);
+        setAllBookmarks(data);
+        applyFilter(data, activeFilter);
+        setHasMore(limit === 20 && data.length === 20);
+      } catch (err) {
+        setError('Failed to load bookmarks');
+        console.error('Error loading bookmarks:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initLoad();
+    loadCategoryList();
   }, []);
 
   // Handle click outside dropdown
@@ -128,18 +148,56 @@ export default function BookmarksPage() {
     };
   }, [isDropdownOpen]);
 
-  const loadBookmarks = async () => {
+  // Infinite scroll (only for grid view without search)
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !isLoading && searchQuery.trim() === '' && viewMode === 'grid') {
+      loadBookmarks(allBookmarks.length);
+    }
+  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || viewMode !== 'grid' || searchQuery.trim() !== '') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleLoadMore, viewMode, searchQuery]);
+
+  const loadBookmarks = async (skip = 0) => {
     try {
-      setIsLoading(true);
+      if (skip === 0) {
+        setIsLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
-      const data = await authApi.getBookmarks();
-      setAllBookmarks(data);
-      applyFilter(data, activeFilter);
+      const data = await authApi.getBookmarks(skip, 20);
+
+      if (skip === 0) {
+        setAllBookmarks(data);
+        applyFilter(data, activeFilter);
+      } else {
+        const newAllBookmarks = [...allBookmarks, ...data];
+        setAllBookmarks(newAllBookmarks);
+        applyFilter(newAllBookmarks, activeFilter);
+      }
+
+      setHasMore(data.length === 20);
     } catch (err) {
       setError('Failed to load bookmarks');
       console.error('Error loading bookmarks:', err);
     } finally {
       setIsLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -217,9 +275,11 @@ export default function BookmarksPage() {
 
   const performSearch = async (query: string, customCategoryFilters?: string[]) => {
     if (query.trim() === '') {
+      setHasMore(true);
       await loadBookmarks();
     } else {
       setActiveFilter('all');
+      setHasMore(false); // Disable infinite scroll during search
       try {
         setIsSearching(true);
         setError(null);
@@ -399,9 +459,24 @@ export default function BookmarksPage() {
   };
 
   // View mode handlers
-  const handleViewModeChange = (mode: ViewMode) => {
+  const handleViewModeChange = async (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem('bookmarks-view-mode', mode);
+
+    // Load all bookmarks for category view
+    if (mode === 'category' && hasMore && searchQuery.trim() === '') {
+      try {
+        setIsLoading(true);
+        const data = await authApi.getBookmarks(0, 1000);
+        setAllBookmarks(data);
+        applyFilter(data, activeFilter);
+        setHasMore(false);
+      } catch (err) {
+        console.error('Error loading all bookmarks:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const toggleFolder = (category: string) => {
@@ -707,22 +782,35 @@ export default function BookmarksPage() {
         </div>
       ) : viewMode === 'grid' ? (
         /* Grid View */
-        <div className="grid gap-4 md:grid-cols-2">
-          {bookmarks.map((bookmark) => (
-            <ArticleCard
-              key={bookmark.id}
-              article={{
-                ...bookmark,
-                type: 'bookmark' as const,
-                similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
-              }}
-              onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
-              onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
-              onDelete={() => handleDeleteClick(bookmark)}
-              formatDate={formatRelativeDate}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-2">
+            {bookmarks.map((bookmark) => (
+              <ArticleCard
+                key={bookmark.id}
+                article={{
+                  ...bookmark,
+                  type: 'bookmark' as const,
+                  similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
+                }}
+                onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+                onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+                onDelete={() => handleDeleteClick(bookmark)}
+                formatDate={formatRelativeDate}
+              />
+            ))}
+          </div>
+          {/* Infinite scroll sentinel */}
+          {searchQuery.trim() === '' && (
+            <>
+              <div ref={sentinelRef} className="h-4" />
+              {loadingMore && (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </>
+          )}
+        </>
       ) : (
         /* Category View */
         <div className="space-y-3">
