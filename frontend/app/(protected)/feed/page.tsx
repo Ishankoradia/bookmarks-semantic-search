@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,6 +43,7 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const feedApi = useFeedApi();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const loadFeed = async (skip = 0) => {
     if (skip === 0) {
@@ -77,6 +78,30 @@ export default function FeedPage() {
   useEffect(() => {
     loadFeed();
   }, []);
+
+  // Infinite scroll
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && feedData?.has_more) {
+      loadFeed(feedData.bookmarks.length);
+    }
+  }, [loadingMore, feedData]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleLoadMore]);
 
   const bookmarks = feedData?.bookmarks || [];
 
@@ -133,22 +158,11 @@ export default function FeedPage() {
             ))}
           </div>
 
-          {feedData?.has_more && (
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-4" />
+          {loadingMore && (
             <div className="flex justify-center py-6">
-              <Button
-                variant="outline"
-                onClick={() => loadFeed(bookmarks.length)}
-                disabled={loadingMore}
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  'Load More'
-                )}
-              </Button>
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           )}
         </>
