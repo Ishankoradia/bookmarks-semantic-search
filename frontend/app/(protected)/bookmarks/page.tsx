@@ -98,10 +98,16 @@ export default function BookmarksPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
 
-  // Infinite scroll state
+  // Infinite scroll state (grid view)
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Category view state (lazy loading per category)
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [categoryBookmarks, setCategoryBookmarks] = useState<Record<string, (BookmarkType | BookmarkSearchResult)[]>>({});
+  const [categoryLoading, setCategoryLoading] = useState<Record<string, boolean>>({});
+  const [categoryHasMore, setCategoryHasMore] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('bookmarks-view-mode') as ViewMode;
@@ -110,15 +116,21 @@ export default function BookmarksPage() {
     }
 
     const initLoad = async () => {
-      // Load all bookmarks if category view, otherwise load paginated
-      const limit = savedViewMode === 'category' ? 1000 : 20;
       try {
         setIsLoading(true);
         setError(null);
-        const data = await authApi.getBookmarks(0, limit);
-        setAllBookmarks(data);
-        applyFilter(data, activeFilter);
-        setHasMore(limit === 20 && data.length === 20);
+
+        if (savedViewMode === 'category') {
+          // Category view: just fetch category counts
+          const counts = await authApi.getCategories();
+          setCategoryCounts(counts);
+        } else {
+          // Grid view: fetch first 20 bookmarks
+          const data = await authApi.getBookmarks(0, 20);
+          setAllBookmarks(data);
+          setBookmarks(data);
+          setHasMore(data.length === 20);
+        }
       } catch (err) {
         setError('Failed to load bookmarks');
         console.error('Error loading bookmarks:', err);
@@ -151,9 +163,9 @@ export default function BookmarksPage() {
   // Infinite scroll (only for grid view without search)
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore && !isLoading && searchQuery.trim() === '' && viewMode === 'grid') {
-      loadBookmarks(allBookmarks.length);
+      loadBookmarks(allBookmarks.length, activeFilter, categoryFilters);
     }
-  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length]);
+  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length, activeFilter, categoryFilters]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -172,7 +184,19 @@ export default function BookmarksPage() {
     return () => observer.disconnect();
   }, [handleLoadMore, viewMode, searchQuery]);
 
-  const loadBookmarks = async (skip = 0) => {
+  // Convert filter tab to API parameter
+  const getIsReadParam = (filter: FilterTab): boolean | undefined => {
+    switch (filter) {
+      case 'read':
+        return true;
+      case 'unread':
+        return false;
+      default:
+        return undefined;
+    }
+  };
+
+  const loadBookmarks = async (skip = 0, filter: FilterTab = activeFilter, categories: string[] = categoryFilters) => {
     try {
       if (skip === 0) {
         setIsLoading(true);
@@ -180,15 +204,17 @@ export default function BookmarksPage() {
         setLoadingMore(true);
       }
       setError(null);
-      const data = await authApi.getBookmarks(skip, 20);
+      const isReadParam = getIsReadParam(filter);
+      const categoriesParam = categories.length > 0 ? categories : undefined;
+      const data = await authApi.getBookmarks(skip, 20, isReadParam, categoriesParam);
 
       if (skip === 0) {
         setAllBookmarks(data);
-        applyFilter(data, activeFilter);
+        setBookmarks(data);
       } else {
         const newAllBookmarks = [...allBookmarks, ...data];
         setAllBookmarks(newAllBookmarks);
-        applyFilter(newAllBookmarks, activeFilter);
+        setBookmarks(newAllBookmarks);
       }
 
       setHasMore(data.length === 20);
@@ -210,43 +236,19 @@ export default function BookmarksPage() {
     }
   };
 
-  const applyFilter = (data: (BookmarkType | BookmarkSearchResult)[], filter: FilterTab, customCategoryFilters?: string[]) => {
-    let filtered = data;
-    const filtersToUse = customCategoryFilters !== undefined ? customCategoryFilters : categoryFilters;
-
-    if (filtersToUse.length > 0) {
-      filtered = filtered.filter((bookmark) => {
-        const bookmarkCategory = bookmark.category || 'Others';
-        return filtersToUse.some((selectedCategory) => {
-          if (selectedCategory === 'Others') {
-            return !bookmark.category || bookmark.category === '';
-          }
-          return bookmark.category === selectedCategory;
-        });
-      });
-    }
-
-    switch (filter) {
-      case 'read':
-        filtered = filtered.filter((bookmark) => bookmark.is_read === true);
-        break;
-      case 'unread':
-        filtered = filtered.filter((bookmark) => bookmark.is_read !== true);
-        break;
-    }
-
-    setBookmarks(filtered);
-  };
-
-  const handleCategoryFilterToggle = (category: string) => {
+  const handleCategoryFilterToggle = async (category: string) => {
     const newFilters = categoryFilters.includes(category)
       ? categoryFilters.filter((c) => c !== category)
       : [...categoryFilters, category];
 
     setCategoryFilters(newFilters);
+    setHasMore(true);
+    // Reset to page 0 - clear current data to show loading state
+    setAllBookmarks([]);
+    setBookmarks([]);
 
     if (searchQuery.trim() === '') {
-      applyFilter(allBookmarks, activeFilter, newFilters);
+      await loadBookmarks(0, activeFilter, newFilters);
     } else {
       performSearch(searchQuery, newFilters);
     }
@@ -254,22 +256,56 @@ export default function BookmarksPage() {
 
   const handleFilterChange = async (filter: FilterTab) => {
     setActiveFilter(filter);
-    if (searchQuery.trim() === '') {
-      applyFilter(allBookmarks, filter);
-    } else {
+
+    if (searchQuery.trim() !== '') {
+      // Search mode: filter client-side
       try {
         setIsSearching(true);
+        const filters: { category?: string[] } = {};
+        if (categoryFilters.length > 0) {
+          filters.category = categoryFilters;
+        }
         const results = await authApi.searchBookmarks({
           query: searchQuery,
           limit: 50,
           threshold: 0.3,
+          filters: Object.keys(filters).length > 0 ? filters : undefined,
         });
-        applyFilter(results, filter);
+        let filtered = results;
+        if (filter === 'read') {
+          filtered = results.filter((b) => b.is_read === true);
+        } else if (filter === 'unread') {
+          filtered = results.filter((b) => b.is_read !== true);
+        }
+        setAllBookmarks(filtered);
+        setBookmarks(filtered);
       } catch (err) {
         setError('Search failed');
       } finally {
         setIsSearching(false);
       }
+    } else if (viewMode === 'category') {
+      // Category view: refetch category counts with new filter
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(filter);
+        const counts = await authApi.getCategories(isReadParam);
+        setCategoryCounts(counts);
+        // Reset per-category bookmarks to force reload with new filter
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Grid view: reload bookmarks
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, filter, categoryFilters);
     }
   };
 
@@ -294,7 +330,8 @@ export default function BookmarksPage() {
           threshold: 0.3,
           filters: Object.keys(filters).length > 0 ? filters : undefined,
         });
-        applyFilter(results, 'all', filtersToUse);
+        setAllBookmarks(results);
+        setBookmarks(results);
       } catch (err) {
         setError('Search failed');
       } finally {
@@ -416,6 +453,15 @@ export default function BookmarksPage() {
 
       setAllBookmarks((prev) => prev.map(updateBookmark));
       setBookmarks((prev) => prev.map(updateBookmark));
+
+      // Update category bookmarks
+      setCategoryBookmarks((prev) => {
+        const updated = { ...prev };
+        for (const cat in updated) {
+          updated[cat] = updated[cat].map(updateBookmark);
+        }
+        return updated;
+      });
     } catch (err) {
       toast.error('Failed to update read status');
     }
@@ -430,6 +476,23 @@ export default function BookmarksPage() {
 
       setAllBookmarks((prev) => prev.filter((b) => b.id !== bookmarkToDelete.id));
       setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkToDelete.id));
+
+      // Update category bookmarks and counts
+      setCategoryBookmarks((prev) => {
+        const updated = { ...prev };
+        for (const cat in updated) {
+          const before = updated[cat].length;
+          updated[cat] = updated[cat].filter((b) => b.id !== bookmarkToDelete.id);
+          // Update count if bookmark was removed from this category
+          if (updated[cat].length < before) {
+            setCategoryCounts((prevCounts) => ({
+              ...prevCounts,
+              [cat]: Math.max(0, (prevCounts[cat] || 0) - 1),
+            }));
+          }
+        }
+        return updated;
+      });
 
       await loadCategoryList();
       setDeleteDialogOpen(false);
@@ -463,23 +526,59 @@ export default function BookmarksPage() {
     setViewMode(mode);
     localStorage.setItem('bookmarks-view-mode', mode);
 
-    // Load all bookmarks for category view
-    if (mode === 'category' && hasMore && searchQuery.trim() === '') {
+    if (mode === 'category' && searchQuery.trim() === '') {
+      // Category view: fetch category counts only
       try {
         setIsLoading(true);
-        const data = await authApi.getBookmarks(0, 1000);
-        setAllBookmarks(data);
-        applyFilter(data, activeFilter);
-        setHasMore(false);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam);
+        setCategoryCounts(counts);
+        // Reset per-category state
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
       } catch (err) {
-        console.error('Error loading all bookmarks:', err);
+        console.error('Error loading categories:', err);
       } finally {
         setIsLoading(false);
       }
     }
   };
 
-  const toggleFolder = (category: string) => {
+  // Load bookmarks for a specific category (uses same API as grid view)
+  const loadCategoryBookmarks = async (category: string, skip = 0) => {
+    if (skip === 0) {
+      setCategoryLoading((prev) => ({ ...prev, [category]: true }));
+    }
+
+    try {
+      const isReadParam = getIsReadParam(activeFilter);
+      // Use the same getBookmarks API with category filter
+      const data = await authApi.getBookmarks(skip, 20, isReadParam, [category]);
+
+      setCategoryBookmarks((prev) => ({
+        ...prev,
+        [category]: skip === 0 ? data : [...(prev[category] || []), ...data],
+      }));
+      setCategoryHasMore((prev) => ({ ...prev, [category]: data.length === 20 }));
+    } catch (err) {
+      console.error(`Error loading bookmarks for category ${category}:`, err);
+    } finally {
+      setCategoryLoading((prev) => ({ ...prev, [category]: false }));
+    }
+  };
+
+  // Load more bookmarks for a category (infinite scroll)
+  const loadMoreCategoryBookmarks = (category: string) => {
+    const currentBookmarks = categoryBookmarks[category] || [];
+    if (!categoryLoading[category] && categoryHasMore[category]) {
+      loadCategoryBookmarks(category, currentBookmarks.length);
+    }
+  };
+
+  const toggleFolder = async (category: string) => {
+    const isOpening = !openFolders.has(category);
+
     setOpenFolders((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(category)) {
@@ -489,24 +588,17 @@ export default function BookmarksPage() {
       }
       return newSet;
     });
+
+    // Load bookmarks when opening a folder for the first time
+    if (isOpening && !categoryBookmarks[category]) {
+      await loadCategoryBookmarks(category);
+    }
   };
 
-  // Group bookmarks by category for category view
-  const groupedBookmarks = useMemo(() => {
-    const grouped: Record<string, (BookmarkType | BookmarkSearchResult)[]> = {};
-    bookmarks.forEach((bookmark) => {
-      const category = bookmark.category || 'Others';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(bookmark);
-    });
-    return grouped;
-  }, [bookmarks]);
-
+  // Sorted categories for category view (from API counts)
   const sortedCategories = useMemo(() => {
-    return Object.keys(groupedBookmarks).sort((a, b) => a.localeCompare(b));
-  }, [groupedBookmarks]);
+    return Object.keys(categoryCounts).sort((a, b) => a.localeCompare(b));
+  }, [categoryCounts]);
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-6">
@@ -716,10 +808,14 @@ export default function BookmarksPage() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => {
+                onClick={async () => {
                   setCategoryFilters([]);
+                  setHasMore(true);
+                  // Reset to page 0 - clear current data to show loading state
+                  setAllBookmarks([]);
+                  setBookmarks([]);
                   if (searchQuery.trim() === '') {
-                    applyFilter(allBookmarks, activeFilter, []);
+                    await loadBookmarks(0, activeFilter, []);
                   } else {
                     performSearch(searchQuery, []);
                   }
@@ -759,10 +855,10 @@ export default function BookmarksPage() {
       )}
 
       {/* Category View Summary */}
-      {!isLoading && bookmarks.length > 0 && viewMode === 'category' && (
+      {!isLoading && viewMode === 'category' && sortedCategories.length > 0 && (
         <p className="text-muted-foreground mb-4">
           <span className="font-semibold text-foreground">{sortedCategories.length}</span> categories,{' '}
-          <span className="font-semibold text-foreground">{bookmarks.length}</span> bookmarks
+          <span className="font-semibold text-foreground">{Object.values(categoryCounts).reduce((a, b) => a + b, 0)}</span> bookmarks
         </p>
       )}
 
@@ -773,7 +869,7 @@ export default function BookmarksPage() {
             <BookmarkCardSkeleton key={i} />
           ))}
         </div>
-      ) : bookmarks.length === 0 ? (
+      ) : (viewMode === 'grid' && bookmarks.length === 0) || (viewMode === 'category' && sortedCategories.length === 0) ? (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium mb-2">No bookmarks found</h3>
           <p className="text-muted-foreground">
@@ -815,8 +911,11 @@ export default function BookmarksPage() {
         /* Category View */
         <div className="space-y-3">
           {sortedCategories.map((category) => {
-            const categoryBookmarks = groupedBookmarks[category] || [];
+            const count = categoryCounts[category] || 0;
+            const bookmarksForCategory = categoryBookmarks[category] || [];
             const isOpen = openFolders.has(category);
+            const isLoadingCategory = categoryLoading[category];
+            const hasMoreInCategory = categoryHasMore[category];
 
             return (
               <Collapsible key={category} open={isOpen} onOpenChange={() => toggleFolder(category)}>
@@ -833,7 +932,7 @@ export default function BookmarksPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          {categoryBookmarks.length} {categoryBookmarks.length === 1 ? 'bookmark' : 'bookmarks'}
+                          {count} {count === 1 ? 'bookmark' : 'bookmarks'}
                         </span>
                         {isOpen ? (
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -845,22 +944,48 @@ export default function BookmarksPage() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="border-t px-4 py-4 bg-muted/20">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {categoryBookmarks.map((bookmark) => (
-                          <ArticleCard
-                            key={bookmark.id}
-                            article={{
-                              ...bookmark,
-                              type: 'bookmark' as const,
-                              similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
-                            }}
-                            onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
-                            onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
-                            onDelete={() => handleDeleteClick(bookmark)}
-                            formatDate={formatRelativeDate}
-                          />
-                        ))}
-                      </div>
+                      {isLoadingCategory && bookmarksForCategory.length === 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {[...Array(Math.min(count, 4))].map((_, i) => (
+                            <BookmarkCardSkeleton key={i} />
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {bookmarksForCategory.map((bookmark) => (
+                              <ArticleCard
+                                key={bookmark.id}
+                                article={{
+                                  ...bookmark,
+                                  type: 'bookmark' as const,
+                                  similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
+                                }}
+                                onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+                                onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+                                onDelete={() => handleDeleteClick(bookmark)}
+                                formatDate={formatRelativeDate}
+                              />
+                            ))}
+                          </div>
+                          {/* Load more button for category */}
+                          {hasMoreInCategory && (
+                            <div className="flex justify-center pt-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => loadMoreCategoryBookmarks(category)}
+                                disabled={isLoadingCategory}
+                              >
+                                {isLoadingCategory ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Load More
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </CollapsibleContent>
                 </div>

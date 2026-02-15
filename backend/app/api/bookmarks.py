@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.core.database import get_db
@@ -87,22 +87,22 @@ def save_bookmark(
 def get_bookmarks(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
+    is_read: Optional[bool] = Query(None, description="Filter by read status: true for read, false for unread, null for all"),
+    categories: Optional[List[str]] = Query(None, description="Filter by categories (multiple allowed)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return bookmark_service.get_bookmarks(db, user_id=current_user.id, skip=skip, limit=limit)
+    return bookmark_service.get_bookmarks(db, user_id=current_user.id, skip=skip, limit=limit, is_read=is_read, categories=categories)
 
 @router.get("/categories", response_model=dict)
 def get_categories(
+    is_read: Optional[bool] = Query(None, description="Filter by read status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get all categories with their bookmark counts."""
     try:
-        grouped_bookmarks = bookmark_service.get_bookmarks_grouped_by_category(db, user_id=current_user.id)
-        categories = {}
-        for category, bookmarks in grouped_bookmarks.items():
-            categories[category] = len(bookmarks)
+        categories = bookmark_service.get_category_counts(db, user_id=current_user.id, is_read=is_read)
         return categories
     except Exception as e:
         logger.error(f"Error getting categories: {e}", exc_info=True)
@@ -120,22 +120,6 @@ def get_category_list(
     except Exception as e:
         logger.error(f"Error getting category list: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get category list")
-
-@router.get("/categories/{category}", response_model=List[BookmarkResponse])
-def get_bookmarks_by_category(
-    category: str,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get bookmarks for a specific category."""
-    try:
-        bookmarks = bookmark_service.get_bookmarks_by_category(db, category, user_id=current_user.id, skip=skip, limit=limit)
-        return bookmarks
-    except Exception as e:
-        logger.error(f"Error getting bookmarks for category {category}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get bookmarks for category: {category}")
 
 @router.post("/search", response_model=List[BookmarkSearchResult])
 async def search_bookmarks(
