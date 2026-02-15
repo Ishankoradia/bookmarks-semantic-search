@@ -1,6 +1,6 @@
-\# 📚 Semantic Bookmark Search
+# Semantic Bookmarks
 
-An AI-powered bookmark manager that uses semantic search to find relevant bookmarks using natural language queries.
+An AI-powered bookmark manager that helps you save, organize, and discover content effortlessly.
 
 ## Video
 
@@ -8,13 +8,29 @@ https://github.com/user-attachments/assets/9ecf1893-a1ba-46b9-b3d3-df2dc2a274ea
 
 ## Features
 
-- **🔗 URL Ingestion**: Add any URL to automatically extract and index content
-- **🧠 Semantic Search**: Find bookmarks using natural language (e.g., "articles about machine learning")
-- **📄 Content Extraction**: Automatically extracts title, description, and main content
-- **💾 Raw HTML Storage**: Preserves original HTML for future analysis
-- **🎯 Similarity Scoring**: Shows relevance scores for search results
-- **🗂️ Browse All**: View and manage all your bookmarks
-- **🗑️ Easy Management**: Delete unwanted bookmarks with confirmation
+### Search by Meaning
+Find bookmarks using natural language - no need to remember exact titles or keywords. Ask questions like "that article about React performance" or "machine learning tutorials I saved".
+
+### Auto-Organize
+Just save a URL. AI automatically:
+- Extracts title and description
+- Generates relevant tags
+- Assigns a category
+- Creates searchable embeddings
+
+### Discover New Content
+Get personalized article recommendations based on your interests. Explore content curated for you and save interesting finds to your bookmarks.
+
+### Share with Friends
+- Follow friends and see what they're bookmarking
+- Discover interesting content through your network
+- Send and accept follow requests
+- Browse your friends' reading feed
+
+### Additional Features
+- **Category View**: Browse bookmarks organized by AI-generated categories
+- **Read/Unread Tracking**: Keep track of what you've read
+- **Grid & Folder Views**: Switch between different ways to browse your bookmarks
 
 ## Setup Instructions
 
@@ -89,10 +105,11 @@ https://github.com/user-attachments/assets/9ecf1893-a1ba-46b9-b3d3-df2dc2a274ea
 
 ## Usage
 
-1. **Add Bookmarks**: Paste any URL and click "Add Bookmark"
-2. **Search**: Use natural language to find relevant bookmarks
-3. **Browse**: View all your bookmarks in the "All Bookmarks" tab
-4. **Manage**: Delete unwanted bookmarks or open them in new tabs
+1. **Save a Bookmark**: Paste any URL - AI extracts content, generates tags, and assigns a category
+2. **Search**: Use natural language to find bookmarks (e.g., "that article about CSS grid")
+3. **Browse**: View bookmarks in grid or category view, filter by read status
+4. **Explore**: Discover new articles based on your interests
+5. **Connect**: Follow friends and see what they're reading
 
 ## AI Model Configuration
 
@@ -158,16 +175,22 @@ Once the backend is running, visit:
 ## Architecture
 
 ```
-Frontend (Next.js) → Backend API (FastAPI) → PostgreSQL + pgvector
-                                    ↓
-                           Web Scraper + OpenAI Embeddings
+Frontend (Next.js + TypeScript)
+    ↓ NextAuth.js (Google OAuth)
+Backend API (FastAPI)
+    ├── Bookmark Management + Semantic Search
+    ├── Feed Service (personalized recommendations)
+    └── Social Features (follows, friend feeds)
+    ↓
+PostgreSQL + pgvector ← OpenAI Embeddings
 ```
 
 The system works by:
 1. Extracting content from URLs using web scraping
-2. Generating embeddings using OpenAI's text-embedding-3-small model
-3. Storing embeddings in PostgreSQL with pgvector for similarity search
-4. Using cosine similarity to find relevant bookmarks for search queries
+2. Generating embeddings using OpenAI's text-embedding model
+3. Using GPT to generate tags and categories
+4. Storing embeddings in PostgreSQL with pgvector for similarity search
+5. Using cosine similarity to find relevant bookmarks for search queries
 
 ## Contributing
 

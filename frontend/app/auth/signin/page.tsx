@@ -3,12 +3,12 @@
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Search, Tags, Compass, Users } from "lucide-react";
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
-      <div className="container mx-auto px-4 max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center py-12">
+      <div className="container mx-auto px-4 max-w-lg">
 
         {/* Logo and Brand */}
         <div className="text-center mb-8">
@@ -18,17 +18,71 @@ export default function SignInPage() {
             </div>
             <h1 className="text-3xl font-bold text-foreground">Semantic Bookmarks</h1>
           </div>
-          <p className="text-muted-foreground">Search your bookmarks by meaning, not just keywords</p>
+          <p className="text-lg text-muted-foreground">
+            Your AI-powered bookmark manager
+          </p>
         </div>
 
+        {/* Features */}
+        <div className="grid gap-4 mb-8">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
+            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+              <Search className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Search by meaning</h3>
+              <p className="text-sm text-muted-foreground">
+                Find bookmarks using natural language. No need to remember exact titles or keywords.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
+            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+              <Tags className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Auto-organize</h3>
+              <p className="text-sm text-muted-foreground">
+                AI automatically categorizes and tags your bookmarks. Just save the URL.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
+            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+              <Compass className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Discover new content</h3>
+              <p className="text-sm text-muted-foreground">
+                Get personalized article recommendations based on your interests.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
+            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Share with friends</h3>
+              <p className="text-sm text-muted-foreground">
+                Follow friends and see what they're reading. Discover content through your network.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sign In Card */}
         <Card className="w-full border-border shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center text-foreground">Welcome Back</CardTitle>
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl font-bold text-center text-foreground">Get Started</CardTitle>
             <CardDescription className="text-center text-muted-foreground">
-              Sign in to access your personal bookmark collection
+              Sign in to start organizing your bookmarks
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <Button
               onClick={() => signIn("google", { callbackUrl: "/" })}
               className="w-full gap-2"
