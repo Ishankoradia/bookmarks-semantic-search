@@ -625,8 +625,8 @@ export default function BookmarksPage() {
               </button>
             </div>
             <Button size="default" onClick={() => setIsDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Bookmark
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:block">Add Bookmark</span>
             </Button>
           </div>
         </div>
