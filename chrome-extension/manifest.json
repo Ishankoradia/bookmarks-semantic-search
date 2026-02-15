@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Semantic Bookmarks",
+  "description": "Save bookmarks with AI-powered categorization and tagging",
+  "version": "0.1.0",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Save to Semantic Bookmarks",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus",
+    "identity"
+  ],
+  "host_permissions": [
+    "http://localhost:6005/*",
+    "https://your-api-domain.com/*"
+  ],
+  "oauth2": {
+    "client_id": "<GOOGLE_CLIENT_ID>.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
+  },
+  "commands": {
+    "save-bookmark": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Quick save current page"
+    }
+  }
+}
