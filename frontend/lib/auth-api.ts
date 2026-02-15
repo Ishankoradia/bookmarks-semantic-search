@@ -43,11 +43,16 @@ export const useBookmarkApi = () => {
     },
 
     // Get bookmarks
-    getBookmarks: async (skip = 0, limit = 100): Promise<Bookmark[]> => {
+    getBookmarks: async (skip = 0, limit = 100, isRead?: boolean, categories?: string[]): Promise<Bookmark[]> => {
       return makeRequest(async (api) => {
-        const response = await api.get('/bookmarks/', {
-          params: { skip, limit },
-        });
+        const params: { skip: number; limit: number; is_read?: boolean; categories?: string[] } = { skip, limit };
+        if (isRead !== undefined) {
+          params.is_read = isRead;
+        }
+        if (categories && categories.length > 0) {
+          params.categories = categories;
+        }
+        const response = await api.get('/bookmarks/', { params, paramsSerializer: { indexes: null } });
         return response.data;
       });
     },
@@ -93,10 +98,14 @@ export const useBookmarkApi = () => {
       });
     },
 
-    // Get categories
-    getCategories: async (): Promise<Record<string, number>> => {
+    // Get categories with counts
+    getCategories: async (isRead?: boolean): Promise<Record<string, number>> => {
       return makeRequest(async (api) => {
-        const response = await api.get('/bookmarks/categories');
+        const params: { is_read?: boolean } = {};
+        if (isRead !== undefined) {
+          params.is_read = isRead;
+        }
+        const response = await api.get('/bookmarks/categories', { params });
         return response.data as Record<string, number>;
       });
     },
@@ -105,16 +114,6 @@ export const useBookmarkApi = () => {
     getCategoryList: async (): Promise<string[]> => {
       return makeRequest(async (api) => {
         const response = await api.get('/bookmarks/categories/list');
-        return response.data;
-      });
-    },
-
-    // Get bookmarks by category
-    getBookmarksByCategory: async (category: string, skip = 0, limit = 100): Promise<Bookmark[]> => {
-      return makeRequest(async (api) => {
-        const response = await api.get(`/bookmarks/categories/${encodeURIComponent(category)}`, {
-          params: { skip, limit },
-        });
         return response.data;
       });
     },

@@ -245,8 +245,28 @@ class BookmarkService:
     def get_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> Optional[Bookmark]:
         return db.query(Bookmark).filter(Bookmark.id == bookmark_id, Bookmark.user_id == user_id).first()
     
-    def get_bookmarks(self, db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[Bookmark]:
-        return db.query(Bookmark).filter(Bookmark.user_id == user_id).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
+    def get_bookmarks(self, db: Session, user_id: int, skip: int = 0, limit: int = 100, is_read: Optional[bool] = None, categories: Optional[List[str]] = None) -> List[Bookmark]:
+        query = db.query(Bookmark).filter(Bookmark.user_id == user_id)
+        if is_read is not None:
+            if is_read:
+                query = query.filter(Bookmark.is_read == True)
+            else:
+                query = query.filter((Bookmark.is_read == False) | (Bookmark.is_read.is_(None)))
+        if categories is not None and len(categories) > 0:
+            # Handle "Others" category (null or empty string)
+            if "Others" in categories:
+                other_categories = [c for c in categories if c != "Others"]
+                if other_categories:
+                    query = query.filter(
+                        (Bookmark.category.in_(other_categories)) |
+                        (Bookmark.category.is_(None)) |
+                        (Bookmark.category == "")
+                    )
+                else:
+                    query = query.filter((Bookmark.category.is_(None)) | (Bookmark.category == ""))
+            else:
+                query = query.filter(Bookmark.category.in_(categories))
+        return query.order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
     
     def update_bookmark(self, db: Session, bookmark_id: uuid.UUID, update_data: BookmarkUpdate, user_id: int) -> Optional[Bookmark]:
         bookmark = self.get_bookmark(db, bookmark_id, user_id=user_id)
@@ -731,26 +751,35 @@ class BookmarkService:
     def get_bookmarks_grouped_by_category(self, db: Session, user_id: int) -> Dict[str, List[Bookmark]]:
         """Get bookmarks grouped by category with counts."""
         bookmarks = db.query(Bookmark).filter(Bookmark.user_id == user_id).order_by(Bookmark.created_at.desc()).all()
-        
+
         grouped = {}
         for bookmark in bookmarks:
             category = bookmark.category or "Others"
             if category not in grouped:
                 grouped[category] = []
             grouped[category].append(bookmark)
-        
+
         return grouped
-    
-    def get_bookmarks_by_category(self, db: Session, category: str, user_id: int, skip: int = 0, limit: int = 100) -> List[Bookmark]:
-        """Get bookmarks for a specific category."""
-        if category == "Others":
-            # Handle null/empty categories
-            return db.query(Bookmark).filter(
-                Bookmark.user_id == user_id,
-                (Bookmark.category.is_(None)) | (Bookmark.category == "")
-            ).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
-        else:
-            return db.query(Bookmark).filter(
-                Bookmark.user_id == user_id,
-                Bookmark.category == category
-            ).order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
+
+    def get_category_counts(self, db: Session, user_id: int, is_read: Optional[bool] = None) -> Dict[str, int]:
+        """Get category names with bookmark counts (efficient SQL query)."""
+        from sqlalchemy import func, case
+
+        query = db.query(
+            func.coalesce(
+                case((Bookmark.category == '', 'Others'), else_=Bookmark.category),
+                'Others'
+            ).label('category_name'),
+            func.count(Bookmark.id).label('count')
+        ).filter(Bookmark.user_id == user_id)
+
+        # Apply read status filter
+        if is_read is not None:
+            if is_read:
+                query = query.filter(Bookmark.is_read == True)
+            else:
+                query = query.filter((Bookmark.is_read == False) | (Bookmark.is_read.is_(None)))
+
+        results = query.group_by('category_name').all()
+
+        return {row.category_name: row.count for row in results}
