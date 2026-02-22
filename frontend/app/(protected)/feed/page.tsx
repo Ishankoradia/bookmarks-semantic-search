@@ -14,25 +14,13 @@ import { toast } from 'sonner';
 
 function FeedCardSkeleton() {
   return (
-    <div className="border rounded-xl p-5 space-y-3 bg-card">
-      {/* Owner avatar and name */}
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-6 w-6 rounded-full" />
-        <Skeleton className="h-4 w-24" />
-      </div>
-      {/* Title */}
-      <Skeleton className="h-5 w-3/4" />
-      <Skeleton className="h-5 w-1/2" />
-      {/* Description */}
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-2/3" />
-      {/* Category */}
-      <Skeleton className="h-4 w-24" />
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-16" />
-      </div>
+    <div className="border rounded-lg p-2.5 bg-card flex items-center gap-3">
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 flex-1 max-w-[300px]" />
+      <Skeleton className="h-5 w-5 rounded-full" />
+      <Skeleton className="h-4 w-20 hidden sm:block" />
+      <Skeleton className="h-5 w-16 rounded hidden sm:block" />
     </div>
   );
 }
@@ -111,8 +99,8 @@ export default function FeedPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Friends Feed</h1>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {[...Array(6)].map((_, i) => (
+        <div className="space-y-2">
+          {[...Array(8)].map((_, i) => (
             <FeedCardSkeleton key={i} />
           ))}
         </div>
@@ -145,7 +133,7 @@ export default function FeedPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
             {bookmarks.map((bookmark) => (
               <ArticleCard
                 key={bookmark.id}

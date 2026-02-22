@@ -34,28 +34,16 @@ import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Skeleton that mimics ArticleCard shape
+// Skeleton that mimics compact ArticleCard row
 function BookmarkCardSkeleton() {
   return (
-    <div className="border rounded-xl p-5 space-y-3 bg-card">
-      {/* Title */}
-      <Skeleton className="h-5 w-3/4" />
-      <Skeleton className="h-5 w-1/2" />
-      {/* Description */}
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-2/3" />
-      {/* Category */}
-      <Skeleton className="h-4 w-24" />
-      {/* Tags */}
-      <div className="flex gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-6 w-16 rounded-full" />
-      </div>
+    <div className="border rounded-lg p-2.5 bg-card flex items-center gap-3">
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 flex-1 max-w-[300px]" />
+      <Skeleton className="h-4 w-20 hidden sm:block" />
+      <Skeleton className="h-5 w-16 rounded hidden sm:block" />
+      <Skeleton className="h-2 w-2 rounded-full" />
     </div>
   );
 }
@@ -875,8 +863,8 @@ export default function BookmarksPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {[...Array(6)].map((_, i) => (
+        <div className="space-y-2">
+          {[...Array(8)].map((_, i) => (
             <BookmarkCardSkeleton key={i} />
           ))}
         </div>
@@ -890,7 +878,7 @@ export default function BookmarksPage() {
       ) : viewMode === 'grid' ? (
         /* Grid View */
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
             {bookmarks.map((bookmark) => (
               <ArticleCard
                 key={bookmark.id}
@@ -956,14 +944,14 @@ export default function BookmarksPage() {
                   <CollapsibleContent>
                     <div className="border-t px-4 py-4 bg-muted/20">
                       {isLoadingCategory && bookmarksForCategory.length === 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
                           {[...Array(Math.min(count, 4))].map((_, i) => (
                             <BookmarkCardSkeleton key={i} />
                           ))}
                         </div>
                       ) : (
                         <>
-                          <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
                             {bookmarksForCategory.map((bookmark) => (
                               <ArticleCard
                                 key={bookmark.id}

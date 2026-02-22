@@ -14,23 +14,12 @@ import { useRouter } from 'next/navigation';
 
 function ExploreCardSkeleton() {
   return (
-    <div className="border rounded-xl p-5 space-y-3 bg-card">
-      {/* Title */}
-      <Skeleton className="h-5 w-3/4" />
-      <Skeleton className="h-5 w-1/2" />
-      {/* Topic */}
-      <Skeleton className="h-4 w-24" />
-      {/* Source badge */}
-      <Skeleton className="h-5 w-28 rounded" />
-      {/* Tags */}
-      <div className="flex gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t">
-        <Skeleton className="h-4 w-24" />
-      </div>
+    <div className="border rounded-lg p-2.5 bg-card flex items-center gap-3">
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 flex-1 max-w-[300px]" />
+      <Skeleton className="h-4 w-20 hidden sm:block" />
+      <Skeleton className="h-5 w-16 rounded hidden sm:block" />
     </div>
   );
 }
@@ -193,8 +182,8 @@ export default function ExplorePage() {
             <Skeleton className="h-8 w-20" />
           </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {[...Array(6)].map((_, i) => (
+        <div className="space-y-2">
+          {[...Array(8)].map((_, i) => (
             <ExploreCardSkeleton key={i} />
           ))}
         </div>
@@ -262,7 +251,7 @@ export default function ExplorePage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
             {articles.map((article) => (
               <ArticleCard
                 key={article.id}
