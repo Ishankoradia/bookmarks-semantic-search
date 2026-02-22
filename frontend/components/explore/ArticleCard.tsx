@@ -72,6 +72,7 @@ interface ArticleCardProps {
   onToggleRead?: () => void;
   onDelete?: () => void;
   onUpdateTags?: (tags: string[]) => Promise<void>;
+  onTagClick?: (tag: string) => void;
   // Feed-specific actions
   onSave?: () => void;
   // State
@@ -86,6 +87,7 @@ export function ArticleCard({
   onToggleRead,
   onDelete,
   onUpdateTags,
+  onTagClick,
   onSave,
   isSaving = false,
   formatDate = (date) => {
@@ -560,12 +562,16 @@ export function ArticleCard({
               <Tag className="w-3.5 h-3.5 text-muted-foreground" />
               {article.tags && article.tags.length > 0 ? (
                 article.tags.slice(0, 5).map((tag) => (
-                  <span
+                  <button
                     key={tag}
-                    className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs"
+                    onClick={() => onTagClick?.(tag)}
+                    className={cn(
+                      "px-2 py-0.5 bg-primary/10 text-primary rounded text-xs",
+                      onTagClick && "hover:bg-primary/20 cursor-pointer transition-colors"
+                    )}
                   >
                     {tag}
-                  </span>
+                  </button>
                 ))
               ) : (
                 <span className="text-xs text-muted-foreground italic">No tags</span>

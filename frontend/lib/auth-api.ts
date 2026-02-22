@@ -43,14 +43,17 @@ export const useBookmarkApi = () => {
     },
 
     // Get bookmarks
-    getBookmarks: async (skip = 0, limit = 100, isRead?: boolean, categories?: string[]): Promise<Bookmark[]> => {
+    getBookmarks: async (skip = 0, limit = 100, isRead?: boolean, categories?: string[], tags?: string[]): Promise<Bookmark[]> => {
       return makeRequest(async (api) => {
-        const params: { skip: number; limit: number; is_read?: boolean; categories?: string[] } = { skip, limit };
+        const params: { skip: number; limit: number; is_read?: boolean; categories?: string[]; tags?: string[] } = { skip, limit };
         if (isRead !== undefined) {
           params.is_read = isRead;
         }
         if (categories && categories.length > 0) {
           params.categories = categories;
+        }
+        if (tags && tags.length > 0) {
+          params.tags = tags;
         }
         const response = await api.get('/bookmarks/', { params, paramsSerializer: { indexes: null } });
         return response.data;
@@ -107,14 +110,17 @@ export const useBookmarkApi = () => {
     },
 
     // Get categories with counts
-    getCategories: async (isRead?: boolean, categories?: string[]): Promise<Record<string, number>> => {
+    getCategories: async (isRead?: boolean, categories?: string[], tags?: string[]): Promise<Record<string, number>> => {
       return makeRequest(async (api) => {
-        const params: { is_read?: boolean; categories?: string[] } = {};
+        const params: { is_read?: boolean; categories?: string[]; tags?: string[] } = {};
         if (isRead !== undefined) {
           params.is_read = isRead;
         }
         if (categories && categories.length > 0) {
           params.categories = categories;
+        }
+        if (tags && tags.length > 0) {
+          params.tags = tags;
         }
         const response = await api.get('/bookmarks/categories', { params, paramsSerializer: { indexes: null } });
         return response.data as Record<string, number>;

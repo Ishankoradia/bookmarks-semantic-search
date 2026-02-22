@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -82,6 +82,9 @@ export default function BookmarksPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Tag filter state
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+
   // View mode state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
@@ -151,9 +154,9 @@ export default function BookmarksPage() {
   // Infinite scroll (only for grid view without search)
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore && !isLoading && searchQuery.trim() === '' && viewMode === 'grid') {
-      loadBookmarks(allBookmarks.length, activeFilter, categoryFilters);
+      loadBookmarks(allBookmarks.length, activeFilter, categoryFilters, tagFilters);
     }
-  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length, activeFilter, categoryFilters]);
+  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length, activeFilter, categoryFilters, tagFilters]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -184,7 +187,7 @@ export default function BookmarksPage() {
     }
   };
 
-  const loadBookmarks = async (skip = 0, filter: FilterTab = activeFilter, categories: string[] = categoryFilters) => {
+  const loadBookmarks = async (skip = 0, filter: FilterTab = activeFilter, categories: string[] = categoryFilters, tags: string[] = tagFilters) => {
     try {
       if (skip === 0) {
         setIsLoading(true);
@@ -194,7 +197,8 @@ export default function BookmarksPage() {
       setError(null);
       const isReadParam = getIsReadParam(filter);
       const categoriesParam = categories.length > 0 ? categories : undefined;
-      const data = await authApi.getBookmarks(skip, 20, isReadParam, categoriesParam);
+      const tagsParam = tags.length > 0 ? tags : undefined;
+      const data = await authApi.getBookmarks(skip, 20, isReadParam, categoriesParam, tagsParam);
 
       if (skip === 0) {
         setAllBookmarks(data);
@@ -238,7 +242,7 @@ export default function BookmarksPage() {
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(activeFilter);
-        const counts = await authApi.getCategories(isReadParam, newFilters.length > 0 ? newFilters : undefined);
+        const counts = await authApi.getCategories(isReadParam, newFilters.length > 0 ? newFilters : undefined, tagFilters.length > 0 ? tagFilters : undefined);
         setCategoryCounts(counts);
         setCategoryBookmarks({});
         setCategoryHasMore({});
@@ -253,7 +257,7 @@ export default function BookmarksPage() {
       setHasMore(true);
       setAllBookmarks([]);
       setBookmarks([]);
-      await loadBookmarks(0, activeFilter, newFilters);
+      await loadBookmarks(0, activeFilter, newFilters, tagFilters);
     }
   };
 
@@ -292,7 +296,7 @@ export default function BookmarksPage() {
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(filter);
-        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, tagFilters.length > 0 ? tagFilters : undefined);
         setCategoryCounts(counts);
         // Reset per-category bookmarks to force reload with new filter
         setCategoryBookmarks({});
@@ -308,7 +312,7 @@ export default function BookmarksPage() {
       setHasMore(true);
       setAllBookmarks([]);
       setBookmarks([]);
-      await loadBookmarks(0, filter, categoryFilters);
+      await loadBookmarks(0, filter, categoryFilters, tagFilters);
     }
   };
 
@@ -546,6 +550,98 @@ export default function BookmarksPage() {
     toast.success('Tags updated');
   };
 
+  const handleTagClick = async (tag: string) => {
+    // Add tag to filter if not already present
+    if (tagFilters.includes(tag)) return;
+
+    const newTagFilters = [...tagFilters, tag];
+    setTagFilters(newTagFilters);
+
+    if (searchQuery.trim() !== '') {
+      // In search mode, re-search with new tag filter
+      // Note: search doesn't support tag filtering yet, so just filter client-side
+      return;
+    }
+
+    if (viewMode === 'category') {
+      // Category view: refetch category counts with new tag filter
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, newTagFilters);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Grid/list view: reload bookmarks with new tag filter
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, newTagFilters);
+    }
+  };
+
+  const handleClearTagFilters = async () => {
+    setTagFilters([]);
+
+    if (searchQuery.trim() !== '') return;
+
+    if (viewMode === 'category') {
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, undefined);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, []);
+    }
+  };
+
+  const handleRemoveTagFilter = async (tagToRemove: string) => {
+    const newTagFilters = tagFilters.filter(t => t !== tagToRemove);
+    setTagFilters(newTagFilters);
+
+    if (searchQuery.trim() !== '') return;
+
+    if (viewMode === 'category') {
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, newTagFilters.length > 0 ? newTagFilters : undefined);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, newTagFilters);
+    }
+  };
+
   // View mode handlers
   const handleViewModeChange = async (mode: ViewMode) => {
     setViewMode(mode);
@@ -561,7 +657,7 @@ export default function BookmarksPage() {
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(activeFilter);
-        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, tagFilters.length > 0 ? tagFilters : undefined);
         setCategoryCounts(counts);
         // Reset per-category state
         setCategoryBookmarks({});
@@ -577,20 +673,20 @@ export default function BookmarksPage() {
       setHasMore(true);
       setAllBookmarks([]);
       setBookmarks([]);
-      await loadBookmarks(0, activeFilter, categoryFilters);
+      await loadBookmarks(0, activeFilter, categoryFilters, tagFilters);
     }
   };
 
   // Load bookmarks for a specific category (uses same API as grid view)
-  const loadCategoryBookmarks = async (category: string, skip = 0) => {
+  const loadCategoryBookmarks = async (category: string, skip = 0, tags: string[] = tagFilters) => {
     if (skip === 0) {
       setCategoryLoading((prev) => ({ ...prev, [category]: true }));
     }
 
     try {
       const isReadParam = getIsReadParam(activeFilter);
-      // Use the same getBookmarks API with category filter
-      const data = await authApi.getBookmarks(skip, 20, isReadParam, [category]);
+      // Use the same getBookmarks API with category filter and tag filter
+      const data = await authApi.getBookmarks(skip, 20, isReadParam, [category], tags.length > 0 ? tags : undefined);
 
       setCategoryBookmarks((prev) => ({
         ...prev,
@@ -862,7 +958,7 @@ export default function BookmarksPage() {
                   setAllBookmarks([]);
                   setBookmarks([]);
                   if (searchQuery.trim() === '') {
-                    await loadBookmarks(0, activeFilter, []);
+                    await loadBookmarks(0, activeFilter, [], tagFilters);
                   } else {
                     performSearch(searchQuery, []);
                   }
@@ -886,6 +982,35 @@ export default function BookmarksPage() {
               </div>
             )}
           </div>
+
+          {/* Tag Filters */}
+          {tagFilters.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Tag className="h-4 w-4 text-muted-foreground" />
+              {tagFilters.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-sm"
+                >
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTagFilter(tag)}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearTagFilters}
+                className="h-7 text-xs text-muted-foreground"
+              >
+                Clear all
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -939,6 +1064,7 @@ export default function BookmarksPage() {
                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                 onDelete={() => handleDeleteClick(bookmark)}
                 onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
+                onTagClick={handleTagClick}
                 formatDate={formatRelativeDate}
               />
             ))}
@@ -1013,6 +1139,7 @@ export default function BookmarksPage() {
                                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                                 onDelete={() => handleDeleteClick(bookmark)}
                                 onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
+                                onTagClick={handleTagClick}
                                 formatDate={formatRelativeDate}
                               />
                             ))}
