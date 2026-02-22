@@ -15,7 +15,12 @@ import {
   ChevronDown,
   ChevronRight,
   Globe,
+  Pencil,
+  X,
+  Plus,
+  Loader2,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -66,6 +71,7 @@ interface ArticleCardProps {
   // Bookmark-specific actions
   onToggleRead?: () => void;
   onDelete?: () => void;
+  onUpdateTags?: (tags: string[]) => Promise<void>;
   // Feed-specific actions
   onSave?: () => void;
   // State
@@ -79,6 +85,7 @@ export function ArticleCard({
   onCopyUrl,
   onToggleRead,
   onDelete,
+  onUpdateTags,
   onSave,
   isSaving = false,
   formatDate = (date) => {
@@ -89,6 +96,15 @@ export function ArticleCard({
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [openMenu, setOpenMenu] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Tag editing state
+  const [isEditingTags, setIsEditingTags] = React.useState(false);
+  const [editedTags, setEditedTags] = React.useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = React.useState('');
+  const [isSavingTags, setIsSavingTags] = React.useState(false);
+  const tagInputRef = React.useRef<HTMLInputElement>(null);
+  const tagEditContainerRef = React.useRef<HTMLDivElement>(null);
+  const originalTagsRef = React.useRef<string[]>([]);
 
   // Close menu when clicking outside
   React.useEffect(() => {
@@ -106,6 +122,25 @@ export function ArticleCard({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openMenu]);
+
+  // Close tag editing when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tagEditContainerRef.current && !tagEditContainerRef.current.contains(event.target as Node)) {
+        setIsEditingTags(false);
+        setEditedTags([]);
+        setNewTagInput('');
+      }
+    };
+
+    if (isEditingTags) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditingTags]);
 
   const isBookmark = article.type === 'bookmark';
   const isFeed = article.type === 'feed';
@@ -135,7 +170,76 @@ export function ArticleCard({
   };
 
   // Check if there's expandable content
-  const hasExpandableContent = article.description || (article.tags && article.tags.length > 0);
+  const hasExpandableContent = article.description || (article.tags && article.tags.length > 0) || (isBookmark && onUpdateTags);
+
+  // Tag editing handlers
+  const startEditingTags = () => {
+    const initialTags = article.tags || [];
+    setEditedTags(initialTags);
+    originalTagsRef.current = initialTags;
+    setIsEditingTags(true);
+    setNewTagInput('');
+    // Expand if not already
+    if (!isExpanded) {
+      setIsExpanded(true);
+    }
+    // Focus input after render
+    setTimeout(() => tagInputRef.current?.focus(), 100);
+  };
+
+  const removeTag = async (tagToRemove: string) => {
+    const newTags = editedTags.filter(t => t !== tagToRemove);
+    setEditedTags(newTags);
+    // Auto-save
+    if (onUpdateTags) {
+      setIsSavingTags(true);
+      try {
+        await onUpdateTags(newTags);
+      } catch (error) {
+        console.error('Failed to save tags:', error);
+        // Revert on error
+        setEditedTags(editedTags);
+      } finally {
+        setIsSavingTags(false);
+      }
+    }
+  };
+
+  const addTag = async () => {
+    const tag = newTagInput.trim().toLowerCase();
+    if (tag && !editedTags.includes(tag)) {
+      const newTags = [...editedTags, tag];
+      setEditedTags(newTags);
+      setNewTagInput('');
+      tagInputRef.current?.focus();
+      // Auto-save
+      if (onUpdateTags) {
+        setIsSavingTags(true);
+        try {
+          await onUpdateTags(newTags);
+        } catch (error) {
+          console.error('Failed to save tags:', error);
+          // Revert on error
+          setEditedTags(editedTags);
+        } finally {
+          setIsSavingTags(false);
+        }
+      }
+    } else {
+      setNewTagInput('');
+    }
+  };
+
+  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === 'Escape') {
+      setIsEditingTags(false);
+      setEditedTags([]);
+      setNewTagInput('');
+    }
+  };
 
   // Get favicon URL
   const faviconUrl = article.domain
@@ -360,6 +464,18 @@ export function ArticleCard({
                       <Trash2 className="w-3.5 h-3.5" />
                       Delete
                     </button>
+                    {onUpdateTags && (
+                      <button
+                        onClick={() => {
+                          startEditingTags();
+                          setOpenMenu(false);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted text-left"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit tags
+                      </button>
+                    )}
                   </>
                 )}
 
@@ -395,17 +511,74 @@ export function ArticleCard({
           )}
 
           {/* Tags */}
-          {article.tags && article.tags.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-              {article.tags.slice(0, 5).map((tag) => (
+          {isEditingTags ? (
+            // Edit mode
+            <div ref={tagEditContainerRef} className="flex items-center gap-2 flex-wrap">
+              <Tag className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              {editedTags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-xs"
                 >
                   {tag}
+                  <button
+                    onClick={() => removeTag(tag)}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               ))}
+              <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+                <Input
+                  ref={tagInputRef}
+                  type="text"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={handleTagInputKeyDown}
+                  placeholder="Add tag..."
+                  className="h-6 text-xs px-2 py-0 flex-1 min-w-0"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={addTag}
+                  disabled={!newTagInput.trim() || isSavingTags}
+                  className="h-6 w-6 p-0"
+                >
+                  {isSavingTags ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // View mode
+            <div className="flex items-center gap-2 flex-wrap">
+              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+              {article.tags && article.tags.length > 0 ? (
+                article.tags.slice(0, 5).map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs"
+                  >
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground italic">No tags</span>
+              )}
+              {isBookmark && onUpdateTags && (
+                <button
+                  onClick={startEditingTags}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                  title="Edit tags"
+                >
+                  <Pencil className="w-3 h-3 text-muted-foreground" />
+                </button>
+              )}
             </div>
           )}
 

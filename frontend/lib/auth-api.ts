@@ -90,6 +90,14 @@ export const useBookmarkApi = () => {
       });
     },
 
+    // Update bookmark tags
+    updateTags: async (id: string, tags: string[]): Promise<Bookmark> => {
+      return makeRequest(async (api) => {
+        const response = await api.put(`/bookmarks/${id}`, { tags });
+        return response.data;
+      });
+    },
+
     // Regenerate tags
     regenerateTags: async (bookmarkId: string): Promise<TagPreviewResponse> => {
       return makeRequest(async (api) => {

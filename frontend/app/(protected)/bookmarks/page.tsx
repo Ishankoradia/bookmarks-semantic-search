@@ -524,6 +524,28 @@ export default function BookmarksPage() {
     }
   };
 
+  const handleUpdateTags = async (bookmarkId: string, tags: string[]) => {
+    await authApi.updateTags(bookmarkId, tags);
+
+    // Update local state
+    const updateBookmark = (bookmark: BookmarkType | BookmarkSearchResult) =>
+      bookmark.id === bookmarkId ? { ...bookmark, tags } : bookmark;
+
+    setAllBookmarks((prev) => prev.map(updateBookmark));
+    setBookmarks((prev) => prev.map(updateBookmark));
+
+    // Update category bookmarks
+    setCategoryBookmarks((prev) => {
+      const updated = { ...prev };
+      for (const cat in updated) {
+        updated[cat] = updated[cat].map(updateBookmark);
+      }
+      return updated;
+    });
+
+    toast.success('Tags updated');
+  };
+
   // View mode handlers
   const handleViewModeChange = async (mode: ViewMode) => {
     setViewMode(mode);
@@ -916,6 +938,7 @@ export default function BookmarksPage() {
                 onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                 onDelete={() => handleDeleteClick(bookmark)}
+                onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
                 formatDate={formatRelativeDate}
               />
             ))}
@@ -989,6 +1012,7 @@ export default function BookmarksPage() {
                                 onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
                                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                                 onDelete={() => handleDeleteClick(bookmark)}
+                                onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
                                 formatDate={formatRelativeDate}
                               />
                             ))}
