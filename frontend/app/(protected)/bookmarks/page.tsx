@@ -230,15 +230,30 @@ export default function BookmarksPage() {
       : [...categoryFilters, category];
 
     setCategoryFilters(newFilters);
-    setHasMore(true);
-    // Reset to page 0 - clear current data to show loading state
-    setAllBookmarks([]);
-    setBookmarks([]);
 
-    if (searchQuery.trim() === '') {
-      await loadBookmarks(0, activeFilter, newFilters);
-    } else {
+    if (searchQuery.trim() !== '') {
       performSearch(searchQuery, newFilters);
+    } else if (viewMode === 'category') {
+      // Category view: refetch category counts with new filters
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, newFilters.length > 0 ? newFilters : undefined);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Grid view: reload bookmarks
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, newFilters);
     }
   };
 
@@ -277,7 +292,7 @@ export default function BookmarksPage() {
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(filter);
-        const counts = await authApi.getCategories(isReadParam);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined);
         setCategoryCounts(counts);
         // Reset per-category bookmarks to force reload with new filter
         setCategoryBookmarks({});
@@ -514,12 +529,17 @@ export default function BookmarksPage() {
     setViewMode(mode);
     localStorage.setItem('bookmarks-view-mode', mode);
 
-    if (mode === 'category' && searchQuery.trim() === '') {
-      // Category view: fetch category counts only
+    if (searchQuery.trim() !== '') {
+      // If searching, don't reload - search results are the same in both views
+      return;
+    }
+
+    if (mode === 'category') {
+      // Category view: fetch category counts with current filters
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(activeFilter);
-        const counts = await authApi.getCategories(isReadParam);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined);
         setCategoryCounts(counts);
         // Reset per-category state
         setCategoryBookmarks({});
@@ -530,6 +550,12 @@ export default function BookmarksPage() {
       } finally {
         setIsLoading(false);
       }
+    } else {
+      // Grid view: reload bookmarks with current filters
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters);
     }
   };
 

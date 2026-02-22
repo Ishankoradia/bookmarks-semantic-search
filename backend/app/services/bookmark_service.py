@@ -761,7 +761,7 @@ class BookmarkService:
 
         return grouped
 
-    def get_category_counts(self, db: Session, user_id: int, is_read: Optional[bool] = None) -> Dict[str, int]:
+    def get_category_counts(self, db: Session, user_id: int, is_read: Optional[bool] = None, categories: Optional[List[str]] = None) -> Dict[str, int]:
         """Get category names with bookmark counts (efficient SQL query)."""
         from sqlalchemy import func, case
 
@@ -779,6 +779,10 @@ class BookmarkService:
                 query = query.filter(Bookmark.is_read == True)
             else:
                 query = query.filter((Bookmark.is_read == False) | (Bookmark.is_read.is_(None)))
+
+        # Apply category filter
+        if categories:
+            query = query.filter(Bookmark.category.in_(categories))
 
         results = query.group_by('category_name').all()
 

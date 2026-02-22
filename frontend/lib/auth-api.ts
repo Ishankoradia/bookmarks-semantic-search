@@ -99,13 +99,16 @@ export const useBookmarkApi = () => {
     },
 
     // Get categories with counts
-    getCategories: async (isRead?: boolean): Promise<Record<string, number>> => {
+    getCategories: async (isRead?: boolean, categories?: string[]): Promise<Record<string, number>> => {
       return makeRequest(async (api) => {
-        const params: { is_read?: boolean } = {};
+        const params: { is_read?: boolean; categories?: string[] } = {};
         if (isRead !== undefined) {
           params.is_read = isRead;
         }
-        const response = await api.get('/bookmarks/categories', { params });
+        if (categories && categories.length > 0) {
+          params.categories = categories;
+        }
+        const response = await api.get('/bookmarks/categories', { params, paramsSerializer: { indexes: null } });
         return response.data as Record<string, number>;
       });
     },

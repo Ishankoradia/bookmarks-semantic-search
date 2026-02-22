@@ -97,13 +97,14 @@ def get_bookmarks(
 @router.get("/categories", response_model=dict)
 def get_categories(
     is_read: Optional[bool] = Query(None, description="Filter by read status"),
+    categories: Optional[List[str]] = Query(None, description="Filter by specific categories"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get all categories with their bookmark counts."""
     try:
-        categories = bookmark_service.get_category_counts(db, user_id=current_user.id, is_read=is_read)
-        return categories
+        result = bookmark_service.get_category_counts(db, user_id=current_user.id, is_read=is_read, categories=categories)
+        return result
     except Exception as e:
         logger.error(f"Error getting categories: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get categories")
