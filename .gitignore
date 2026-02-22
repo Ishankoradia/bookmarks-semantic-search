@@ -1,2 +1,6 @@
 .DS_Store
 .env.*
+
+chrome-extension.zip
+
+chrome-extension-prod/
