@@ -245,7 +245,7 @@ class BookmarkService:
     def get_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> Optional[Bookmark]:
         return db.query(Bookmark).filter(Bookmark.id == bookmark_id, Bookmark.user_id == user_id).first()
     
-    def get_bookmarks(self, db: Session, user_id: int, skip: int = 0, limit: int = 100, is_read: Optional[bool] = None, categories: Optional[List[str]] = None) -> List[Bookmark]:
+    def get_bookmarks(self, db: Session, user_id: int, skip: int = 0, limit: int = 100, is_read: Optional[bool] = None, categories: Optional[List[str]] = None, tags: Optional[List[str]] = None) -> List[Bookmark]:
         query = db.query(Bookmark).filter(Bookmark.user_id == user_id)
         if is_read is not None:
             if is_read:
@@ -266,6 +266,14 @@ class BookmarkService:
                     query = query.filter((Bookmark.category.is_(None)) | (Bookmark.category == ""))
             else:
                 query = query.filter(Bookmark.category.in_(categories))
+        if tags is not None and len(tags) > 0:
+            # Filter by tags using PostgreSQL JSONB containment (OR logic)
+            # Bookmark must have at least one of the specified tags
+            from sqlalchemy import or_
+            from sqlalchemy.dialects.postgresql import JSONB
+            from sqlalchemy import cast
+            tag_conditions = [cast(Bookmark.tags, JSONB).contains([tag]) for tag in tags]
+            query = query.filter(or_(*tag_conditions))
         return query.order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
     
     def update_bookmark(self, db: Session, bookmark_id: uuid.UUID, update_data: BookmarkUpdate, user_id: int) -> Optional[Bookmark]:
@@ -761,9 +769,11 @@ class BookmarkService:
 
         return grouped
 
-    def get_category_counts(self, db: Session, user_id: int, is_read: Optional[bool] = None) -> Dict[str, int]:
+    def get_category_counts(self, db: Session, user_id: int, is_read: Optional[bool] = None, categories: Optional[List[str]] = None, tags: Optional[List[str]] = None) -> Dict[str, int]:
         """Get category names with bookmark counts (efficient SQL query)."""
         from sqlalchemy import func, case
+        from sqlalchemy.dialects.postgresql import JSONB
+        from sqlalchemy import cast
 
         query = db.query(
             func.coalesce(
@@ -779,6 +789,16 @@ class BookmarkService:
                 query = query.filter(Bookmark.is_read == True)
             else:
                 query = query.filter((Bookmark.is_read == False) | (Bookmark.is_read.is_(None)))
+
+        # Apply tags filter (OR logic - at least one tag must match)
+        if tags is not None and len(tags) > 0:
+            from sqlalchemy import or_
+            tag_conditions = [cast(Bookmark.tags, JSONB).contains([tag]) for tag in tags]
+            query = query.filter(or_(*tag_conditions))
+
+        # Apply category filter
+        if categories:
+            query = query.filter(Bookmark.category.in_(categories))
 
         results = query.group_by('category_name').all()
 

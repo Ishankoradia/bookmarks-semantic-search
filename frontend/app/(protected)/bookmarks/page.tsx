@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Plus, Loader2, Filter, X, LayoutGrid, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,28 +34,16 @@ import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Skeleton that mimics ArticleCard shape
+// Skeleton that mimics compact ArticleCard row
 function BookmarkCardSkeleton() {
   return (
-    <div className="border rounded-xl p-5 space-y-3 bg-card">
-      {/* Title */}
-      <Skeleton className="h-5 w-3/4" />
-      <Skeleton className="h-5 w-1/2" />
-      {/* Description */}
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-2/3" />
-      {/* Category */}
-      <Skeleton className="h-4 w-24" />
-      {/* Tags */}
-      <div className="flex gap-2">
-        <Skeleton className="h-6 w-16 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-6 w-16 rounded-full" />
-      </div>
+    <div className="border rounded-lg p-2.5 bg-card flex items-center gap-3">
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="h-4 flex-1 max-w-[300px]" />
+      <Skeleton className="h-4 w-20 hidden sm:block" />
+      <Skeleton className="h-5 w-16 rounded hidden sm:block" />
+      <Skeleton className="h-2 w-2 rounded-full" />
     </div>
   );
 }
@@ -93,6 +81,9 @@ export default function BookmarksPage() {
   const [categoryList, setCategoryList] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Tag filter state
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
 
   // View mode state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -163,9 +154,9 @@ export default function BookmarksPage() {
   // Infinite scroll (only for grid view without search)
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore && !isLoading && searchQuery.trim() === '' && viewMode === 'grid') {
-      loadBookmarks(allBookmarks.length, activeFilter, categoryFilters);
+      loadBookmarks(allBookmarks.length, activeFilter, categoryFilters, tagFilters);
     }
-  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length, activeFilter, categoryFilters]);
+  }, [loadingMore, hasMore, isLoading, searchQuery, viewMode, allBookmarks.length, activeFilter, categoryFilters, tagFilters]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -196,7 +187,7 @@ export default function BookmarksPage() {
     }
   };
 
-  const loadBookmarks = async (skip = 0, filter: FilterTab = activeFilter, categories: string[] = categoryFilters) => {
+  const loadBookmarks = async (skip = 0, filter: FilterTab = activeFilter, categories: string[] = categoryFilters, tags: string[] = tagFilters) => {
     try {
       if (skip === 0) {
         setIsLoading(true);
@@ -206,7 +197,8 @@ export default function BookmarksPage() {
       setError(null);
       const isReadParam = getIsReadParam(filter);
       const categoriesParam = categories.length > 0 ? categories : undefined;
-      const data = await authApi.getBookmarks(skip, 20, isReadParam, categoriesParam);
+      const tagsParam = tags.length > 0 ? tags : undefined;
+      const data = await authApi.getBookmarks(skip, 20, isReadParam, categoriesParam, tagsParam);
 
       if (skip === 0) {
         setAllBookmarks(data);
@@ -242,15 +234,30 @@ export default function BookmarksPage() {
       : [...categoryFilters, category];
 
     setCategoryFilters(newFilters);
-    setHasMore(true);
-    // Reset to page 0 - clear current data to show loading state
-    setAllBookmarks([]);
-    setBookmarks([]);
 
-    if (searchQuery.trim() === '') {
-      await loadBookmarks(0, activeFilter, newFilters);
-    } else {
+    if (searchQuery.trim() !== '') {
       performSearch(searchQuery, newFilters);
+    } else if (viewMode === 'category') {
+      // Category view: refetch category counts with new filters
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, newFilters.length > 0 ? newFilters : undefined, tagFilters.length > 0 ? tagFilters : undefined);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Grid view: reload bookmarks
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, newFilters, tagFilters);
     }
   };
 
@@ -289,7 +296,7 @@ export default function BookmarksPage() {
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(filter);
-        const counts = await authApi.getCategories(isReadParam);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, tagFilters.length > 0 ? tagFilters : undefined);
         setCategoryCounts(counts);
         // Reset per-category bookmarks to force reload with new filter
         setCategoryBookmarks({});
@@ -305,7 +312,7 @@ export default function BookmarksPage() {
       setHasMore(true);
       setAllBookmarks([]);
       setBookmarks([]);
-      await loadBookmarks(0, filter, categoryFilters);
+      await loadBookmarks(0, filter, categoryFilters, tagFilters);
     }
   };
 
@@ -521,17 +528,136 @@ export default function BookmarksPage() {
     }
   };
 
+  const handleUpdateTags = async (bookmarkId: string, tags: string[]) => {
+    await authApi.updateTags(bookmarkId, tags);
+
+    // Update local state
+    const updateBookmark = (bookmark: BookmarkType | BookmarkSearchResult) =>
+      bookmark.id === bookmarkId ? { ...bookmark, tags } : bookmark;
+
+    setAllBookmarks((prev) => prev.map(updateBookmark));
+    setBookmarks((prev) => prev.map(updateBookmark));
+
+    // Update category bookmarks
+    setCategoryBookmarks((prev) => {
+      const updated = { ...prev };
+      for (const cat in updated) {
+        updated[cat] = updated[cat].map(updateBookmark);
+      }
+      return updated;
+    });
+
+    toast.success('Tags updated');
+  };
+
+  const handleTagClick = async (tag: string) => {
+    // Add tag to filter if not already present
+    if (tagFilters.includes(tag)) return;
+
+    const newTagFilters = [...tagFilters, tag];
+    setTagFilters(newTagFilters);
+
+    if (searchQuery.trim() !== '') {
+      // In search mode, re-search with new tag filter
+      // Note: search doesn't support tag filtering yet, so just filter client-side
+      return;
+    }
+
+    if (viewMode === 'category') {
+      // Category view: refetch category counts with new tag filter
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, newTagFilters);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Grid/list view: reload bookmarks with new tag filter
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, newTagFilters);
+    }
+  };
+
+  const handleClearTagFilters = async () => {
+    setTagFilters([]);
+
+    if (searchQuery.trim() !== '') return;
+
+    if (viewMode === 'category') {
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, undefined);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, []);
+    }
+  };
+
+  const handleRemoveTagFilter = async (tagToRemove: string) => {
+    const newTagFilters = tagFilters.filter(t => t !== tagToRemove);
+    setTagFilters(newTagFilters);
+
+    if (searchQuery.trim() !== '') return;
+
+    if (viewMode === 'category') {
+      try {
+        setIsLoading(true);
+        const isReadParam = getIsReadParam(activeFilter);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, newTagFilters.length > 0 ? newTagFilters : undefined);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch (err) {
+        setError('Failed to load categories');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, newTagFilters);
+    }
+  };
+
   // View mode handlers
   const handleViewModeChange = async (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem('bookmarks-view-mode', mode);
 
-    if (mode === 'category' && searchQuery.trim() === '') {
-      // Category view: fetch category counts only
+    if (searchQuery.trim() !== '') {
+      // If searching, don't reload - search results are the same in both views
+      return;
+    }
+
+    if (mode === 'category') {
+      // Category view: fetch category counts with current filters
       try {
         setIsLoading(true);
         const isReadParam = getIsReadParam(activeFilter);
-        const counts = await authApi.getCategories(isReadParam);
+        const counts = await authApi.getCategories(isReadParam, categoryFilters.length > 0 ? categoryFilters : undefined, tagFilters.length > 0 ? tagFilters : undefined);
         setCategoryCounts(counts);
         // Reset per-category state
         setCategoryBookmarks({});
@@ -542,19 +668,25 @@ export default function BookmarksPage() {
       } finally {
         setIsLoading(false);
       }
+    } else {
+      // Grid view: reload bookmarks with current filters
+      setHasMore(true);
+      setAllBookmarks([]);
+      setBookmarks([]);
+      await loadBookmarks(0, activeFilter, categoryFilters, tagFilters);
     }
   };
 
   // Load bookmarks for a specific category (uses same API as grid view)
-  const loadCategoryBookmarks = async (category: string, skip = 0) => {
+  const loadCategoryBookmarks = async (category: string, skip = 0, tags: string[] = tagFilters) => {
     if (skip === 0) {
       setCategoryLoading((prev) => ({ ...prev, [category]: true }));
     }
 
     try {
       const isReadParam = getIsReadParam(activeFilter);
-      // Use the same getBookmarks API with category filter
-      const data = await authApi.getBookmarks(skip, 20, isReadParam, [category]);
+      // Use the same getBookmarks API with category filter and tag filter
+      const data = await authApi.getBookmarks(skip, 20, isReadParam, [category], tags.length > 0 ? tags : undefined);
 
       setCategoryBookmarks((prev) => ({
         ...prev,
@@ -612,9 +744,9 @@ export default function BookmarksPage() {
               <button
                 onClick={() => handleViewModeChange('grid')}
                 className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'} rounded-l-lg`}
-                title="Grid view"
+                title="List view"
               >
-                <LayoutGrid className="h-4 w-4" />
+                <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => handleViewModeChange('category')}
@@ -772,10 +904,21 @@ export default function BookmarksPage() {
               }
             }}
             onKeyDown={handleKeyPress}
-            className="pl-9"
+            className="pl-9 pr-9"
           />
-          {isSearching && (
+          {isSearching ? (
             <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          ) : searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                loadBookmarks();
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
           )}
         </div>
 
@@ -815,7 +958,7 @@ export default function BookmarksPage() {
                   setAllBookmarks([]);
                   setBookmarks([]);
                   if (searchQuery.trim() === '') {
-                    await loadBookmarks(0, activeFilter, []);
+                    await loadBookmarks(0, activeFilter, [], tagFilters);
                   } else {
                     performSearch(searchQuery, []);
                   }
@@ -839,6 +982,35 @@ export default function BookmarksPage() {
               </div>
             )}
           </div>
+
+          {/* Tag Filters */}
+          {tagFilters.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Tag className="h-4 w-4 text-muted-foreground" />
+              {tagFilters.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-sm"
+                >
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTagFilter(tag)}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearTagFilters}
+                className="h-7 text-xs text-muted-foreground"
+              >
+                Clear all
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -864,8 +1036,8 @@ export default function BookmarksPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {[...Array(6)].map((_, i) => (
+        <div className="space-y-2">
+          {[...Array(8)].map((_, i) => (
             <BookmarkCardSkeleton key={i} />
           ))}
         </div>
@@ -879,7 +1051,7 @@ export default function BookmarksPage() {
       ) : viewMode === 'grid' ? (
         /* Grid View */
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
             {bookmarks.map((bookmark) => (
               <ArticleCard
                 key={bookmark.id}
@@ -891,6 +1063,8 @@ export default function BookmarksPage() {
                 onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                 onDelete={() => handleDeleteClick(bookmark)}
+                onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
+                onTagClick={handleTagClick}
                 formatDate={formatRelativeDate}
               />
             ))}
@@ -945,14 +1119,14 @@ export default function BookmarksPage() {
                   <CollapsibleContent>
                     <div className="border-t px-4 py-4 bg-muted/20">
                       {isLoadingCategory && bookmarksForCategory.length === 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
                           {[...Array(Math.min(count, 4))].map((_, i) => (
                             <BookmarkCardSkeleton key={i} />
                           ))}
                         </div>
                       ) : (
                         <>
-                          <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
                             {bookmarksForCategory.map((bookmark) => (
                               <ArticleCard
                                 key={bookmark.id}
@@ -964,6 +1138,8 @@ export default function BookmarksPage() {
                                 onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
                                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                                 onDelete={() => handleDeleteClick(bookmark)}
+                                onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
+                                onTagClick={handleTagClick}
                                 formatDate={formatRelativeDate}
                               />
                             ))}
