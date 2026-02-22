@@ -772,10 +772,21 @@ export default function BookmarksPage() {
               }
             }}
             onKeyDown={handleKeyPress}
-            className="pl-9"
+            className="pl-9 pr-9"
           />
-          {isSearching && (
+          {isSearching ? (
             <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          ) : searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                loadBookmarks();
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
           )}
         </div>
 
