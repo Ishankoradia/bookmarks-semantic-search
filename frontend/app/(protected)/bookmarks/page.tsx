@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Plus, Loader2, Filter, X, LayoutGrid, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -626,9 +626,9 @@ export default function BookmarksPage() {
               <button
                 onClick={() => handleViewModeChange('grid')}
                 className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'} rounded-l-lg`}
-                title="Grid view"
+                title="List view"
               >
-                <LayoutGrid className="h-4 w-4" />
+                <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => handleViewModeChange('category')}
