@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next'
 import AuthSessionProvider from '@/components/auth/session-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as SonnerToaster } from '@/components/ui/sonner'
+import { ServiceWorkerRegister } from '@/components/pwa/sw-register'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -54,6 +55,7 @@ export default function RootLayout({
         <Toaster />
         <SonnerToaster position="top-center" />
         <Analytics />
+        <ServiceWorkerRegister />
       </body>
     </html>
   )
