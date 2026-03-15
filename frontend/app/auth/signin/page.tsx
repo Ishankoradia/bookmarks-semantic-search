@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bookmark, Search, Tags, Compass, Users } from "lucide-react";
+import Link from "next/link";
 
 export default function SignInPage() {
   return (
@@ -110,6 +111,12 @@ export default function SignInPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <div className="text-center mt-6">
+          <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors hover:underline">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
     </div>
   );
