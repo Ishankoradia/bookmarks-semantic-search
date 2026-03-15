@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.semanticbookmarks.app"
+      "bundleIdentifier": "com.semanticbookmarks.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,6 +32,11 @@
     "plugins": [
       "expo-secure-store",
       "@react-native-google-signin/google-signin"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2a90ccd6-b040-40a2-b7e2-55f6ba949cb3"
+      }
+    }
   }
 }
