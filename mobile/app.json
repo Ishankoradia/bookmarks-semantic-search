@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Semantic Bookmarks",
+    "slug": "semantic-bookmarks",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "semantic-bookmarks",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563eb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.semanticbookmarks.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F0FF",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "package": "com.semanticbookmarks.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
+    ]
+  }
+}
