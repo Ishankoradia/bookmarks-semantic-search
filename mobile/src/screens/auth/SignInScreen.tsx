@@ -44,12 +44,16 @@ export function SignInScreen() {
       console.log('[AUTH] Sign-in response:', JSON.stringify(response, null, 2));
 
       if (response.type === 'success') {
-        console.log('[AUTH] Getting tokens...');
-        const tokens = await GoogleSignin.getTokens();
-        console.log('[AUTH] Got access token:', tokens.accessToken ? 'yes' : 'no');
+        const userData = response.data;
+        console.log('[AUTH] Got user data:', JSON.stringify(userData, null, 2));
 
         console.log('[AUTH] Calling backend signIn...');
-        await signIn(tokens.accessToken);
+        await signIn({
+          email: userData.user.email,
+          name: userData.user.name,
+          picture: userData.user.photo,
+          google_id: userData.user.id,
+        });
         console.log('[AUTH] Backend signIn successful');
       } else {
         console.log('[AUTH] Sign-in was not successful, type:', response.type);

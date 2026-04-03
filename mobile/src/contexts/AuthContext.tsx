@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getToken, getUser, type StoredUser } from '../lib/storage';
-import { loginWithGoogleToken, logout as authLogout } from '../lib/auth';
+import { loginWithGoogleUser, logout as authLogout } from '../lib/auth';
 import { setOnUnauthorized } from '../lib/api-client';
 
 interface AuthContextValue {
   user: StoredUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  signIn: (googleAccessToken: string) => Promise<void>;
+  signIn: (googleUser: { email: string; name: string | null; picture: string | null; google_id: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const signIn = useCallback(async (googleAccessToken: string) => {
-    const storedUser = await loginWithGoogleToken(googleAccessToken);
+  const signIn = useCallback(async (googleUser: { email: string; name: string | null; picture: string | null; google_id: string }) => {
+    const storedUser = await loginWithGoogleUser(googleUser);
     setUser(storedUser);
   }, []);
 

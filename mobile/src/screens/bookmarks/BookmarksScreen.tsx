@@ -24,6 +24,7 @@ import { EmptyState } from '../../components/EmptyState';
 import type { Bookmark, BookmarkSearchResult } from '../../types/api';
 
 type ReadFilter = 'all' | 'unread' | 'read';
+type ViewMode = 'list' | 'category';
 
 export function BookmarksScreen() {
   const { colors } = useTheme();
@@ -43,7 +44,16 @@ export function BookmarksScreen() {
   const [categories, setCategories] = useState<string[]>([]);
   const [showCategories, setShowCategories] = useState(false);
 
+  // View mode state
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [categoryBookmarks, setCategoryBookmarks] = useState<Record<string, Bookmark[]>>({});
+  const [categoryLoading, setCategoryLoading] = useState<Record<string, boolean>>({});
+  const [categoryHasMore, setCategoryHasMore] = useState<Record<string, boolean>>({});
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+
   const PAGE_SIZE = 30;
+  const CATEGORY_PAGE_SIZE = 20;
 
   const loadBookmarks = useCallback(
     async (skip = 0, append = false) => {
@@ -73,6 +83,61 @@ export function BookmarksScreen() {
     }
   };
 
+  const handleViewModeChange = async (mode: ViewMode) => {
+    setViewMode(mode);
+    if (searchQuery.trim()) return;
+
+    if (mode === 'category') {
+      setLoading(true);
+      try {
+        const isRead = readFilter === 'all' ? undefined : readFilter === 'read';
+        const counts = await bookmarkApi.getCategories(isRead);
+        setCategoryCounts(counts);
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setLoading(true);
+      await loadBookmarks();
+      setLoading(false);
+    }
+  };
+
+  const loadCategoryBookmarks = async (category: string, skip = 0) => {
+    setCategoryLoading((prev) => ({ ...prev, [category]: true }));
+    try {
+      const isRead = readFilter === 'all' ? undefined : readFilter === 'read';
+      const data = await bookmarkApi.getBookmarks(skip, CATEGORY_PAGE_SIZE, isRead, [category]);
+      setCategoryBookmarks((prev) => ({
+        ...prev,
+        [category]: skip === 0 ? data : [...(prev[category] || []), ...data],
+      }));
+      setCategoryHasMore((prev) => ({ ...prev, [category]: data.length === CATEGORY_PAGE_SIZE }));
+    } catch {
+      // ignore
+    } finally {
+      setCategoryLoading((prev) => ({ ...prev, [category]: false }));
+    }
+  };
+
+  const toggleFolder = async (category: string) => {
+    const isOpening = !openFolders.has(category);
+    setOpenFolders((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) newSet.delete(category);
+      else newSet.add(category);
+      return newSet;
+    });
+    if (isOpening && !categoryBookmarks[category]) {
+      await loadCategoryBookmarks(category);
+    }
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setIsSearching(false);
@@ -98,7 +163,19 @@ export function BookmarksScreen() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadBookmarks(), loadCategories()]).finally(() => setLoading(false));
+    if (viewMode === 'category') {
+      const isRead = readFilter === 'all' ? undefined : readFilter === 'read';
+      Promise.all([
+        bookmarkApi.getCategories(isRead).then(setCategoryCounts),
+        loadCategories(),
+      ]).then(() => {
+        setCategoryBookmarks({});
+        setCategoryHasMore({});
+        setOpenFolders(new Set());
+      }).finally(() => setLoading(false));
+    } else {
+      Promise.all([loadBookmarks(), loadCategories()]).finally(() => setLoading(false));
+    }
   }, [readFilter, selectedCategories]);
 
   const handleRefresh = async () => {
@@ -206,6 +283,34 @@ export function BookmarksScreen() {
               <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
             </Pressable>
           )}
+        </View>
+        <View style={[styles.viewToggle, { borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => handleViewModeChange('list')}
+            style={[
+              styles.viewToggleBtn,
+              { backgroundColor: viewMode === 'list' ? colors.primary : 'transparent' },
+            ]}
+          >
+            <Ionicons
+              name="list"
+              size={18}
+              color={viewMode === 'list' ? colors.primaryForeground : colors.mutedForeground}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => handleViewModeChange('category')}
+            style={[
+              styles.viewToggleBtn,
+              { backgroundColor: viewMode === 'category' ? colors.primary : 'transparent' },
+            ]}
+          >
+            <Ionicons
+              name="folder"
+              size={18}
+              color={viewMode === 'category' ? colors.primaryForeground : colors.mutedForeground}
+            />
+          </Pressable>
         </View>
         <Pressable
           onPress={() => setAddVisible(true)}
@@ -317,9 +422,116 @@ export function BookmarksScreen() {
         </View>
       </BottomModal>
 
-      {/* Bookmarks list */}
+      {/* Bookmarks list / category view */}
       {loading && !refreshing ? (
         <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />
+      ) : viewMode === 'category' && !isSearching ? (
+        (() => {
+          const sortedCategories = Object.keys(categoryCounts).sort();
+          const totalBookmarks = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+          return sortedCategories.length === 0 ? (
+            <EmptyState
+              icon="folder-outline"
+              title="No categories yet"
+              description="Add bookmarks to see them organized by category"
+            />
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+              }
+            >
+              <Text style={[styles.categorySummary, { color: colors.mutedForeground }]}>
+                <Text style={{ fontWeight: '700', color: colors.foreground }}>{sortedCategories.length}</Text>
+                {' categories, '}
+                <Text style={{ fontWeight: '700', color: colors.foreground }}>{totalBookmarks}</Text>
+                {' bookmarks'}
+              </Text>
+              {sortedCategories.map((category) => {
+                const count = categoryCounts[category] || 0;
+                const isOpen = openFolders.has(category);
+                const items = categoryBookmarks[category] || [];
+                const isLoadingCat = categoryLoading[category];
+                const hasMoreCat = categoryHasMore[category];
+
+                return (
+                  <View
+                    key={category}
+                    style={[
+                      styles.folderCard,
+                      {
+                        backgroundColor: isOpen ? colors.primary + '08' : colors.card,
+                        borderColor: isOpen ? colors.primary + '30' : colors.border,
+                      },
+                    ]}
+                  >
+                    <Pressable onPress={() => toggleFolder(category)} style={styles.folderHeader}>
+                      <View style={styles.folderLeft}>
+                        <Ionicons
+                          name={isOpen ? 'folder-open' : 'folder'}
+                          size={20}
+                          color={isOpen ? colors.primary : colors.mutedForeground}
+                        />
+                        <Text style={[styles.folderName, { color: colors.foreground }]}>{category}</Text>
+                      </View>
+                      <View style={styles.folderRight}>
+                        <Text style={[styles.folderCount, { color: colors.mutedForeground }]}>
+                          {count} {count === 1 ? 'bookmark' : 'bookmarks'}
+                        </Text>
+                        <Ionicons
+                          name={isOpen ? 'chevron-down' : 'chevron-forward'}
+                          size={16}
+                          color={colors.mutedForeground}
+                        />
+                      </View>
+                    </Pressable>
+
+                    {isOpen && (
+                      <View style={[styles.folderContent, { borderTopColor: colors.border }]}>
+                        {isLoadingCat && items.length === 0 ? (
+                          <ActivityIndicator style={{ paddingVertical: 16 }} color={colors.primary} />
+                        ) : (
+                          <>
+                            {items.map((item) => (
+                              <View key={item.id} style={{ marginBottom: 8 }}>
+                                <ArticleCard
+                                  article={{ ...item, type: 'bookmark' }}
+                                  onToggleRead={() => handleToggleRead(item.id, !!item.is_read)}
+                                  onDelete={() =>
+                                    Alert.alert('Delete Bookmark', 'Are you sure?', [
+                                      { text: 'Cancel', style: 'cancel' },
+                                      { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item.id) },
+                                    ])
+                                  }
+                                  onUpdateTags={(tags) => handleUpdateTags(item.id, tags)}
+                                  onTagClick={handleTagClick}
+                                />
+                              </View>
+                            ))}
+                            {hasMoreCat && (
+                              <Pressable
+                                onPress={() => loadCategoryBookmarks(category, items.length)}
+                                disabled={isLoadingCat}
+                                style={[styles.loadMoreBtn, { borderColor: colors.border }]}
+                              >
+                                {isLoadingCat ? (
+                                  <ActivityIndicator size="small" color={colors.primary} />
+                                ) : (
+                                  <Text style={[styles.loadMoreText, { color: colors.primary }]}>Load More</Text>
+                                )}
+                              </Pressable>
+                            )}
+                          </>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          );
+        })()
       ) : bookmarks.length === 0 ? (
         <EmptyState
           icon="bookmark-outline"
@@ -453,6 +665,64 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 14,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  viewToggleBtn: {
+    padding: 8,
+  },
+  categorySummary: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  folderCard: {
+    borderWidth: 1,
+    borderRadius: 10,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  folderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  folderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  folderName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  folderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  folderCount: {
+    fontSize: 13,
+  },
+  folderContent: {
+    borderTopWidth: 1,
+    padding: 12,
+  },
+  loadMoreBtn: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  loadMoreText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   loader: {
     flex: 1,
