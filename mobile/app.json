@@ -22,7 +22,9 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F0FF",
-        "foregroundImage": "./assets/android-icon-foreground.png"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundImage": "./assets/android-icon-background.png"
       },
       "package": "com.semanticbookmarks.app"
     },
