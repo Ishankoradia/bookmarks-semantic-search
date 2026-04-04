@@ -322,29 +322,30 @@ export function BookmarksScreen() {
 
       {/* Filters */}
       <View style={styles.filterRow}>
-        {(['all', 'unread', 'read'] as ReadFilter[]).map((filter) => (
-          <Pressable
-            key={filter}
-            onPress={() => setReadFilter(filter)}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: readFilter === filter ? colors.primary : colors.muted,
-              },
-            ]}
-          >
-            <Text
+        <View style={[styles.readFilterGroup, { backgroundColor: colors.muted }]}>
+          {(['all', 'unread', 'read'] as ReadFilter[]).map((filter) => (
+            <Pressable
+              key={filter}
+              onPress={() => setReadFilter(filter)}
               style={[
-                styles.filterText,
-                {
-                  color: readFilter === filter ? colors.primaryForeground : colors.mutedForeground,
-                },
+                styles.readFilterItem,
+                readFilter === filter && [styles.readFilterItemActive, { backgroundColor: colors.card }],
               ]}
             >
-              {filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[
+                  styles.readFilterText,
+                  {
+                    color: readFilter === filter ? colors.foreground : colors.mutedForeground,
+                    fontWeight: readFilter === filter ? '600' : '400',
+                  },
+                ]}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         <Pressable
           onPress={() => setShowCategories(!showCategories)}
@@ -461,15 +462,15 @@ export function BookmarksScreen() {
                     style={[
                       styles.folderCard,
                       {
-                        backgroundColor: isOpen ? colors.primary + '08' : colors.card,
-                        borderColor: isOpen ? colors.primary + '30' : colors.border,
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
                       },
                     ]}
                   >
                     <Pressable onPress={() => toggleFolder(category)} style={styles.folderHeader}>
                       <View style={styles.folderLeft}>
                         <Ionicons
-                          name={isOpen ? 'folder-open' : 'folder'}
+                          name={isOpen ? 'folder-open-outline' : 'folder-outline'}
                           size={20}
                           color={isOpen ? colors.primary : colors.mutedForeground}
                         />
@@ -488,7 +489,7 @@ export function BookmarksScreen() {
                     </Pressable>
 
                     {isOpen && (
-                      <View style={[styles.folderContent, { borderTopColor: colors.border }]}>
+                      <View style={[styles.folderContent, { borderTopColor: colors.border, backgroundColor: colors.muted + '33' }]}>
                         {isLoadingCat && items.length === 0 ? (
                           <ActivityIndicator style={{ paddingVertical: 16 }} color={colors.primary} />
                         ) : (
@@ -609,9 +610,30 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  readFilterGroup: {
+    flexDirection: 'row',
+    borderRadius: 20,
+    padding: 3,
+  },
+  readFilterItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  readFilterItemActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  readFilterText: {
+    fontSize: 13,
   },
   filterChip: {
     flexDirection: 'row',
@@ -682,14 +704,15 @@ const styles = StyleSheet.create({
   folderCard: {
     borderWidth: 1,
     borderRadius: 10,
-    marginBottom: 8,
+    marginBottom: 10,
     overflow: 'hidden',
   },
   folderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   folderLeft: {
     flexDirection: 'row',
