@@ -550,6 +550,11 @@ export function BookmarksScreen() {
           renderItem={renderBookmark}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          ListHeaderComponent={
+            <Text style={[styles.bookmarkCount, { color: colors.mutedForeground }]}>
+              Found <Text style={{ fontWeight: '700', color: colors.foreground }}>{bookmarks.length}</Text> bookmarks
+            </Text>
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
           }
@@ -746,6 +751,10 @@ const styles = StyleSheet.create({
   loadMoreText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  bookmarkCount: {
+    fontSize: 14,
+    marginBottom: 8,
   },
   loader: {
     flex: 1,
