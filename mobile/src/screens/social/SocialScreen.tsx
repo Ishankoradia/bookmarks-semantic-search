@@ -5,6 +5,7 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
+  RefreshControl,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +31,7 @@ export function SocialScreen() {
   const [receivedRequests, setReceivedRequests] = useState<FollowRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FollowRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadAll = async () => {
     try {
@@ -51,6 +53,12 @@ export function SocialScreen() {
   useEffect(() => {
     loadAll().finally(() => setLoading(false));
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadAll();
+    setRefreshing(false);
+  };
 
   const handleUnfollow = async (uuid: string) => {
     await followApi.unfollow(uuid);
@@ -113,6 +121,7 @@ export function SocialScreen() {
             )}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
           />
         );
 
@@ -138,6 +147,7 @@ export function SocialScreen() {
             )}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
           />
         );
 
@@ -162,6 +172,7 @@ export function SocialScreen() {
             )}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
             ListHeaderComponent={
               receivedRequests.length > 0 && sentRequests.length > 0 ? (
                 <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>

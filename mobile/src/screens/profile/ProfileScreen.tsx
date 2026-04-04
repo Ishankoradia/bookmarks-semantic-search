@@ -7,6 +7,7 @@ import {
   Switch,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
   StyleSheet,
   Alert,
 } from 'react-native';
@@ -28,28 +29,35 @@ export function ProfileScreen() {
   const [preferences, setPreferences] = useState<UserPreference | null>(null);
   const [topics, setTopics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [editingInterests, setEditingInterests] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [savingInterests, setSavingInterests] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
 
+  const loadProfile = async () => {
+    try {
+      const [prefs, topicsList] = await Promise.all([
+        preferencesApi.getPreferences(),
+        preferencesApi.getTopics(),
+      ]);
+      setPreferences(prefs);
+      setTopics(topicsList);
+      setSelectedInterests(prefs.interests || []);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [prefs, topicsList] = await Promise.all([
-          preferencesApi.getPreferences(),
-          preferencesApi.getTopics(),
-        ]);
-        setPreferences(prefs);
-        setTopics(topicsList);
-        setSelectedInterests(prefs.interests || []);
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadProfile().finally(() => setLoading(false));
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
+  };
 
   const handleToggleDiscoverability = async (value: boolean) => {
     // Optimistic update
@@ -93,6 +101,7 @@ export function ProfileScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
     >
       <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profile</Text>
 
