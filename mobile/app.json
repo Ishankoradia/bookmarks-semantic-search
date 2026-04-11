@@ -23,8 +23,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F0FF",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundImage": "./assets/android-icon-background.png"
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.semanticbookmarks.app",
       "navigationBarColor": "#f8f9fb"
