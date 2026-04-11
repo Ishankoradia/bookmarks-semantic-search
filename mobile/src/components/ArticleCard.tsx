@@ -101,7 +101,7 @@ export function ArticleCard({
     : null;
 
   const hasExpandableContent =
-    article.description || (article.tags && article.tags.length > 0) || (isBookmark && onUpdateTags);
+    article.description || (article.tags && article.tags.length > 0) || (isBookmark && onUpdateTags) || categoryLabel;
 
   const handleOpenUrl = () => Linking.openURL(article.url);
 
@@ -207,13 +207,22 @@ export function ArticleCard({
 
   return (
     <>
-    <Pressable
-      onLongPress={openMenu}
-      onPress={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+    <View
       style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       {/* Compact Row */}
-      <View style={styles.compactRow}>
+      <Pressable
+        onLongPress={openMenu}
+        onPress={() => {
+          if (isEditingTags) {
+            setIsEditingTags(false);
+            setNewTagInput('');
+            return;
+          }
+          if (hasExpandableContent) setIsExpanded(!isExpanded);
+        }}
+        style={styles.compactRow}
+      >
         {/* Expand chevron */}
         {hasExpandableContent ? (
           <Ionicons
@@ -258,15 +267,6 @@ export function ArticleCard({
           </>
         )}
 
-        {/* Category pill */}
-        {categoryLabel && (
-          <View style={[styles.categoryPill, { backgroundColor: colors.muted }]}>
-            <Text style={[styles.categoryText, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {categoryLabel}
-            </Text>
-          </View>
-        )}
-
         {/* Read status */}
         {isBookmark && (
           <View
@@ -297,11 +297,14 @@ export function ArticleCard({
         <Pressable onPress={openMenu} hitSlop={8} style={styles.menuBtn}>
           <Ionicons name="ellipsis-vertical" size={16} color={colors.mutedForeground} />
         </Pressable>
-      </View>
+      </Pressable>
 
       {/* Expanded Content */}
       {isExpanded && hasExpandableContent && (
-        <View style={[styles.expandedContent, { borderTopColor: colors.border }]}>
+        <Pressable
+          onPress={() => { if (isEditingTags) { setIsEditingTags(false); setNewTagInput(''); } }}
+          style={[styles.expandedContent, { borderTopColor: colors.border }]}
+        >
           {article.description && (
             <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={3}>
               {article.description}
@@ -309,67 +312,53 @@ export function ArticleCard({
           )}
 
           {/* Tags */}
-          {isEditingTags ? (
+          <Pressable onPress={() => { if (isEditingTags) { setIsEditingTags(false); setNewTagInput(''); } }}>
             <View style={styles.tagsRow}>
               <Ionicons name="pricetag-outline" size={14} color={colors.mutedForeground} />
-              {editedTags.map((tag) => (
+              {(isEditingTags ? editedTags : (article.tags || [])).slice(0, isEditingTags ? undefined : 5).map((tag) => (
                 <View key={tag} style={[styles.tag, { backgroundColor: colors.primary + '1A' }]}>
                   <Text style={[styles.tagText, { color: colors.primary }]}>{tag}</Text>
-                  <Pressable onPress={() => removeTag(tag)} hitSlop={4}>
-                    <Ionicons name="close" size={12} color={colors.primary} />
-                  </Pressable>
+                  {isEditingTags && (
+                    <Pressable onPress={() => removeTag(tag)} hitSlop={4}>
+                      <Ionicons name="close" size={12} color={colors.primary} />
+                    </Pressable>
+                  )}
                 </View>
               ))}
-              <View style={styles.tagInputRow}>
-                <TextInput
-                  value={newTagInput}
-                  onChangeText={setNewTagInput}
-                  onSubmitEditing={addTag}
-                  placeholder="Add tag..."
-                  placeholderTextColor={colors.mutedForeground}
-                  style={[styles.tagInput, { color: colors.foreground, borderColor: colors.border }]}
-                  returnKeyType="done"
-                  autoFocus
-                />
-                {isSavingTags ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Pressable onPress={addTag} disabled={!newTagInput.trim()}>
-                    <Ionicons
-                      name="add"
-                      size={18}
-                      color={newTagInput.trim() ? colors.primary : colors.mutedForeground}
-                    />
-                  </Pressable>
-                )}
-              </View>
-              <Pressable onPress={() => { setIsEditingTags(false); setNewTagInput(''); }}>
-                <Text style={[styles.doneText, { color: colors.primary }]}>Done</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.tagsRow}>
-              <Ionicons name="pricetag-outline" size={14} color={colors.mutedForeground} />
-              {article.tags && article.tags.length > 0 ? (
-                article.tags.slice(0, 5).map((tag) => (
-                  <Pressable
-                    key={tag}
-                    onPress={() => onTagClick?.(tag)}
-                    style={[styles.tag, { backgroundColor: colors.primary + '1A' }]}
-                  >
-                    <Text style={[styles.tagText, { color: colors.primary }]}>{tag}</Text>
-                  </Pressable>
-                ))
-              ) : (
+              {(!article.tags || article.tags.length === 0) && !isEditingTags && (
                 <Text style={[styles.noTags, { color: colors.mutedForeground }]}>No tags</Text>
               )}
-              {isBookmark && onUpdateTags && (
+              {isEditingTags ? (
+                <View style={styles.tagInputRow}>
+                  <TextInput
+                    value={newTagInput}
+                    onChangeText={setNewTagInput}
+                    onSubmitEditing={addTag}
+                    placeholder="Add tag..."
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[styles.tagInput, { color: colors.foreground, borderColor: colors.border }]}
+                    returnKeyType="done"
+                    autoFocus
+                  />
+                  {isSavingTags ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Pressable onPress={addTag} disabled={!newTagInput.trim()}>
+                      <Ionicons
+                        name="add"
+                        size={18}
+                        color={newTagInput.trim() ? colors.primary : colors.mutedForeground}
+                      />
+                    </Pressable>
+                  )}
+                </View>
+              ) : isBookmark && onUpdateTags ? (
                 <Pressable onPress={startEditingTags} hitSlop={8}>
                   <Ionicons name="pencil" size={12} color={colors.mutedForeground} />
                 </Pressable>
-              )}
+              ) : null}
             </View>
-          )}
+          </Pressable>
 
           {/* Meta info */}
           <View style={styles.metaRow}>
@@ -393,10 +382,15 @@ export function ArticleCard({
                   (article as FriendBookmarkArticle).owner.email}
               </Text>
             )}
+            {categoryLabel && (
+              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+                {categoryLabel}
+              </Text>
+            )}
           </View>
-        </View>
+        </Pressable>
       )}
-    </Pressable>
+    </View>
 
       {/* Action Menu Modal */}
       <BottomModal visible={showMenu} onClose={() => setShowMenu(false)}>
@@ -492,9 +486,8 @@ const styles = StyleSheet.create({
   },
   categoryPill: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 4,
-    maxWidth: 100,
   },
   categoryText: {
     fontSize: 11,
@@ -558,10 +551,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderWidth: 1,
     borderRadius: 4,
-  },
-  doneText: {
-    fontSize: 13,
-    fontWeight: '500',
   },
   metaRow: {
     flexDirection: 'row',
