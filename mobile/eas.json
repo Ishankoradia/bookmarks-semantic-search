@@ -14,7 +14,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://yourdomain.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://bookmarks.ishankoradia.in/api/v1",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "453914343986-gsn2goevmv5o1pk9e1vvjpjoes1fl3b9.apps.googleusercontent.com"
       }
     }
   },

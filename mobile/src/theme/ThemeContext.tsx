@@ -13,15 +13,12 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   const value = useMemo(
     () => ({
-      colors: isDark ? darkColors : lightColors,
-      isDark,
+      colors: lightColors,
+      isDark: false,
     }),
-    [isDark]
+    []
   );
 
   return (

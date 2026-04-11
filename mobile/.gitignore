@@ -38,3 +38,8 @@ yarn-error.*
 /android
 
 .env
+*.aab
+.idea/*
+
+# EAS / Google Play service account
+service-account*.json

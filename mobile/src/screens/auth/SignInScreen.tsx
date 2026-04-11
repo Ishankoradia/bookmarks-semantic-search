@@ -33,30 +33,20 @@ export function SignInScreen() {
     setLoading(true);
     setError('');
     try {
-      console.log('[AUTH] Starting Google Sign-In...');
-      console.log('[AUTH] Web Client ID:', process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID);
-
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      console.log('[AUTH] Play Services available');
 
+      await GoogleSignin.signOut();
       const response = await GoogleSignin.signIn();
-      console.log('[AUTH] Sign-in response type:', response.type);
-      console.log('[AUTH] Sign-in response:', JSON.stringify(response, null, 2));
 
       if (response.type === 'success') {
         const userData = response.data;
-        console.log('[AUTH] Got user data:', JSON.stringify(userData, null, 2));
-
-        console.log('[AUTH] Calling backend signIn...');
         await signIn({
           email: userData.user.email,
           name: userData.user.name,
           picture: userData.user.photo,
           google_id: userData.user.id,
         });
-        console.log('[AUTH] Backend signIn successful');
       } else {
-        console.log('[AUTH] Sign-in was not successful, type:', response.type);
         setError(`Sign-in response type: ${response.type}`);
       }
     } catch (e: any) {

@@ -258,7 +258,7 @@ export function BookmarksScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Search bar */}
       <View style={styles.searchRow}>
         <View style={[styles.searchInput, { borderColor: colors.border }]}>

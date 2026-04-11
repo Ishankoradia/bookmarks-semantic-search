@@ -40,6 +40,9 @@ export function TabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
+          borderTopWidth: 1,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerStyle: {
           backgroundColor: colors.background,
