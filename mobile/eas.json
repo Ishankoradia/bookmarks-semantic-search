@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "version": ">= 18.3.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://bookmarks.ishankoradia.in/api/v1",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "453914343986-gsn2goevmv5o1pk9e1vvjpjoes1fl3b9.apps.googleusercontent.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
