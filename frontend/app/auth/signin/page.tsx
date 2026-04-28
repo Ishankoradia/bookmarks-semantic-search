@@ -2,7 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Bookmark, Search, Tags, Compass, Users, Chrome } from "lucide-react";
+import { Bookmark, Search, Tags, Compass, Users, Chrome, Smartphone, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function SignInPage() {
@@ -21,11 +21,19 @@ export default function SignInPage() {
             href="https://chromewebstore.google.com/detail/mefbjommjlcdcllmcjdjcngjaegnelik"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <Chrome className="w-4 h-4" />
-            <span className="hidden sm:inline">Chrome Extension</span>
-            <span className="sm:hidden">Extension</span>
+            Chrome Extension
+          </a>
+          <a
+            href="https://play.google.com/store/apps/details?id=com.semanticbookmarks.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Smartphone className="w-4 h-4" />
+            Android App
           </a>
           <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Privacy
@@ -110,6 +118,22 @@ export default function SignInPage() {
               </div>
             </div>
             <a
+              href="https://play.google.com/store/apps/details?id=com.semanticbookmarks.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/50 transition-colors"
+            >
+              <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                <Smartphone className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground flex items-center gap-1.5">Android App <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" /></h3>
+                <p className="text-sm text-muted-foreground">
+                  Manage your bookmarks on the go. Available on the Google Play Store.
+                </p>
+              </div>
+            </a>
+            <a
               href="https://chromewebstore.google.com/detail/mefbjommjlcdcllmcjdjcngjaegnelik"
               target="_blank"
               rel="noopener noreferrer"
@@ -118,8 +142,8 @@ export default function SignInPage() {
               <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                 <Chrome className="w-5 h-5 text-primary" />
               </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Chrome Extension</h3>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground flex items-center gap-1.5">Chrome Extension <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" /></h3>
                 <p className="text-sm text-muted-foreground">
                   Save bookmarks directly from any webpage with one click.
                 </p>
