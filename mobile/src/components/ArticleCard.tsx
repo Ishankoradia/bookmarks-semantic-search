@@ -445,15 +445,12 @@ export function ArticleCard({
       {/* Category Picker Modal */}
       <BottomModal visible={showCategoryPicker} onClose={() => { setShowCategoryPicker(false); setCategorySearch(''); }}>
         <View style={styles.categoryPickerModal}>
-          <Text style={[styles.categoryPickerTitle, { color: colors.foreground }]}>
-            Select Category
-          </Text>
           <View style={[styles.categoryPickerInput, { borderColor: colors.border }]}>
             <Ionicons name="search" size={16} color={colors.mutedForeground} />
             <TextInput
               value={categorySearch}
               onChangeText={setCategorySearch}
-              placeholder="Search or create..."
+              placeholder="Search or create category..."
               placeholderTextColor={colors.mutedForeground}
               style={[styles.categoryPickerTextInput, { color: colors.foreground }]}
               autoFocus
@@ -462,11 +459,32 @@ export function ArticleCard({
               }}
               returnKeyType="done"
             />
+            {categorySearch.length > 0 && (
+              <Pressable onPress={() => setCategorySearch('')}>
+                <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            )}
           </View>
           {isSavingCategory ? (
             <ActivityIndicator style={{ paddingVertical: 20 }} color={colors.primary} />
           ) : (
-            <ScrollView style={styles.categoryPickerList}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {/* Create new option at the top when searching */}
+              {categorySearch.trim() && !availableCategories.some(
+                (c) => c.toLowerCase() === categorySearch.trim().toLowerCase()
+              ) && (
+                <Pressable
+                  onPress={() => handleSelectCategory(categorySearch.trim())}
+                  style={[styles.categoryPickerItem, { backgroundColor: colors.primary + '0D' }]}
+                >
+                  <View style={styles.categoryPickerItemLeft}>
+                    <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.categoryPickerItemText, { color: colors.primary, fontWeight: '600' }]}>
+                      Create &quot;{categorySearch.trim()}&quot;
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
               {availableCategories
                 .filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase()))
                 .map((cat) => (
@@ -489,21 +507,6 @@ export function ArticleCard({
                     )}
                   </Pressable>
                 ))}
-              {categorySearch.trim() && !availableCategories.some(
-                (c) => c.toLowerCase() === categorySearch.trim().toLowerCase()
-              ) && (
-                <Pressable
-                  onPress={() => handleSelectCategory(categorySearch.trim())}
-                  style={styles.categoryPickerItem}
-                >
-                  <View style={styles.categoryPickerItemLeft}>
-                    <Ionicons name="add" size={16} color={colors.primary} />
-                    <Text style={[styles.categoryPickerItemText, { color: colors.primary }]}>
-                      Create &quot;{categorySearch.trim()}&quot;
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
             </ScrollView>
           )}
         </View>
@@ -688,13 +691,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   categoryPickerModal: {
-    padding: 20,
-    maxHeight: '70%',
-  },
-  categoryPickerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 12,
+    paddingBottom: 32,
   },
   categoryPickerInput: {
     flexDirection: 'row',
@@ -704,27 +701,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 40,
-    marginBottom: 12,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 8,
   },
   categoryPickerTextInput: {
     flex: 1,
     fontSize: 14,
   },
-  categoryPickerList: {
-    maxHeight: 300,
-  },
   categoryPickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   categoryPickerItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
   },
   categoryPickerItemText: {
     fontSize: 14,
