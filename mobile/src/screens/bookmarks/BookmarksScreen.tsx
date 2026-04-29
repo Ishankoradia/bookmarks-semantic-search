@@ -52,6 +52,13 @@ export function BookmarksScreen() {
   const [categoryHasMore, setCategoryHasMore] = useState<Record<string, boolean>>({});
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
 
+  // Bulk selection state
+  const [selectionMode, setSelectionMode] = useState<string | null>(null);
+  const [selectedBookmarkIds, setSelectedBookmarkIds] = useState<Set<string>>(new Set());
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moveSearch, setMoveSearch] = useState('');
+  const [isBulkMoving, setIsBulkMoving] = useState(false);
+
   const PAGE_SIZE = 30;
   const CATEGORY_PAGE_SIZE = 20;
 
@@ -222,6 +229,90 @@ export function BookmarksScreen() {
     setBookmarks((prev) => prev.map((b) => (b.id === id ? { ...b, tags } : b)));
   };
 
+  const handleUpdateCategory = async (id: string, newCategory: string) => {
+    const bookmark = bookmarks.find((b) => b.id === id) ||
+      Object.values(categoryBookmarks).flat().find((b) => b.id === id);
+    const oldCategory = bookmark?.category || 'Others';
+
+    await bookmarkApi.updateCategory(id, newCategory);
+
+    setBookmarks((prev) => prev.map((b) => (b.id === id ? { ...b, category: newCategory } : b)));
+
+    setCategoryBookmarks((prev) => {
+      const updated = { ...prev };
+      if (updated[oldCategory]) {
+        updated[oldCategory] = updated[oldCategory].filter((b) => b.id !== id);
+      }
+      if (updated[newCategory] && bookmark) {
+        updated[newCategory] = [{ ...bookmark, category: newCategory } as any, ...updated[newCategory]];
+      }
+      return updated;
+    });
+
+    setCategoryCounts((prev) => {
+      const updated = { ...prev };
+      updated[oldCategory] = Math.max(0, (updated[oldCategory] || 0) - 1);
+      if (updated[oldCategory] === 0) delete updated[oldCategory];
+      updated[newCategory] = (updated[newCategory] || 0) + 1;
+      return updated;
+    });
+
+    loadCategories();
+  };
+
+  const handleBulkMove = async (targetCategory: string) => {
+    if (!selectionMode || selectedBookmarkIds.size === 0) return;
+    const sourceCategory = selectionMode;
+    const ids = Array.from(selectedBookmarkIds);
+
+    setIsBulkMoving(true);
+    try {
+      await bookmarkApi.bulkUpdateCategory(ids, targetCategory);
+
+      setBookmarks((prev) => prev.map((b) =>
+        ids.includes(b.id) ? { ...b, category: targetCategory } : b
+      ));
+
+      setCategoryBookmarks((prev) => {
+        const updated = { ...prev };
+        const movedBookmarks = (updated[sourceCategory] || []).filter((b) => ids.includes(b.id));
+        updated[sourceCategory] = (updated[sourceCategory] || []).filter((b) => !ids.includes(b.id));
+        if (updated[targetCategory]) {
+          updated[targetCategory] = [...movedBookmarks.map((b) => ({ ...b, category: targetCategory })), ...updated[targetCategory]];
+        }
+        return updated;
+      });
+
+      setCategoryCounts((prev) => {
+        const updated = { ...prev };
+        updated[sourceCategory] = Math.max(0, (updated[sourceCategory] || 0) - ids.length);
+        if (updated[sourceCategory] === 0) delete updated[sourceCategory];
+        updated[targetCategory] = (updated[targetCategory] || 0) + ids.length;
+        return updated;
+      });
+
+      loadCategories();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // ignore
+    } finally {
+      setIsBulkMoving(false);
+      setShowMoveModal(false);
+      setMoveSearch('');
+      setSelectionMode(null);
+      setSelectedBookmarkIds(new Set());
+    }
+  };
+
+  const toggleBookmarkSelection = (id: string) => {
+    setSelectedBookmarkIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleCopyUrl = async (url: string) => {
     await Clipboard.setStringAsync(url);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -253,7 +344,9 @@ export function BookmarksScreen() {
         ])
       }
       onUpdateTags={(tags) => handleUpdateTags(item.id, tags)}
+      onUpdateCategory={(cat) => handleUpdateCategory(item.id, cat)}
       onTagClick={handleTagClick}
+      availableCategories={categories}
     />
   );
 
@@ -477,6 +570,38 @@ export function BookmarksScreen() {
                         <Text style={[styles.folderName, { color: colors.foreground }]}>{category}</Text>
                       </View>
                       <View style={styles.folderRight}>
+                        {isOpen && (
+                          <Pressable
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              if (selectionMode === category) {
+                                const allIds = new Set(items.map((b) => b.id));
+                                const allSelected = items.length > 0 && items.every((b) => selectedBookmarkIds.has(b.id));
+                                if (allSelected) {
+                                  setSelectionMode(null);
+                                  setSelectedBookmarkIds(new Set());
+                                } else {
+                                  setSelectedBookmarkIds(allIds);
+                                }
+                              } else {
+                                setSelectionMode(category);
+                                const allIds = new Set(items.map((b) => b.id));
+                                setSelectedBookmarkIds(allIds);
+                              }
+                            }}
+                            hitSlop={8}
+                          >
+                            <View style={[
+                              styles.customCheckbox,
+                              { borderColor: selectionMode === category ? colors.primary : colors.border },
+                              selectionMode === category && items.length > 0 && items.every((b) => selectedBookmarkIds.has(b.id)) && { backgroundColor: colors.primary, borderColor: colors.primary },
+                            ]}>
+                              {selectionMode === category && items.length > 0 && items.every((b) => selectedBookmarkIds.has(b.id)) && (
+                                <Ionicons name="checkmark" size={12} color={colors.primaryForeground} />
+                              )}
+                            </View>
+                          </Pressable>
+                        )}
                         <Text style={[styles.folderCount, { color: colors.mutedForeground }]}>
                           {count} {count === 1 ? 'bookmark' : 'bookmarks'}
                         </Text>
@@ -494,8 +619,40 @@ export function BookmarksScreen() {
                           <ActivityIndicator style={{ paddingVertical: 16 }} color={colors.primary} />
                         ) : (
                           <>
+                            {/* Selection toolbar */}
+                            {selectionMode === category && selectedBookmarkIds.size > 0 && (
+                              <View style={[styles.selectionToolbar, { backgroundColor: colors.primary + '0D', borderColor: colors.primary + '30' }]}>
+                                <Text style={[styles.selectionCount, { color: colors.foreground }]}>
+                                  {selectedBookmarkIds.size} selected
+                                </Text>
+                                <Pressable
+                                  onPress={() => { setShowMoveModal(true); setMoveSearch(''); }}
+                                  style={[styles.moveBtn, { backgroundColor: colors.primary }]}
+                                >
+                                  <Ionicons name="arrow-forward" size={14} color={colors.primaryForeground} />
+                                  <Text style={[styles.moveBtnText, { color: colors.primaryForeground }]}>Move to...</Text>
+                                </Pressable>
+                              </View>
+                            )}
                             {items.map((item) => (
-                              <View key={item.id} style={{ marginBottom: 8 }}>
+                              <View key={item.id} style={[styles.selectableRow, { marginBottom: 8 }]}>
+                                {selectionMode === category && (
+                                  <Pressable
+                                    onPress={() => toggleBookmarkSelection(item.id)}
+                                    style={styles.checkboxArea}
+                                  >
+                                    <View style={[
+                                      styles.customCheckbox,
+                                      { borderColor: selectedBookmarkIds.has(item.id) ? colors.primary : colors.border },
+                                      selectedBookmarkIds.has(item.id) && { backgroundColor: colors.primary, borderColor: colors.primary },
+                                    ]}>
+                                      {selectedBookmarkIds.has(item.id) && (
+                                        <Ionicons name="checkmark" size={12} color={colors.primaryForeground} />
+                                      )}
+                                    </View>
+                                  </Pressable>
+                                )}
+                                <View style={{ flex: 1 }}>
                                 <ArticleCard
                                   article={{ ...item, type: 'bookmark' }}
                                   onToggleRead={() => handleToggleRead(item.id, !!item.is_read)}
@@ -506,8 +663,11 @@ export function BookmarksScreen() {
                                     ])
                                   }
                                   onUpdateTags={(tags) => handleUpdateTags(item.id, tags)}
+                                  onUpdateCategory={(cat) => handleUpdateCategory(item.id, cat)}
                                   onTagClick={handleTagClick}
+                                  availableCategories={categories}
                                 />
+                                </View>
                               </View>
                             ))}
                             {hasMoreCat && (
@@ -577,6 +737,61 @@ export function BookmarksScreen() {
           loadBookmarks();
         }}
       />
+
+      {/* Bulk Move Modal */}
+      <BottomModal visible={showMoveModal} onClose={() => { setShowMoveModal(false); setMoveSearch(''); }}>
+        <View style={styles.moveModal}>
+          <Text style={[styles.moveModalTitle, { color: colors.foreground }]}>
+            Move {selectedBookmarkIds.size} bookmark{selectedBookmarkIds.size > 1 ? 's' : ''}
+          </Text>
+          <View style={[styles.moveSearchInput, { borderColor: colors.border }]}>
+            <Ionicons name="search" size={16} color={colors.mutedForeground} />
+            <TextInput
+              value={moveSearch}
+              onChangeText={setMoveSearch}
+              placeholder="Search or create category..."
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.moveSearchTextInput, { color: colors.foreground }]}
+              autoFocus
+              onSubmitEditing={() => {
+                if (moveSearch.trim()) handleBulkMove(moveSearch.trim());
+              }}
+              returnKeyType="done"
+            />
+          </View>
+          {isBulkMoving ? (
+            <ActivityIndicator style={{ paddingVertical: 20 }} color={colors.primary} />
+          ) : (
+            <ScrollView style={styles.moveList}>
+              {categories
+                .filter((c) => c !== selectionMode && c.toLowerCase().includes(moveSearch.toLowerCase()))
+                .map((cat) => (
+                  <Pressable
+                    key={cat}
+                    onPress={() => handleBulkMove(cat)}
+                    style={styles.moveItem}
+                  >
+                    <Ionicons name="folder-outline" size={16} color={colors.mutedForeground} />
+                    <Text style={[styles.moveItemText, { color: colors.foreground }]}>{cat}</Text>
+                  </Pressable>
+                ))}
+              {moveSearch.trim() && !categories.some(
+                (c) => c.toLowerCase() === moveSearch.trim().toLowerCase()
+              ) && (
+                <Pressable
+                  onPress={() => handleBulkMove(moveSearch.trim())}
+                  style={styles.moveItem}
+                >
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={[styles.moveItemText, { color: colors.primary }]}>
+                    Create &quot;{moveSearch.trim()}&quot;
+                  </Text>
+                </Pressable>
+              )}
+            </ScrollView>
+          )}
+        </View>
+      </BottomModal>
     </SafeAreaView>
   );
 }
@@ -766,5 +981,88 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingVertical: 16,
+  },
+  selectBtnText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  selectableRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  customCheckbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxArea: {
+    paddingTop: 12,
+    paddingLeft: 4,
+  },
+  selectionToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  selectionCount: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  moveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  moveBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  moveModal: {
+    padding: 20,
+    maxHeight: '70%',
+  },
+  moveModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  moveSearchInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 12,
+  },
+  moveSearchTextInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  moveList: {
+    maxHeight: 300,
+  },
+  moveItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  moveItemText: {
+    fontSize: 14,
   },
 });

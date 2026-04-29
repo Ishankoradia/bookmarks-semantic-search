@@ -101,6 +101,25 @@ export const useBookmarkApi = () => {
       });
     },
 
+    // Update bookmark category
+    updateCategory: async (id: string, category: string): Promise<Bookmark> => {
+      return makeRequest(async (api) => {
+        const response = await api.put(`/bookmarks/${id}`, { category });
+        return response.data;
+      });
+    },
+
+    // Bulk update category for multiple bookmarks
+    bulkUpdateCategory: async (bookmarkIds: string[], category: string): Promise<{ updated_count: number }> => {
+      return makeRequest(async (api) => {
+        const response = await api.patch('/bookmarks/bulk-category', {
+          bookmark_ids: bookmarkIds,
+          category,
+        });
+        return response.data;
+      });
+    },
+
     // Regenerate tags
     regenerateTags: async (bookmarkId: string): Promise<TagPreviewResponse> => {
       return makeRequest(async (api) => {

@@ -65,6 +65,19 @@ export function useBookmarkApi() {
       return response.data;
     },
 
+    updateCategory: async (id: string, category: string): Promise<Bookmark> => {
+      const response = await apiClient.put(`/bookmarks/${id}`, { category });
+      return response.data;
+    },
+
+    bulkUpdateCategory: async (bookmarkIds: string[], category: string): Promise<{ updated_count: number }> => {
+      const response = await apiClient.patch('/bookmarks/bulk-category', {
+        bookmark_ids: bookmarkIds,
+        category,
+      });
+      return response.data;
+    },
+
     regenerateTags: async (bookmarkId: string): Promise<TagPreviewResponse> => {
       const response = await apiClient.post(`/bookmarks/${bookmarkId}/regenerate-tags`);
       return response.data;

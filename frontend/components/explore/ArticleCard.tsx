@@ -19,6 +19,8 @@ import {
   X,
   Plus,
   Loader2,
+  Folder,
+  Check,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -72,7 +74,9 @@ interface ArticleCardProps {
   onToggleRead?: () => void;
   onDelete?: () => void;
   onUpdateTags?: (tags: string[]) => Promise<void>;
+  onUpdateCategory?: (category: string) => Promise<void>;
   onTagClick?: (tag: string) => void;
+  availableCategories?: string[];
   // Feed-specific actions
   onSave?: () => void;
   // State
@@ -87,7 +91,9 @@ export function ArticleCard({
   onToggleRead,
   onDelete,
   onUpdateTags,
+  onUpdateCategory,
   onTagClick,
+  availableCategories = [],
   onSave,
   isSaving = false,
   formatDate = (date) => {
@@ -107,6 +113,12 @@ export function ArticleCard({
   const tagInputRef = React.useRef<HTMLInputElement>(null);
   const tagEditContainerRef = React.useRef<HTMLDivElement>(null);
   const originalTagsRef = React.useRef<string[]>([]);
+
+  // Category editing state
+  const [isEditingCategory, setIsEditingCategory] = React.useState(false);
+  const [categorySearch, setCategorySearch] = React.useState('');
+  const [isSavingCategory, setIsSavingCategory] = React.useState(false);
+  const categoryEditRef = React.useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
   React.useEffect(() => {
@@ -143,6 +155,42 @@ export function ArticleCard({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isEditingTags]);
+
+  // Close category editing when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryEditRef.current && !categoryEditRef.current.contains(event.target as Node)) {
+        setIsEditingCategory(false);
+        setCategorySearch('');
+      }
+    };
+
+    if (isEditingCategory) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditingCategory]);
+
+  const handleSelectCategory = async (category: string) => {
+    if (!onUpdateCategory || category === categoryLabel) {
+      setIsEditingCategory(false);
+      setCategorySearch('');
+      return;
+    }
+    setIsSavingCategory(true);
+    try {
+      await onUpdateCategory(category);
+      setIsEditingCategory(false);
+      setCategorySearch('');
+    } catch {
+      // keep editing open on error
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
 
   const isBookmark = article.type === 'bookmark';
   const isFeed = article.type === 'feed';
@@ -606,10 +654,91 @@ export function ArticleCard({
                 by {(article as FriendBookmarkArticle).owner.name || (article as FriendBookmarkArticle).owner.email}
               </span>
             )}
-            {/* Show category on mobile in expanded view */}
-            {categoryLabel && (
-              <span className="sm:hidden">{categoryLabel}</span>
-            )}
+            {/* Category with edit */}
+            {isEditingCategory ? (
+              <div ref={categoryEditRef} className="relative">
+                <div className="flex items-center gap-1">
+                  <Folder className="w-3 h-3" />
+                  {isSavingCategory ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Input
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && categorySearch.trim()) {
+                          handleSelectCategory(categorySearch.trim());
+                        } else if (e.key === 'Escape') {
+                          setIsEditingCategory(false);
+                          setCategorySearch('');
+                        }
+                      }}
+                      placeholder="Search or create..."
+                      className="h-6 text-xs w-40 px-1.5"
+                      autoFocus
+                    />
+                  )}
+                </div>
+                {!isSavingCategory && (
+                  <div className="absolute top-7 left-0 z-50 w-48 max-h-40 overflow-y-auto bg-popover border rounded-md shadow-md">
+                    {availableCategories
+                      .filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase()))
+                      .map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => handleSelectCategory(cat)}
+                          className={cn(
+                            "w-full text-left px-2 py-1.5 text-xs hover:bg-muted flex items-center justify-between",
+                            cat === categoryLabel && "text-primary font-medium"
+                          )}
+                        >
+                          {cat}
+                          {cat === categoryLabel && <Check className="w-3 h-3" />}
+                        </button>
+                      ))}
+                    {categorySearch.trim() && !availableCategories.some(
+                      (c) => c.toLowerCase() === categorySearch.trim().toLowerCase()
+                    ) && (
+                      <button
+                        onClick={() => handleSelectCategory(categorySearch.trim())}
+                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-muted text-primary flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Create &quot;{categorySearch.trim()}&quot;
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : categoryLabel ? (
+              <span className="flex items-center gap-1">
+                {categoryLabel}
+                {isBookmark && onUpdateCategory && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditingCategory(true);
+                      setCategorySearch('');
+                    }}
+                    className="hover:text-foreground"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ) : isBookmark && onUpdateCategory ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditingCategory(true);
+                  setCategorySearch('');
+                }}
+                className="flex items-center gap-1 hover:text-foreground"
+              >
+                <Folder className="w-3 h-3" />
+                <span>Add category</span>
+              </button>
+            ) : null}
           </div>
         </div>
       )}

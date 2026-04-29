@@ -92,3 +92,7 @@ class ParsedSearchQuery(BaseModel):
 
 class ReadStatusUpdate(BaseModel):
     is_read: bool
+
+class BulkCategoryUpdate(BaseModel):
+    bookmark_ids: List[UUID]
+    category: str

@@ -9,6 +9,7 @@ import {
   Linking,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -60,7 +61,9 @@ interface ArticleCardProps {
   onToggleRead?: () => void;
   onDelete?: () => void;
   onUpdateTags?: (tags: string[]) => Promise<void>;
+  onUpdateCategory?: (category: string) => Promise<void>;
   onTagClick?: (tag: string) => void;
+  availableCategories?: string[];
   onSave?: () => void;
   isSaving?: boolean;
 }
@@ -70,7 +73,9 @@ export function ArticleCard({
   onToggleRead,
   onDelete,
   onUpdateTags,
+  onUpdateCategory,
   onTagClick,
+  availableCategories = [],
   onSave,
   isSaving = false,
 }: ArticleCardProps) {
@@ -81,6 +86,9 @@ export function ArticleCard({
   const [editedTags, setEditedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [isSavingTags, setIsSavingTags] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   const isBookmark = article.type === 'bookmark';
   const isFeed = article.type === 'feed';
@@ -196,6 +204,24 @@ export function ArticleCard({
       }
     } else {
       setNewTagInput('');
+    }
+  };
+
+  const handleSelectCategory = async (category: string) => {
+    if (!onUpdateCategory || category === categoryLabel) {
+      setShowCategoryPicker(false);
+      setCategorySearch('');
+      return;
+    }
+    setIsSavingCategory(true);
+    try {
+      await onUpdateCategory(category);
+      setShowCategoryPicker(false);
+      setCategorySearch('');
+    } catch {
+      // keep picker open on error
+    } finally {
+      setIsSavingCategory(false);
     }
   };
 
@@ -382,15 +408,106 @@ export function ArticleCard({
                   (article as FriendBookmarkArticle).owner.email}
               </Text>
             )}
-            {categoryLabel && (
-              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                {categoryLabel}
-              </Text>
-            )}
+            {categoryLabel ? (
+              <Pressable
+                style={styles.categoryEditRow}
+                onPress={() => {
+                  if (isBookmark && onUpdateCategory) {
+                    setShowCategoryPicker(true);
+                    setCategorySearch('');
+                  }
+                }}
+              >
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+                  {categoryLabel}
+                </Text>
+                {isBookmark && onUpdateCategory && (
+                  <Ionicons name="pencil" size={10} color={colors.mutedForeground} />
+                )}
+              </Pressable>
+            ) : isBookmark && onUpdateCategory ? (
+              <Pressable
+                style={styles.categoryEditRow}
+                onPress={() => {
+                  setShowCategoryPicker(true);
+                  setCategorySearch('');
+                }}
+              >
+                <Ionicons name="folder-outline" size={12} color={colors.mutedForeground} />
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>Add category</Text>
+              </Pressable>
+            ) : null}
           </View>
         </Pressable>
       )}
     </View>
+
+      {/* Category Picker Modal */}
+      <BottomModal visible={showCategoryPicker} onClose={() => { setShowCategoryPicker(false); setCategorySearch(''); }}>
+        <View style={styles.categoryPickerModal}>
+          <Text style={[styles.categoryPickerTitle, { color: colors.foreground }]}>
+            Select Category
+          </Text>
+          <View style={[styles.categoryPickerInput, { borderColor: colors.border }]}>
+            <Ionicons name="search" size={16} color={colors.mutedForeground} />
+            <TextInput
+              value={categorySearch}
+              onChangeText={setCategorySearch}
+              placeholder="Search or create..."
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.categoryPickerTextInput, { color: colors.foreground }]}
+              autoFocus
+              onSubmitEditing={() => {
+                if (categorySearch.trim()) handleSelectCategory(categorySearch.trim());
+              }}
+              returnKeyType="done"
+            />
+          </View>
+          {isSavingCategory ? (
+            <ActivityIndicator style={{ paddingVertical: 20 }} color={colors.primary} />
+          ) : (
+            <ScrollView style={styles.categoryPickerList}>
+              {availableCategories
+                .filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase()))
+                .map((cat) => (
+                  <Pressable
+                    key={cat}
+                    onPress={() => handleSelectCategory(cat)}
+                    style={[
+                      styles.categoryPickerItem,
+                      cat === categoryLabel && { backgroundColor: colors.primary + '1A' },
+                    ]}
+                  >
+                    <View style={styles.categoryPickerItemLeft}>
+                      <Ionicons name="folder-outline" size={16} color={cat === categoryLabel ? colors.primary : colors.mutedForeground} />
+                      <Text style={[styles.categoryPickerItemText, { color: cat === categoryLabel ? colors.primary : colors.foreground }]}>
+                        {cat}
+                      </Text>
+                    </View>
+                    {cat === categoryLabel && (
+                      <Ionicons name="checkmark" size={16} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              {categorySearch.trim() && !availableCategories.some(
+                (c) => c.toLowerCase() === categorySearch.trim().toLowerCase()
+              ) && (
+                <Pressable
+                  onPress={() => handleSelectCategory(categorySearch.trim())}
+                  style={styles.categoryPickerItem}
+                >
+                  <View style={styles.categoryPickerItemLeft}>
+                    <Ionicons name="add" size={16} color={colors.primary} />
+                    <Text style={[styles.categoryPickerItemText, { color: colors.primary }]}>
+                      Create &quot;{categorySearch.trim()}&quot;
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            </ScrollView>
+          )}
+        </View>
+      </BottomModal>
 
       {/* Action Menu Modal */}
       <BottomModal visible={showMenu} onClose={() => setShowMenu(false)}>
@@ -564,6 +681,53 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
+  },
+  categoryEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  categoryPickerModal: {
+    padding: 20,
+    maxHeight: '70%',
+  },
+  categoryPickerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  categoryPickerInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 12,
+  },
+  categoryPickerTextInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  categoryPickerList: {
+    maxHeight: 300,
+  },
+  categoryPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  categoryPickerItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  categoryPickerItemText: {
+    fontSize: 14,
   },
   menuModal: {
     paddingBottom: 32,
