@@ -10,7 +10,8 @@ from app.models.user import User
 from app.schemas.bookmark import (
     BookmarkResponse, BookmarkUpdate,
     BookmarkSearchResult, SearchQuery, ReadStatusUpdate, ParsedSearchQuery,
-    BookmarkPreviewRequest, BookmarkPreviewResponse, BookmarkSave
+    BookmarkPreviewRequest, BookmarkPreviewResponse, BookmarkSave,
+    BulkCategoryUpdate
 )
 from app.services.embedding import EmbeddingService
 from app.services.bookmark_service import BookmarkService
@@ -155,6 +156,22 @@ async def parse_search_query(query: str):
         return ParsedSearchQuery(**parsed)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/bulk-category")
+def bulk_update_category(
+    data: BulkCategoryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update the category for multiple bookmarks at once."""
+    try:
+        updated_count = bookmark_service.bulk_update_category(
+            db, [str(bid) for bid in data.bookmark_ids], data.category, current_user.id
+        )
+        return {"updated_count": updated_count}
+    except Exception as e:
+        logger.error(f"Error bulk updating categories: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update categories")
 
 @router.get("/{bookmark_id}", response_model=BookmarkResponse)
 def get_bookmark(

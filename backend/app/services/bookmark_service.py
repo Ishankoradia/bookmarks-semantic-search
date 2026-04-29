@@ -289,6 +289,14 @@ class BookmarkService:
         db.refresh(bookmark)
         return bookmark
     
+    def bulk_update_category(self, db: Session, bookmark_ids: list, category: str, user_id: int) -> int:
+        count = db.query(Bookmark).filter(
+            Bookmark.id.in_(bookmark_ids),
+            Bookmark.user_id == user_id
+        ).update({Bookmark.category: category}, synchronize_session='fetch')
+        db.commit()
+        return count
+
     def delete_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> bool:
         bookmark = self.get_bookmark(db, bookmark_id, user_id=user_id)
         if not bookmark:

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown, Tag } from 'lucide-react';
+import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown, Tag, Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -99,6 +99,13 @@ export default function BookmarksPage() {
   const [categoryBookmarks, setCategoryBookmarks] = useState<Record<string, (BookmarkType | BookmarkSearchResult)[]>>({});
   const [categoryLoading, setCategoryLoading] = useState<Record<string, boolean>>({});
   const [categoryHasMore, setCategoryHasMore] = useState<Record<string, boolean>>({});
+
+  // Bulk selection state
+  const [selectionMode, setSelectionMode] = useState<string | null>(null);
+  const [selectedBookmarkIds, setSelectedBookmarkIds] = useState<Set<string>>(new Set());
+  const [isBulkMoving, setIsBulkMoving] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [moveTargetSearch, setMoveTargetSearch] = useState('');
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('bookmarks-view-mode') as ViewMode;
@@ -548,6 +555,107 @@ export default function BookmarksPage() {
     });
 
     toast.success('Tags updated');
+  };
+
+  const handleUpdateCategory = async (bookmarkId: string, newCategory: string) => {
+    const bookmark = allBookmarks.find((b) => b.id === bookmarkId) ||
+      Object.values(categoryBookmarks).flat().find((b) => b.id === bookmarkId);
+    const oldCategory = bookmark?.category || 'Others';
+
+    await authApi.updateCategory(bookmarkId, newCategory);
+
+    const updateBookmark = (b: BookmarkType | BookmarkSearchResult) =>
+      b.id === bookmarkId ? { ...b, category: newCategory } : b;
+
+    setAllBookmarks((prev) => prev.map(updateBookmark));
+    setBookmarks((prev) => prev.map(updateBookmark));
+
+    // Update category bookmarks and counts
+    setCategoryBookmarks((prev) => {
+      const updated = { ...prev };
+      if (updated[oldCategory]) {
+        updated[oldCategory] = updated[oldCategory].filter((b) => b.id !== bookmarkId);
+      }
+      if (updated[newCategory] && bookmark) {
+        updated[newCategory] = [{ ...bookmark, category: newCategory }, ...updated[newCategory]];
+      }
+      return updated;
+    });
+
+    setCategoryCounts((prev) => {
+      const updated = { ...prev };
+      updated[oldCategory] = Math.max(0, (updated[oldCategory] || 0) - 1);
+      if (updated[oldCategory] === 0) delete updated[oldCategory];
+      updated[newCategory] = (updated[newCategory] || 0) + 1;
+      return updated;
+    });
+
+    // Refresh category list in case a new one was created
+    try {
+      const data = await authApi.getCategoryList();
+      setCategoryList(data);
+    } catch {}
+
+    toast.success('Category updated');
+  };
+
+  const handleBulkMove = async (targetCategory: string) => {
+    if (!selectionMode || selectedBookmarkIds.size === 0) return;
+    const sourceCategory = selectionMode;
+    const ids = Array.from(selectedBookmarkIds);
+
+    setIsBulkMoving(true);
+    try {
+      await authApi.bulkUpdateCategory(ids, targetCategory);
+
+      // Update local state
+      const updateBookmark = (b: BookmarkType | BookmarkSearchResult) =>
+        ids.includes(b.id) ? { ...b, category: targetCategory } : b;
+      setAllBookmarks((prev) => prev.map(updateBookmark));
+      setBookmarks((prev) => prev.map(updateBookmark));
+
+      setCategoryBookmarks((prev) => {
+        const updated = { ...prev };
+        const movedBookmarks = (updated[sourceCategory] || []).filter((b) => ids.includes(b.id));
+        updated[sourceCategory] = (updated[sourceCategory] || []).filter((b) => !ids.includes(b.id));
+        if (updated[targetCategory]) {
+          updated[targetCategory] = [...movedBookmarks.map((b) => ({ ...b, category: targetCategory })), ...updated[targetCategory]];
+        }
+        return updated;
+      });
+
+      setCategoryCounts((prev) => {
+        const updated = { ...prev };
+        updated[sourceCategory] = Math.max(0, (updated[sourceCategory] || 0) - ids.length);
+        if (updated[sourceCategory] === 0) delete updated[sourceCategory];
+        updated[targetCategory] = (updated[targetCategory] || 0) + ids.length;
+        return updated;
+      });
+
+      try {
+        const data = await authApi.getCategoryList();
+        setCategoryList(data);
+      } catch {}
+
+      toast.success(`Moved ${ids.length} bookmark${ids.length > 1 ? 's' : ''}`);
+    } catch {
+      toast.error('Failed to move bookmarks');
+    } finally {
+      setIsBulkMoving(false);
+      setShowMoveDialog(false);
+      setMoveTargetSearch('');
+      setSelectionMode(null);
+      setSelectedBookmarkIds(new Set());
+    }
+  };
+
+  const toggleBookmarkSelection = (id: string) => {
+    setSelectedBookmarkIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const handleTagClick = async (tag: string) => {
@@ -1064,7 +1172,9 @@ export default function BookmarksPage() {
                 onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
                 onDelete={() => handleDeleteClick(bookmark)}
                 onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
+                onUpdateCategory={(category) => handleUpdateCategory(bookmark.id, category)}
                 onTagClick={handleTagClick}
+                availableCategories={categoryList}
                 formatDate={formatRelativeDate}
               />
             ))}
@@ -1091,6 +1201,8 @@ export default function BookmarksPage() {
             const isLoadingCategory = categoryLoading[category];
             const hasMoreInCategory = categoryHasMore[category];
 
+            const isSelectingThis = selectionMode === category;
+
             return (
               <Collapsible key={category} open={isOpen} onOpenChange={() => toggleFolder(category)}>
                 <div className="border rounded-lg bg-card">
@@ -1105,6 +1217,34 @@ export default function BookmarksPage() {
                         <span className="font-medium">{category}</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {isOpen && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isSelectingThis) {
+                                const allIds = new Set(bookmarksForCategory.map((b) => b.id));
+                                const allSelected = bookmarksForCategory.length > 0 && bookmarksForCategory.every((b) => selectedBookmarkIds.has(b.id));
+                                if (allSelected) {
+                                  setSelectionMode(null);
+                                  setSelectedBookmarkIds(new Set());
+                                } else {
+                                  setSelectedBookmarkIds(allIds);
+                                }
+                              } else {
+                                setSelectionMode(category);
+                                const allIds = new Set(bookmarksForCategory.map((b) => b.id));
+                                setSelectedBookmarkIds(allIds);
+                              }
+                            }}
+                            className={`p-1 rounded hover:bg-muted transition-colors ${isSelectingThis ? 'text-primary' : 'text-muted-foreground'}`}
+                            title={isSelectingThis ? 'Deselect all' : 'Select all bookmarks'}
+                          >
+                            <Checkbox
+                              checked={isSelectingThis && bookmarksForCategory.length > 0 && bookmarksForCategory.every((b) => selectedBookmarkIds.has(b.id))}
+                              className="h-4 w-4"
+                            />
+                          </button>
+                        )}
                         <span className="text-sm text-muted-foreground">
                           {count} {count === 1 ? 'bookmark' : 'bookmarks'}
                         </span>
@@ -1126,22 +1266,51 @@ export default function BookmarksPage() {
                         </div>
                       ) : (
                         <>
+                          {/* Selection toolbar */}
+                          {isSelectingThis && selectedBookmarkIds.size > 0 && (
+                            <div className="flex items-center justify-between mb-3 p-2 bg-primary/5 border border-primary/20 rounded-lg">
+                              <span className="text-sm font-medium">
+                                {selectedBookmarkIds.size} selected
+                              </span>
+                              <Button
+                                size="sm"
+                                className="h-7 gap-1.5"
+                                onClick={() => { setShowMoveDialog(true); setMoveTargetSearch(''); }}
+                              >
+                                <ArrowRight className="h-3.5 w-3.5" />
+                                Move to...
+                              </Button>
+                            </div>
+                          )}
                           <div className="space-y-2">
                             {bookmarksForCategory.map((bookmark) => (
-                              <ArticleCard
-                                key={bookmark.id}
-                                article={{
-                                  ...bookmark,
-                                  type: 'bookmark' as const,
-                                  similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
-                                }}
-                                onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
-                                onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
-                                onDelete={() => handleDeleteClick(bookmark)}
-                                onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
-                                onTagClick={handleTagClick}
-                                formatDate={formatRelativeDate}
-                              />
+                              <div key={bookmark.id} className="flex items-start gap-2">
+                                {isSelectingThis && (
+                                  <div className="pt-3">
+                                    <Checkbox
+                                      checked={selectedBookmarkIds.has(bookmark.id)}
+                                      onCheckedChange={() => toggleBookmarkSelection(bookmark.id)}
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <ArticleCard
+                                    article={{
+                                      ...bookmark,
+                                      type: 'bookmark' as const,
+                                      similarity_score: 'similarity_score' in bookmark ? bookmark.similarity_score : undefined,
+                                    }}
+                                    onToggleRead={() => handleReadStatusToggle(bookmark.id, bookmark.is_read || false)}
+                                    onCopyUrl={() => handleCopyToClipboard(bookmark.url, bookmark.id)}
+                                    onDelete={() => handleDeleteClick(bookmark)}
+                                    onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
+                                    onUpdateCategory={(cat) => handleUpdateCategory(bookmark.id, cat)}
+                                    onTagClick={handleTagClick}
+                                    availableCategories={categoryList}
+                                    formatDate={formatRelativeDate}
+                                  />
+                                </div>
+                              </div>
                             ))}
                           </div>
                           {/* Load more button for category */}
@@ -1188,6 +1357,64 @@ export default function BookmarksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Move Dialog */}
+      <Dialog open={showMoveDialog} onOpenChange={(open) => { if (!open) { setShowMoveDialog(false); setMoveTargetSearch(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move {selectedBookmarkIds.size} bookmark{selectedBookmarkIds.size > 1 ? 's' : ''}</DialogTitle>
+            <DialogDescription>Select a category to move to, or type to create a new one.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={moveTargetSearch}
+              onChange={(e) => setMoveTargetSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && moveTargetSearch.trim()) {
+                  handleBulkMove(moveTargetSearch.trim());
+                }
+              }}
+              placeholder="Search or create category..."
+              autoFocus
+            />
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {categoryList
+                .filter((c) => c !== selectionMode && c.toLowerCase().includes(moveTargetSearch.toLowerCase()))
+                .map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => handleBulkMove(cat)}
+                    disabled={isBulkMoving}
+                    className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Folder className="h-4 w-4 text-muted-foreground" />
+                      {cat}
+                    </span>
+                  </button>
+                ))}
+              {moveTargetSearch.trim() && !categoryList.some(
+                (c) => c.toLowerCase() === moveTargetSearch.trim().toLowerCase()
+              ) && (
+                <button
+                  onClick={() => handleBulkMove(moveTargetSearch.trim())}
+                  disabled={isBulkMoving}
+                  className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted text-primary flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create &quot;{moveTargetSearch.trim()}&quot;
+                </button>
+              )}
+            </div>
+            {isBulkMoving && (
+              <div className="flex items-center justify-center py-2">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Moving...</span>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
