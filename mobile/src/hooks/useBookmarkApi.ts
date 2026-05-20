@@ -104,6 +104,29 @@ export function useBookmarkApi() {
       return response.data;
     },
 
+    getStats: async (): Promise<{
+      total: number;
+      read: number;
+      unread: number;
+      categories: number;
+      weekly_activity: { week: string; added: number; read: number }[];
+      recent_bookmarks: {
+        id: string;
+        title: string;
+        description: string | null;
+        domain: string;
+        url: string;
+        tags: string[];
+        category: string | null;
+        is_read: boolean;
+        reference: string | null;
+        created_at: string | null;
+      }[];
+    }> => {
+      const response = await apiClient.get('/bookmarks/stats');
+      return response.data;
+    },
+
     refreshCategory: async (
       category: string
     ): Promise<{ job_id: string; status: string; total_bookmarks?: number }> => {

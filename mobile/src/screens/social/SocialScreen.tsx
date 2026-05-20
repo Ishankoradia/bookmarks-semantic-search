@@ -12,25 +12,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
 import { useFollowApi } from '../../hooks/useFollowApi';
+import { useFeedApi } from '../../hooks/useFeedApi';
 import { UserCard } from '../../components/UserCard';
 import { FollowRequestCard } from '../../components/FollowRequestCard';
 import { UserSearchSheet } from '../../components/UserSearchSheet';
+import { ArticleCard } from '../../components/ArticleCard';
 import { EmptyState } from '../../components/EmptyState';
-import type { UserSummary, FollowRequest } from '../../types/api';
+import type { UserSummary, FollowRequest, FriendsFeedResponse } from '../../types/api';
 
-type Tab = 'following' | 'followers' | 'requests';
+type Tab = 'feed' | 'following' | 'followers' | 'requests';
 
 export function SocialScreen() {
   const { colors } = useTheme();
   const followApi = useFollowApi();
+  const feedApi = useFeedApi();
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<Tab>('following');
+  const [activeTab, setActiveTab] = useState<Tab>('feed');
   const [following, setFollowing] = useState<UserSummary[]>([]);
   const [followers, setFollowers] = useState<UserSummary[]>([]);
   const [receivedRequests, setReceivedRequests] = useState<FollowRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FollowRequest[]>([]);
+  const [feedData, setFeedData] = useState<FriendsFeedResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feedLoading, setFeedLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadAll = async () => {
@@ -50,13 +55,25 @@ export function SocialScreen() {
     }
   };
 
+  const loadFeed = async () => {
+    setFeedLoading(true);
+    try {
+      const data = await feedApi.getFriendsFeed();
+      setFeedData(data);
+    } catch {
+      // ignore
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadAll().finally(() => setLoading(false));
+    Promise.all([loadAll(), loadFeed()]).finally(() => setLoading(false));
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadAll();
+    await Promise.all([loadAll(), loadFeed()]);
     setRefreshing(false);
   };
 
@@ -82,17 +99,45 @@ export function SocialScreen() {
   };
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
+    { key: 'feed', label: 'Feed' },
     { key: 'following', label: 'Following' },
     { key: 'followers', label: 'Followers' },
     { key: 'requests', label: 'Requests', badge: receivedRequests.length },
   ];
 
   const renderContent = () => {
-    if (loading) {
+    if (loading && activeTab !== 'feed') {
       return <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />;
     }
 
     switch (activeTab) {
+      case 'feed':
+        if (feedLoading) {
+          return <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />;
+        }
+        return !feedData || feedData.bookmarks.length === 0 ? (
+          <EmptyState
+            icon="newspaper-outline"
+            title="No feed items yet"
+            description="Follow people to see their bookmarks here"
+            actionLabel="Find People"
+            onAction={() => setSearchVisible(true)}
+          />
+        ) : (
+          <FlatList
+            data={feedData.bookmarks}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ArticleCard
+                article={{ ...item, type: 'friend' }}
+              />
+            )}
+            contentContainerStyle={styles.list}
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+          />
+        );
+
       case 'following':
         return following.length === 0 ? (
           <EmptyState
@@ -173,13 +218,6 @@ export function SocialScreen() {
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-            ListHeaderComponent={
-              receivedRequests.length > 0 && sentRequests.length > 0 ? (
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                  Received Requests
-                </Text>
-              ) : null
-            }
           />
         );
     }
@@ -231,7 +269,7 @@ export function SocialScreen() {
       <UserSearchSheet
         visible={searchVisible}
         onClose={() => setSearchVisible(false)}
-        onUserFollowed={loadAll}
+        onUserFollowed={() => { loadAll(); loadFeed(); }}
       />
     </SafeAreaView>
   );
@@ -268,31 +306,31 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     paddingVertical: 12,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
   },
   badge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
   badgeText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   loader: {
@@ -301,12 +339,6 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
   },
   actionBtn: {
     paddingHorizontal: 12,

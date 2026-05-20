@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useFollowApi } from '../hooks/useFollowApi';
-import { FeedScreen } from '../screens/feed/FeedScreen';
+import { HomeScreen } from '../screens/home/HomeScreen';
 import { ExploreScreen } from '../screens/explore/ExploreScreen';
 import { BookmarksScreen } from '../screens/bookmarks/BookmarksScreen';
 import { SocialScreen } from '../screens/social/SocialScreen';
@@ -52,8 +52,8 @@ export function TabNavigator() {
       }}
     >
       <Tab.Screen
-        name="Feed"
-        component={FeedScreen}
+        name="Home"
+        component={HomeScreen}
         options={{
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
