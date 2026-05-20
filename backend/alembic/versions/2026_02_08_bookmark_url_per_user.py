@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = "bookmark_url_per_user"
 down_revision: Union[str, Sequence[str], None] = "add_follow_relationships"
