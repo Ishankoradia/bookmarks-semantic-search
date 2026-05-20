@@ -7,14 +7,26 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { usePreferencesApi } from '@/lib/auth-api';
+import { usePreferencesApi, useAccountApi } from '@/lib/auth-api';
 import { UserPreference } from '@/lib/api';
 import { TopicSelector } from '@/components/explore/TopicSelector';
-import { Loader2, LogOut, User, Settings, Eye, Pencil, Check, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2, LogOut, User, Settings, Eye, Pencil, Check, X, MessageSquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
   const { data: session } = useSession();
+  const accountApi = useAccountApi();
   const [preferences, setPreferences] = useState<UserPreference | null>(null);
   const [availableTopics, setAvailableTopics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +34,12 @@ export default function ProfilePage() {
   const [editingInterests, setEditingInterests] = useState(false);
   const [editedInterests, setEditedInterests] = useState<string[]>([]);
   const [savingInterests, setSavingInterests] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'feedback' | 'bug' | 'feature'>('feedback');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const preferencesApi = usePreferencesApi();
 
   const loadData = async () => {
@@ -98,6 +116,41 @@ export default function ProfilePage() {
     setEditedInterests([]);
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!feedbackMessage.trim()) {
+      toast.error('Please enter your feedback');
+      return;
+    }
+    setSendingFeedback(true);
+    try {
+      await accountApi.submitFeedback(feedbackType, feedbackMessage.trim());
+      toast.success('Thank you for your feedback!');
+      setFeedbackMessage('');
+    } catch {
+      toast.error('Failed to send feedback');
+    } finally {
+      setSendingFeedback(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteReason.trim()) {
+      toast.error('Please tell us why you want to leave');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await accountApi.deleteAccount(deleteReason.trim());
+      toast.success('Account deleted');
+      signOut({ callbackUrl: '/auth/signin' });
+    } catch {
+      toast.error('Failed to delete account');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   const handleSignOut = () => {
     signOut({ callbackUrl: '/auth/signin' });
   };
@@ -123,48 +176,40 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold mb-6">Profile</h1>
+    <div className="container max-w-2xl mx-auto px-4 py-6 pb-24">
+      {/* User Header */}
+      <div className="flex items-center gap-4 mb-8">
+        <Avatar className="h-14 w-14">
+          <AvatarImage
+            src={session?.user?.image || undefined}
+            alt={session?.user?.name || 'User'}
+          />
+          <AvatarFallback className="text-lg">
+            {getInitials() || <User className="h-7 w-7" />}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-bold truncate">
+            {session?.user?.name || 'Unknown'}
+          </h1>
+          <p className="text-sm text-muted-foreground truncate">{session?.user?.email}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleSignOut}>
+          <LogOut className="h-4 w-4 mr-1.5" />
+          Sign Out
+        </Button>
+      </div>
 
-      {/* User Info */}
-      <Card className="mb-6">
-        <CardContent className="flex items-center gap-4 p-6">
-          <Avatar className="h-16 w-16">
-            <AvatarImage
-              src={session?.user?.image || undefined}
-              alt={session?.user?.name || 'User'}
-            />
-            <AvatarFallback className="text-lg">
-              {getInitials() || <User className="h-8 w-8" />}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-semibold truncate">
-              {session?.user?.name || 'Unknown'}
-            </h2>
-            <p className="text-muted-foreground truncate">{session?.user?.email}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Settings */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      {/* Preferences Section */}
+      <div className="mb-8">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Preferences</h2>
+        <div className="bg-card border rounded-lg divide-y">
           {/* Discoverability */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="discoverable" className="text-base flex items-center gap-2">
-                <Eye className="h-4 w-4" />
-                Allow others to find me
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                When enabled, other users can find you by searching your name or email
+          <div className="flex items-center justify-between p-4">
+            <div className="space-y-0.5 pr-4">
+              <p className="text-sm font-medium">Allow others to find me</p>
+              <p className="text-xs text-muted-foreground">
+                Others can search your name or email
               </p>
             </div>
             <Switch
@@ -174,88 +219,156 @@ export default function ProfilePage() {
               disabled={savingDiscoverability}
             />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Interests */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Interests</CardTitle>
-              <CardDescription>
-                Topics you're interested in for the Explore feed
-              </CardDescription>
-            </div>
-            {!editingInterests && (
-              <Button variant="ghost" size="sm" onClick={handleStartEditingInterests}>
-                <Pencil className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {editingInterests ? (
-            <div className="space-y-4">
-              <TopicSelector
-                topics={availableTopics}
-                selectedTopics={editedInterests}
-                onSelectionChange={setEditedInterests}
-                minSelection={1}
-              />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancelEditingInterests}
-                  disabled={savingInterests}
+          {/* Interests */}
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">Interests</p>
+              {!editingInterests && (
+                <button
+                  onClick={handleStartEditingInterests}
+                  className="text-xs text-primary hover:underline"
                 >
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveInterests}
-                  disabled={savingInterests || editedInterests.length === 0}
-                >
-                  {savingInterests ? (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-1" />
-                  )}
-                  Save
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {preferences?.interests?.length ? (
-                preferences.interests.map((interest) => (
-                  <span
-                    key={interest}
-                    className="px-3 py-1.5 bg-primary/10 text-primary text-sm rounded-full"
-                  >
-                    {interest}
-                  </span>
-                ))
-              ) : (
-                <p className="text-muted-foreground">No interests selected</p>
+                  Edit
+                </button>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            {editingInterests ? (
+              <div className="space-y-3">
+                <TopicSelector
+                  topics={availableTopics}
+                  selectedTopics={editedInterests}
+                  onSelectionChange={setEditedInterests}
+                  minSelection={1}
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelEditingInterests}
+                    disabled={savingInterests}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveInterests}
+                    disabled={savingInterests || editedInterests.length === 0}
+                  >
+                    {savingInterests && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {preferences?.interests?.length ? (
+                  preferences.interests.map((interest) => (
+                    <span
+                      key={interest}
+                      className="px-2.5 py-1 bg-primary/10 text-primary text-xs rounded-full"
+                    >
+                      {interest}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">No interests selected</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-      {/* Sign Out */}
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={handleSignOut}
-      >
-        <LogOut className="h-4 w-4 mr-2" />
-        Sign Out
-      </Button>
+      {/* Feedback Section */}
+      <div className="mb-8">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Feedback</h2>
+        <div className="bg-card border rounded-lg p-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {(['feedback', 'bug', 'feature'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setFeedbackType(type)}
+                className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+                  feedbackType === type
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-transparent text-muted-foreground border-border hover:border-foreground/30'
+                }`}
+              >
+                {type === 'feedback' ? 'General' : type === 'bug' ? 'Bug Report' : 'Feature Request'}
+              </button>
+            ))}
+          </div>
+          <Textarea
+            value={feedbackMessage}
+            onChange={(e) => setFeedbackMessage(e.target.value)}
+            placeholder={
+              feedbackType === 'bug'
+                ? 'What happened and what did you expect?'
+                : feedbackType === 'feature'
+                ? 'What feature would you like to see?'
+                : 'Share your thoughts about the application...'
+            }
+            rows={3}
+            className="text-sm"
+          />
+          <Button
+            onClick={handleSubmitFeedback}
+            disabled={sendingFeedback || !feedbackMessage.trim()}
+            size="sm"
+          >
+            {sendingFeedback ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Send
+          </Button>
+        </div>
+      </div>
+
+      {/* Account Section */}
+      <div>
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Account</h2>
+        <div className="bg-card border rounded-lg divide-y">
+          <button
+            onClick={() => setDeleteDialogOpen(true)}
+            className="w-full flex items-center gap-3 p-4 text-sm text-destructive hover:bg-destructive/5 transition-colors text-left"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete account and all data
+          </button>
+        </div>
+      </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account, all bookmarks, and all data. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={deleteReason}
+            onChange={(e) => setDeleteReason(e.target.value)}
+            placeholder="Please tell us why you're leaving — this helps us improve"
+            rows={3}
+            className="text-sm"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={isDeleting || !deleteReason.trim()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
