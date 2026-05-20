@@ -2,13 +2,21 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.models.bookmark import Bookmark
-from app.schemas.bookmark import BookmarkUpdate, BookmarkSearchResult, MetadataFilters, DateRangeFilter, BookmarkSave
+from app.schemas.bookmark import (
+    BookmarkUpdate,
+    BookmarkSearchResult,
+    MetadataFilters,
+    DateRangeFilter,
+    BookmarkSave,
+)
 from app.services.scraper import WebScraper
 from app.services.embedding import EmbeddingService
 from app.core.logging import get_logger
 from app.core.config import settings, SearchMode
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
+from sqlalchemy import func, case, extract
 import uuid
+
 
 class BookmarkService:
     def __init__(self):
@@ -19,9 +27,10 @@ class BookmarkService:
     def _extract_domain(self, url: str) -> str:
         """Extract domain from URL."""
         from urllib.parse import urlparse
+
         try:
             parsed = urlparse(url)
-            return parsed.netloc or parsed.path.split('/')[0]
+            return parsed.netloc or parsed.path.split("/")[0]
         except:
             return "unknown"
 
@@ -38,7 +47,7 @@ class BookmarkService:
         # Try to scrape the URL
         try:
             scraped_data = await self.scraper.scrape_url(url)
-            if not scraped_data.get('title'):
+            if not scraped_data.get("title"):
                 scrape_failed = True
                 self.logger.warning(f"Scraping returned no title for {url}")
         except Exception as e:
@@ -57,46 +66,51 @@ class BookmarkService:
             # Generate embedding
             try:
                 content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}"
-                embedding = await self.embedding_service.create_embedding(content_for_embedding)
+                embedding = await self.embedding_service.create_embedding(
+                    content_for_embedding
+                )
             except Exception as e:
                 self.logger.warning(f"Failed to create embedding: {e}")
 
             # Generate tags
             try:
                 auto_tags = await self.embedding_service.generate_content_tags(
-                    title=scraped_data['title'],
-                    description=scraped_data.get('description', ''),
-                    content=scraped_data['content'],
-                    domain=scraped_data['domain']
+                    title=scraped_data["title"],
+                    description=scraped_data.get("description", ""),
+                    content=scraped_data["content"],
+                    domain=scraped_data["domain"],
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to generate auto-tags: {e}")
 
             # Generate category
             try:
-                suggested_category = await self.embedding_service.generate_content_category(
-                    title=scraped_data['title'],
-                    content=scraped_data['content']
+                suggested_category = (
+                    await self.embedding_service.generate_content_category(
+                        title=scraped_data["title"], content=scraped_data["content"]
+                    )
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to generate category: {e}")
 
         # Create pending bookmark (no user_id)
         # Use placeholder title if scraping failed (DB requires non-null title)
-        title = scraped_data['title'] if scraped_data and scraped_data.get('title') else ""
+        title = (
+            scraped_data["title"] if scraped_data and scraped_data.get("title") else ""
+        )
 
         try:
             bookmark = Bookmark(
                 url=url,
                 title=title,
-                description=scraped_data.get('description') if scraped_data else None,
-                content=scraped_data['content'] if scraped_data else None,
-                raw_html=scraped_data.get('raw_html') if scraped_data else None,
-                domain=scraped_data['domain'] if scraped_data else domain,
+                description=scraped_data.get("description") if scraped_data else None,
+                content=scraped_data["content"] if scraped_data else None,
+                raw_html=scraped_data.get("raw_html") if scraped_data else None,
+                domain=scraped_data["domain"] if scraped_data else domain,
                 embedding=embedding,
                 tags=auto_tags,
                 category=suggested_category,
-                meta_data=scraped_data.get('metadata', {}) if scraped_data else {},
+                meta_data=scraped_data.get("metadata", {}) if scraped_data else {},
                 user_id=None,  # Pending - not claimed yet
             )
 
@@ -104,25 +118,28 @@ class BookmarkService:
             db.commit()
             db.refresh(bookmark)
 
-            return {
-                'bookmark': bookmark,
-                'scrape_failed': scrape_failed
-            }
+            return {"bookmark": bookmark, "scrape_failed": scrape_failed}
 
         except Exception as e:
             db.rollback()
             self.logger.error(f"Failed to create pending bookmark: {e}")
             raise ValueError("Failed to create bookmark preview. Please try again.")
 
-    def save_bookmark(self, db: Session, save_data: BookmarkSave, user_id: int) -> Bookmark:
+    def save_bookmark(
+        self, db: Session, save_data: BookmarkSave, user_id: int
+    ) -> Bookmark:
         """
         Save/claim a previewed bookmark by setting the user_id and updating category/reference/title.
         """
         # Find the pending bookmark
-        bookmark = db.query(Bookmark).filter(
-            Bookmark.id == save_data.id,
-            Bookmark.user_id.is_(None)  # Must be unclaimed
-        ).first()
+        bookmark = (
+            db.query(Bookmark)
+            .filter(
+                Bookmark.id == save_data.id,
+                Bookmark.user_id.is_(None),  # Must be unclaimed
+            )
+            .first()
+        )
 
         if not bookmark:
             raise ValueError("Bookmark not found or already saved")
@@ -132,10 +149,11 @@ class BookmarkService:
             raise ValueError("Title is required for this bookmark")
 
         # Check if user already has this URL bookmarked
-        existing = db.query(Bookmark).filter(
-            Bookmark.url == bookmark.url,
-            Bookmark.user_id == user_id
-        ).first()
+        existing = (
+            db.query(Bookmark)
+            .filter(Bookmark.url == bookmark.url, Bookmark.user_id == user_id)
+            .first()
+        )
         if existing:
             # Clean up the pending bookmark
             db.delete(bookmark)
@@ -164,17 +182,18 @@ class BookmarkService:
         Scrapes, generates embeddings/tags/category, and saves with user_id.
         """
         # Check if bookmark already exists for this user
-        existing = db.query(Bookmark).filter(
-            Bookmark.url == url,
-            Bookmark.user_id == user_id
-        ).first()
+        existing = (
+            db.query(Bookmark)
+            .filter(Bookmark.url == url, Bookmark.user_id == user_id)
+            .first()
+        )
         if existing:
             raise ValueError("A bookmark with this URL already exists")
 
         # Scrape the URL
         try:
             scraped_data = await self.scraper.scrape_url(url)
-            if not scraped_data.get('title'):
+            if not scraped_data.get("title"):
                 raise ValueError("Unable to extract content from this URL.")
         except Exception as e:
             if "Invalid URL" in str(e):
@@ -189,7 +208,9 @@ class BookmarkService:
         # Generate embedding
         try:
             content_for_embedding = f"{scraped_data['title']} {scraped_data.get('description', '')} {scraped_data['content']}"
-            embedding = await self.embedding_service.create_embedding(content_for_embedding)
+            embedding = await self.embedding_service.create_embedding(
+                content_for_embedding
+            )
         except Exception as e:
             self.logger.warning(f"Failed to create embedding: {e}")
             embedding = None
@@ -197,10 +218,10 @@ class BookmarkService:
         # Generate tags
         try:
             auto_tags = await self.embedding_service.generate_content_tags(
-                title=scraped_data['title'],
-                description=scraped_data.get('description', ''),
-                content=scraped_data['content'],
-                domain=scraped_data['domain']
+                title=scraped_data["title"],
+                description=scraped_data.get("description", ""),
+                content=scraped_data["content"],
+                domain=scraped_data["domain"],
             )
         except Exception as e:
             self.logger.warning(f"Failed to generate auto-tags: {e}")
@@ -209,8 +230,7 @@ class BookmarkService:
         # Generate category
         try:
             category = await self.embedding_service.generate_content_category(
-                title=scraped_data['title'],
-                content=scraped_data['content']
+                title=scraped_data["title"], content=scraped_data["content"]
             )
         except Exception as e:
             self.logger.warning(f"Failed to generate category: {e}")
@@ -220,15 +240,15 @@ class BookmarkService:
         try:
             bookmark = Bookmark(
                 url=url,
-                title=scraped_data['title'],
-                description=scraped_data.get('description'),
-                content=scraped_data['content'],
-                raw_html=scraped_data.get('raw_html'),
-                domain=scraped_data['domain'],
+                title=scraped_data["title"],
+                description=scraped_data.get("description"),
+                content=scraped_data["content"],
+                raw_html=scraped_data.get("raw_html"),
+                domain=scraped_data["domain"],
                 embedding=embedding,
                 tags=auto_tags,
                 category=category,
-                meta_data=scraped_data.get('metadata', {}),
+                meta_data=scraped_data.get("metadata", {}),
                 user_id=user_id,
             )
 
@@ -242,28 +262,47 @@ class BookmarkService:
             self.logger.error(f"Failed to create bookmark: {e}")
             raise ValueError("Failed to save bookmark. Please try again.")
 
-    def get_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> Optional[Bookmark]:
-        return db.query(Bookmark).filter(Bookmark.id == bookmark_id, Bookmark.user_id == user_id).first()
-    
-    def get_bookmarks(self, db: Session, user_id: int, skip: int = 0, limit: int = 100, is_read: Optional[bool] = None, categories: Optional[List[str]] = None, tags: Optional[List[str]] = None) -> List[Bookmark]:
+    def get_bookmark(
+        self, db: Session, bookmark_id: uuid.UUID, user_id: int
+    ) -> Optional[Bookmark]:
+        return (
+            db.query(Bookmark)
+            .filter(Bookmark.id == bookmark_id, Bookmark.user_id == user_id)
+            .first()
+        )
+
+    def get_bookmarks(
+        self,
+        db: Session,
+        user_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        is_read: Optional[bool] = None,
+        categories: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
+    ) -> List[Bookmark]:
         query = db.query(Bookmark).filter(Bookmark.user_id == user_id)
         if is_read is not None:
             if is_read:
                 query = query.filter(Bookmark.is_read == True)
             else:
-                query = query.filter((Bookmark.is_read == False) | (Bookmark.is_read.is_(None)))
+                query = query.filter(
+                    (Bookmark.is_read == False) | (Bookmark.is_read.is_(None))
+                )
         if categories is not None and len(categories) > 0:
             # Handle "Others" category (null or empty string)
             if "Others" in categories:
                 other_categories = [c for c in categories if c != "Others"]
                 if other_categories:
                     query = query.filter(
-                        (Bookmark.category.in_(other_categories)) |
-                        (Bookmark.category.is_(None)) |
-                        (Bookmark.category == "")
+                        (Bookmark.category.in_(other_categories))
+                        | (Bookmark.category.is_(None))
+                        | (Bookmark.category == "")
                     )
                 else:
-                    query = query.filter((Bookmark.category.is_(None)) | (Bookmark.category == ""))
+                    query = query.filter(
+                        (Bookmark.category.is_(None)) | (Bookmark.category == "")
+                    )
             else:
                 query = query.filter(Bookmark.category.in_(categories))
         if tags is not None and len(tags) > 0:
@@ -272,49 +311,156 @@ class BookmarkService:
             from sqlalchemy import or_
             from sqlalchemy.dialects.postgresql import JSONB
             from sqlalchemy import cast
-            tag_conditions = [cast(Bookmark.tags, JSONB).contains([tag]) for tag in tags]
+
+            tag_conditions = [
+                cast(Bookmark.tags, JSONB).contains([tag]) for tag in tags
+            ]
             query = query.filter(or_(*tag_conditions))
-        return query.order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
-    
-    def update_bookmark(self, db: Session, bookmark_id: uuid.UUID, update_data: BookmarkUpdate, user_id: int) -> Optional[Bookmark]:
+        return (
+            query.order_by(Bookmark.created_at.desc()).offset(skip).limit(limit).all()
+        )
+
+    def update_bookmark(
+        self,
+        db: Session,
+        bookmark_id: uuid.UUID,
+        update_data: BookmarkUpdate,
+        user_id: int,
+    ) -> Optional[Bookmark]:
         bookmark = self.get_bookmark(db, bookmark_id, user_id=user_id)
         if not bookmark:
             return None
-        
+
         update_dict = update_data.dict(exclude_unset=True)
         for field, value in update_dict.items():
             setattr(bookmark, field, value)
-        
+
         db.commit()
         db.refresh(bookmark)
         return bookmark
-    
-    def bulk_update_category(self, db: Session, bookmark_ids: list, category: str, user_id: int) -> int:
-        count = db.query(Bookmark).filter(
-            Bookmark.id.in_(bookmark_ids),
-            Bookmark.user_id == user_id
-        ).update({Bookmark.category: category}, synchronize_session='fetch')
+
+    def bulk_update_category(
+        self, db: Session, bookmark_ids: list, category: str, user_id: int
+    ) -> int:
+        count = (
+            db.query(Bookmark)
+            .filter(Bookmark.id.in_(bookmark_ids), Bookmark.user_id == user_id)
+            .update({Bookmark.category: category}, synchronize_session="fetch")
+        )
         db.commit()
         return count
 
-    def delete_bookmark(self, db: Session, bookmark_id: uuid.UUID, user_id: int) -> bool:
+    def delete_bookmark(
+        self, db: Session, bookmark_id: uuid.UUID, user_id: int
+    ) -> bool:
         bookmark = self.get_bookmark(db, bookmark_id, user_id=user_id)
         if not bookmark:
             return False
-        
+
         db.delete(bookmark)
         db.commit()
         return True
-    
-    def _get_date_range(self, date_filter: Optional[DateRangeFilter]) -> tuple[Optional[datetime], Optional[datetime]]:
+
+    def get_stats(self, db: Session, user_id: int) -> Dict[str, Any]:
+
+        now = datetime.now(timezone.utc)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        current_monday = today - timedelta(days=today.weekday())
+        eight_weeks_ago = current_monday - timedelta(weeks=7)
+
+        # Single query for all counts
+        counts = db.query(
+            func.count(Bookmark.id).label('total'),
+            func.count(case((Bookmark.is_read == True, 1))).label('read'),
+            func.count(func.distinct(
+                case((
+                    (Bookmark.category.isnot(None)) & (Bookmark.category != ''),
+                    Bookmark.category
+                ))
+            )).label('categories'),
+        ).filter(Bookmark.user_id == user_id).first()
+
+        total = counts.total or 0
+        read_count = counts.read or 0
+        unread_count = total - read_count
+        category_count = counts.categories or 0
+
+        # Single query for weekly activity — added & read grouped by week
+        week_expr = func.date_trunc('week', Bookmark.created_at)
+        added_rows = db.query(
+            week_expr.label('week'),
+            func.count(Bookmark.id).label('added'),
+            func.count(case((Bookmark.is_read == True, 1))).label('read'),
+        ).filter(
+            Bookmark.user_id == user_id,
+            Bookmark.created_at >= eight_weeks_ago,
+        ).group_by(week_expr).all()
+
+        # Build lookup from DB rows
+        added_by_week = {}
+        read_by_week = {}
+        for row in added_rows:
+            if row.week:
+                row_date = row.week.date() if hasattr(row.week, 'date') else row.week
+                # Align to Monday (date_trunc should already do this)
+                week_key = row_date - timedelta(days=row_date.weekday())
+                added_by_week[week_key] = row.added
+                read_by_week[week_key] = row.read
+
+        weekly_activity = []
+        for i in range(7, -1, -1):
+            week_start = (current_monday - timedelta(weeks=i)).date()
+            weekly_activity.append({
+                "week": week_start.strftime("%b %d"),
+                "added": added_by_week.get(week_start, 0),
+                "read": read_by_week.get(week_start, 0),
+            })
+
+        # Recent bookmarks (last 4)
+        recent = (
+            db.query(Bookmark)
+            .filter(Bookmark.user_id == user_id)
+            .order_by(Bookmark.created_at.desc())
+            .limit(4)
+            .all()
+        )
+
+        recent_bookmarks = [
+            {
+                "id": str(b.id),
+                "title": b.title,
+                "description": b.description,
+                "domain": b.domain,
+                "url": b.url,
+                "tags": b.tags or [],
+                "category": b.category,
+                "is_read": b.is_read,
+                "reference": b.reference,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b in recent
+        ]
+
+        return {
+            "total": total,
+            "read": read_count,
+            "unread": unread_count,
+            "categories": category_count,
+            "weekly_activity": weekly_activity,
+            "recent_bookmarks": recent_bookmarks,
+        }
+
+    def _get_date_range(
+        self, date_filter: Optional[DateRangeFilter]
+    ) -> tuple[Optional[datetime], Optional[datetime]]:
         """Convert date range filter to actual datetime bounds."""
         if not date_filter:
             return None, None
-            
+
         now = datetime.now()
         date_from = None
         date_to = now
-        
+
         if date_filter == DateRangeFilter.today:
             date_from = now.replace(hour=0, minute=0, second=0, microsecond=0)
         elif date_filter == DateRangeFilter.last_week:
@@ -327,9 +473,9 @@ class BookmarkService:
             date_from = now - timedelta(days=365)
         elif date_filter == DateRangeFilter.all_time:
             date_from = None
-            
+
         return date_from, date_to
-    
+
     async def search_bookmarks_with_filters(
         self,
         db: Session,
@@ -338,7 +484,7 @@ class BookmarkService:
         limit: int = 10,
         threshold: float = 0.5,
         filters: Optional[MetadataFilters] = None,
-        auto_parse_query: bool = True
+        auto_parse_query: bool = True,
     ) -> List[BookmarkSearchResult]:
         """
         Two-step search:
@@ -354,11 +500,7 @@ class BookmarkService:
         if settings.SEARCH_MODE == SearchMode.FULLTEXT:
             self.logger.debug("Using full-text search mode")
             return await self.search_bookmarks_fulltext(
-                db=db,
-                query=query,
-                user_id=user_id,
-                limit=limit,
-                filters=filters
+                db=db, query=query, user_id=user_id, limit=limit, filters=filters
             )
 
         # Semantic search (default)
@@ -369,69 +511,83 @@ class BookmarkService:
         parsed_filters = None
         search_query = query
         ambiguous_name = None
-        
+
         if auto_parse_query:
             parsed = await self.embedding_service.parse_search_query(query)
             self.logger.debug(f"Parsed query result: {parsed}")
             ambiguous_name = parsed.get("ambiguous_person_name")
-            
+
             # Create filters from parsed query if not provided explicitly
             if not filters:
                 # If there's an ambiguous name, we'll handle it separately
                 if ambiguous_name:
                     # Don't set domain or reference filters, we'll handle it in the SQL
                     parsed_filters = MetadataFilters(
-                        date_range=DateRangeFilter(parsed["date_range"]) if parsed.get("date_range") else None
+                        date_range=(
+                            DateRangeFilter(parsed["date_range"])
+                            if parsed.get("date_range")
+                            else None
+                        )
                     )
                 else:
                     parsed_filters = MetadataFilters(
                         domain=parsed.get("domain_filter"),
                         reference=parsed.get("reference_filter"),
-                        date_range=DateRangeFilter(parsed["date_range"]) if parsed.get("date_range") else None
+                        date_range=(
+                            DateRangeFilter(parsed["date_range"])
+                            if parsed.get("date_range")
+                            else None
+                        ),
                     )
-        
+
         # Use provided filters or parsed filters
         active_filters = filters or parsed_filters
-        
+
         # Build metadata filter conditions
         filter_conditions = []
         filter_params = {}
-        
+
         # Handle ambiguous name - search both domain and reference fields
         if ambiguous_name:
             # Handle NULL reference values with COALESCE
-            filter_conditions.append("(domain ~* :ambiguous_name OR LOWER(COALESCE(reference, '')) LIKE LOWER(:ambiguous_name_like))")
+            filter_conditions.append(
+                "(domain ~* :ambiguous_name OR LOWER(COALESCE(reference, '')) LIKE LOWER(:ambiguous_name_like))"
+            )
             filter_params["ambiguous_name"] = ambiguous_name
             filter_params["ambiguous_name_like"] = f"%{ambiguous_name}%"
-        
+
         if active_filters:
             # Reference filter (case-insensitive partial match)
             if active_filters.reference:
-                filter_conditions.append("LOWER(COALESCE(reference, '')) LIKE LOWER(:reference)")
+                filter_conditions.append(
+                    "LOWER(COALESCE(reference, '')) LIKE LOWER(:reference)"
+                )
                 filter_params["reference"] = f"%{active_filters.reference}%"
-            
+
             # Domain filter (regex match, case-insensitive)
             if active_filters.domain:
                 filter_conditions.append("domain ~* :domain")
                 filter_params["domain"] = active_filters.domain
-            
+
             # Category filter (support multiple categories)
             if active_filters.category and len(active_filters.category) > 0:
                 category_conditions = []
                 for i, category in enumerate(active_filters.category):
                     if category == "Others":
                         # Filter for bookmarks with null or empty category
-                        category_conditions.append("(category IS NULL OR category = '')")
+                        category_conditions.append(
+                            "(category IS NULL OR category = '')"
+                        )
                     else:
                         # Filter for exact category match
                         param_name = f"category_{i}"
                         category_conditions.append(f"category = :{param_name}")
                         filter_params[param_name] = category
-                
+
                 if category_conditions:
                     # Use OR logic between different categories
                     filter_conditions.append(f"({' OR '.join(category_conditions)})")
-            
+
             # Date range filter
             if active_filters.date_range:
                 date_from, date_to = self._get_date_range(active_filters.date_range)
@@ -441,23 +597,27 @@ class BookmarkService:
                 if date_to:
                     filter_conditions.append("created_at <= :date_to")
                     filter_params["date_to"] = date_to
-            
+
             # Custom date range (overrides date_range if both provided)
             if active_filters.date_from:
                 filter_conditions.append("created_at >= :custom_date_from")
-                filter_params["custom_date_from"] = datetime.combine(active_filters.date_from, datetime.min.time())
+                filter_params["custom_date_from"] = datetime.combine(
+                    active_filters.date_from, datetime.min.time()
+                )
             if active_filters.date_to:
                 filter_conditions.append("created_at <= :custom_date_to")
-                filter_params["custom_date_to"] = datetime.combine(active_filters.date_to, datetime.max.time())
-        
+                filter_params["custom_date_to"] = datetime.combine(
+                    active_filters.date_to, datetime.max.time()
+                )
+
         # Create embedding for the search query
         query_embedding = await self.embedding_service.create_embedding(search_query)
-        
+
         # Build the SQL query
         if filter_conditions:
             # Apply metadata filters with OR logic
             where_clause = " OR ".join(filter_conditions)
-            
+
             # First, check if filters return any results
             # Use parameterized query instead of f-string for safety
             count_query_str = f"""
@@ -466,14 +626,14 @@ class BookmarkService:
                 WHERE user_id = :user_id AND ({where_clause})
             """
             count_query = text(count_query_str)
-            
+
             self.logger.debug(f"Filter conditions: {filter_conditions}")
             self.logger.debug(f"Filter params: {filter_params}")
             self.logger.debug(f"Count query SQL: {count_query_str}")
-            
+
             # Add user_id parameter
-            filter_params['user_id'] = user_id
-            
+            filter_params["user_id"] = user_id
+
             try:
                 result = db.execute(count_query, filter_params).fetchone()
                 filtered_count = result.count if result else 0
@@ -482,13 +642,15 @@ class BookmarkService:
                 self.logger.error(f"Error executing count query: {e}", exc_info=True)
                 # On error, fallback to searching entire database
                 filtered_count = 0
-            
+
             if filtered_count > 0:
                 # Filters returned results, use filtered search
                 vector_threshold = threshold
-                
-                self.logger.debug(f"Using threshold: {vector_threshold} for {filtered_count} filtered results")
-                
+
+                self.logger.debug(
+                    f"Using threshold: {vector_threshold} for {filtered_count} filtered results"
+                )
+
                 sql_query = text(f"""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
@@ -500,14 +662,18 @@ class BookmarkService:
                     ORDER BY similarity_score DESC
                     LIMIT :limit
                 """)
-                
-                search_params = {**filter_params, 
-                               'embedding': str(query_embedding),
-                               'threshold': vector_threshold,
-                               'limit': limit}
+
+                search_params = {
+                    **filter_params,
+                    "embedding": str(query_embedding),
+                    "threshold": vector_threshold,
+                    "limit": limit,
+                }
             else:
                 # No results from filters, search entire database
-                self.logger.debug("No results from metadata filters, searching entire database")
+                self.logger.debug(
+                    "No results from metadata filters, searching entire database"
+                )
                 sql_query = text("""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
@@ -518,11 +684,11 @@ class BookmarkService:
                     ORDER BY similarity_score DESC
                     LIMIT :limit
                 """)
-                
+
                 search_params = {
-                    'embedding': str(query_embedding),
-                    'threshold': threshold,
-                    'limit': limit
+                    "embedding": str(query_embedding),
+                    "threshold": threshold,
+                    "limit": limit,
                 }
         else:
             # No filters, search entire database
@@ -536,21 +702,23 @@ class BookmarkService:
                 ORDER BY similarity_score DESC
                 LIMIT :limit
             """)
-            
+
             search_params = {
-                'embedding': str(query_embedding),
-                'threshold': threshold,
-                'limit': limit
+                "embedding": str(query_embedding),
+                "threshold": threshold,
+                "limit": limit,
             }
-        
+
         try:
             results = db.execute(sql_query, search_params).fetchall()
             self.logger.debug(f"Vector search returned {len(results)} results")
-            
-            # If vector search returned no results and we had metadata filters, 
+
+            # If vector search returned no results and we had metadata filters,
             # return metadata-filtered results that meet the original threshold
             if len(results) == 0 and filter_conditions:
-                self.logger.debug(f"Vector search returned no results, falling back to metadata-filtered results with original threshold: {threshold}")
+                self.logger.debug(
+                    f"Vector search returned no results, falling back to metadata-filtered results with original threshold: {threshold}"
+                )
                 fallback_query = text(f"""
                     SELECT 
                         id, url, title, description, content, domain, tags, meta_data,
@@ -562,48 +730,46 @@ class BookmarkService:
                     ORDER BY similarity_score DESC
                     LIMIT :limit
                 """)
-                
-                fallback_params = {**filter_params, 
-                                 'embedding': str(query_embedding),
-                                 'threshold': threshold,
-                                 'limit': limit}
-                
+
+                fallback_params = {
+                    **filter_params,
+                    "embedding": str(query_embedding),
+                    "threshold": threshold,
+                    "limit": limit,
+                }
+
                 results = db.execute(fallback_query, fallback_params).fetchall()
                 self.logger.debug(f"Fallback returned {len(results)} results")
-                
+
         except Exception as e:
             self.logger.error(f"Error executing search query: {e}", exc_info=True)
             self.logger.debug(f"Search params: {search_params}")
             # Return empty results on error
             return []
-        
+
         bookmarks = []
         for row in results:
             bookmark_dict = {
-                'id': row.id,
-                'url': row.url,
-                'title': row.title,
-                'description': row.description,
-                'domain': row.domain,
-                'tags': row.tags or [],
-                'meta_data': row.meta_data or {},
-                'is_read': row.is_read,
-                'reference': row.reference,
-                'category': row.category,
-                'created_at': row.created_at,
-                'updated_at': row.updated_at,
-                'similarity_score': float(row.similarity_score)
+                "id": row.id,
+                "url": row.url,
+                "title": row.title,
+                "description": row.description,
+                "domain": row.domain,
+                "tags": row.tags or [],
+                "meta_data": row.meta_data or {},
+                "is_read": row.is_read,
+                "reference": row.reference,
+                "category": row.category,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+                "similarity_score": float(row.similarity_score),
             }
             bookmarks.append(BookmarkSearchResult(**bookmark_dict))
-        
+
         return bookmarks
-    
+
     async def search_bookmarks(
-        self, 
-        db: Session, 
-        query: str, 
-        limit: int = 10,
-        threshold: float = 0.5
+        self, db: Session, query: str, limit: int = 10, threshold: float = 0.5
     ) -> List[BookmarkSearchResult]:
         """Legacy search method for backward compatibility."""
         return await self.search_bookmarks_with_filters(
@@ -612,19 +778,15 @@ class BookmarkService:
             limit=limit,
             threshold=threshold,
             filters=None,
-            auto_parse_query=True
+            auto_parse_query=True,
         )
-    
+
     async def search_bookmarks_original(
-        self, 
-        db: Session, 
-        query: str, 
-        limit: int = 10,
-        threshold: float = 0.5
+        self, db: Session, query: str, limit: int = 10, threshold: float = 0.5
     ) -> List[BookmarkSearchResult]:
         """Original search method without any filtering."""
         query_embedding = await self.embedding_service.create_embedding(query)
-        
+
         sql_query = text("""
             SELECT 
                 id, url, title, description, content, domain, tags, meta_data,
@@ -635,29 +797,28 @@ class BookmarkService:
             ORDER BY similarity_score DESC
             LIMIT :limit
         """)
-        
-        results = db.execute(sql_query, {
-            'embedding': str(query_embedding),
-            'threshold': threshold,
-            'limit': limit
-        }).fetchall()
-        
+
+        results = db.execute(
+            sql_query,
+            {"embedding": str(query_embedding), "threshold": threshold, "limit": limit},
+        ).fetchall()
+
         bookmarks = []
         for row in results:
             bookmark_dict = {
-                'id': row.id,
-                'url': row.url,
-                'title': row.title,
-                'description': row.description,
-                'domain': row.domain,
-                'tags': row.tags or [],
-                'meta_data': row.meta_data or {},
-                'is_read': row.is_read,
-                'reference': row.reference,
-                'category': row.category,
-                'created_at': row.created_at,
-                'updated_at': row.updated_at,
-                'similarity_score': float(row.similarity_score)
+                "id": row.id,
+                "url": row.url,
+                "title": row.title,
+                "description": row.description,
+                "domain": row.domain,
+                "tags": row.tags or [],
+                "meta_data": row.meta_data or {},
+                "is_read": row.is_read,
+                "reference": row.reference,
+                "category": row.category,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+                "similarity_score": float(row.similarity_score),
             }
             bookmarks.append(BookmarkSearchResult(**bookmark_dict))
 
@@ -669,7 +830,7 @@ class BookmarkService:
         query: str,
         user_id: int,
         limit: int = 10,
-        filters: Optional[MetadataFilters] = None
+        filters: Optional[MetadataFilters] = None,
     ) -> List[BookmarkSearchResult]:
         """
         Full-text search using PostgreSQL tsvector/tsquery.
@@ -686,7 +847,9 @@ class BookmarkService:
                 category_conditions = []
                 for i, category in enumerate(filters.category):
                     if category == "Others":
-                        category_conditions.append("(category IS NULL OR category = '')")
+                        category_conditions.append(
+                            "(category IS NULL OR category = '')"
+                        )
                     else:
                         param_name = f"category_{i}"
                         category_conditions.append(f"category = :{param_name}")
@@ -707,10 +870,14 @@ class BookmarkService:
             # Custom date range
             if filters.date_from:
                 filter_conditions.append("created_at >= :custom_date_from")
-                filter_params["custom_date_from"] = datetime.combine(filters.date_from, datetime.min.time())
+                filter_params["custom_date_from"] = datetime.combine(
+                    filters.date_from, datetime.min.time()
+                )
             if filters.date_to:
                 filter_conditions.append("created_at <= :custom_date_to")
-                filter_params["custom_date_to"] = datetime.combine(filters.date_to, datetime.max.time())
+                filter_params["custom_date_to"] = datetime.combine(
+                    filters.date_to, datetime.max.time()
+                )
 
             # Domain filter
             if filters.domain:
@@ -719,7 +886,9 @@ class BookmarkService:
 
             # Reference filter
             if filters.reference:
-                filter_conditions.append("LOWER(COALESCE(reference, '')) LIKE LOWER(:reference)")
+                filter_conditions.append(
+                    "LOWER(COALESCE(reference, '')) LIKE LOWER(:reference)"
+                )
                 filter_params["reference"] = f"%{filters.reference}%"
 
         where_clause = " AND ".join(filter_conditions)
@@ -746,27 +915,36 @@ class BookmarkService:
         bookmarks = []
         for row in results:
             bookmark_dict = {
-                'id': row.id,
-                'url': row.url,
-                'title': row.title,
-                'description': row.description,
-                'domain': row.domain,
-                'tags': row.tags or [],
-                'meta_data': row.meta_data or {},
-                'is_read': row.is_read,
-                'reference': row.reference,
-                'category': row.category,
-                'created_at': row.created_at,
-                'updated_at': row.updated_at,
-                'similarity_score': float(row.similarity_score) if row.similarity_score else 0.0
+                "id": row.id,
+                "url": row.url,
+                "title": row.title,
+                "description": row.description,
+                "domain": row.domain,
+                "tags": row.tags or [],
+                "meta_data": row.meta_data or {},
+                "is_read": row.is_read,
+                "reference": row.reference,
+                "category": row.category,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+                "similarity_score": (
+                    float(row.similarity_score) if row.similarity_score else 0.0
+                ),
             }
             bookmarks.append(BookmarkSearchResult(**bookmark_dict))
 
         return bookmarks
 
-    def get_bookmarks_grouped_by_category(self, db: Session, user_id: int) -> Dict[str, List[Bookmark]]:
+    def get_bookmarks_grouped_by_category(
+        self, db: Session, user_id: int
+    ) -> Dict[str, List[Bookmark]]:
         """Get bookmarks grouped by category with counts."""
-        bookmarks = db.query(Bookmark).filter(Bookmark.user_id == user_id).order_by(Bookmark.created_at.desc()).all()
+        bookmarks = (
+            db.query(Bookmark)
+            .filter(Bookmark.user_id == user_id)
+            .order_by(Bookmark.created_at.desc())
+            .all()
+        )
 
         grouped = {}
         for bookmark in bookmarks:
@@ -777,7 +955,14 @@ class BookmarkService:
 
         return grouped
 
-    def get_category_counts(self, db: Session, user_id: int, is_read: Optional[bool] = None, categories: Optional[List[str]] = None, tags: Optional[List[str]] = None) -> Dict[str, int]:
+    def get_category_counts(
+        self,
+        db: Session,
+        user_id: int,
+        is_read: Optional[bool] = None,
+        categories: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Dict[str, int]:
         """Get category names with bookmark counts (efficient SQL query)."""
         from sqlalchemy import func, case
         from sqlalchemy.dialects.postgresql import JSONB
@@ -785,10 +970,10 @@ class BookmarkService:
 
         query = db.query(
             func.coalesce(
-                case((Bookmark.category == '', 'Others'), else_=Bookmark.category),
-                'Others'
-            ).label('category_name'),
-            func.count(Bookmark.id).label('count')
+                case((Bookmark.category == "", "Others"), else_=Bookmark.category),
+                "Others",
+            ).label("category_name"),
+            func.count(Bookmark.id).label("count"),
         ).filter(Bookmark.user_id == user_id)
 
         # Apply read status filter
@@ -796,18 +981,23 @@ class BookmarkService:
             if is_read:
                 query = query.filter(Bookmark.is_read == True)
             else:
-                query = query.filter((Bookmark.is_read == False) | (Bookmark.is_read.is_(None)))
+                query = query.filter(
+                    (Bookmark.is_read == False) | (Bookmark.is_read.is_(None))
+                )
 
         # Apply tags filter (OR logic - at least one tag must match)
         if tags is not None and len(tags) > 0:
             from sqlalchemy import or_
-            tag_conditions = [cast(Bookmark.tags, JSONB).contains([tag]) for tag in tags]
+
+            tag_conditions = [
+                cast(Bookmark.tags, JSONB).contains([tag]) for tag in tags
+            ]
             query = query.filter(or_(*tag_conditions))
 
         # Apply category filter
         if categories:
             query = query.filter(Bookmark.category.in_(categories))
 
-        results = query.group_by('category_name').all()
+        results = query.group_by("category_name").all()
 
         return {row.category_name: row.count for row in results}

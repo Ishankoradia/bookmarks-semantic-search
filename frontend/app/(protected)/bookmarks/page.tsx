@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search, Plus, Loader2, Filter, X, List, FolderClosed, Folder, FolderOpen, ChevronRight, ChevronDown, Tag, Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ type ViewMode = 'grid' | 'category';
 
 export default function BookmarksPage() {
   const authApi = useBookmarkApi();
+  const searchParams = useSearchParams();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
@@ -106,6 +108,18 @@ export default function BookmarksPage() {
   const [isBulkMoving, setIsBulkMoving] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [moveTargetSearch, setMoveTargetSearch] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('focus') === 'search') {
+      setTimeout(() => {
+        const el = document.querySelector<HTMLInputElement>('input[placeholder="Search bookmarks..."]');
+        el?.focus();
+      }, 200);
+    }
+    if (searchParams.get('action') === 'add') {
+      setIsDialogOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('bookmarks-view-mode') as ViewMode;

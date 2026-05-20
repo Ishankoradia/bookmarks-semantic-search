@@ -21,8 +21,8 @@ export function BottomNav({ pendingRequestsCount = 0 }: BottomNavProps) {
 
   const navItems: NavItem[] = [
     {
-      href: '/feed',
-      label: 'Feed',
+      href: '/home',
+      label: 'Home',
       icon: <Home className="h-5 w-5" />,
     },
     {

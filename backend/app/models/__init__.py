@@ -4,5 +4,6 @@ from .user import User
 from .user_preference import UserPreference
 from .feed_article import FeedArticle
 from .follow import FollowRelationship, FollowStatus
+from .feedback import Feedback
 
-__all__ = ["Bookmark", "Job", "User", "UserPreference", "FeedArticle", "FollowRelationship", "FollowStatus"]
+__all__ = ["Bookmark", "Job", "User", "UserPreference", "FeedArticle", "FollowRelationship", "FollowStatus", "Feedback"]

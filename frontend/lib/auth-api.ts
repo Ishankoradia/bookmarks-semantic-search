@@ -154,6 +154,32 @@ export const useBookmarkApi = () => {
       });
     },
 
+    // Get bookmark stats for home page
+    getStats: async (): Promise<{
+      total: number;
+      read: number;
+      unread: number;
+      categories: number;
+      weekly_activity: { week: string; added: number; read: number }[];
+      recent_bookmarks: {
+        id: string;
+        title: string;
+        description: string | null;
+        domain: string;
+        url: string;
+        tags: string[];
+        category: string | null;
+        is_read: boolean;
+        reference: string | null;
+        created_at: string | null;
+      }[];
+    }> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/bookmarks/stats');
+        return response.data;
+      });
+    },
+
     // Refresh category
     refreshCategory: async (category: string): Promise<{ job_id: string; status: string; total_bookmarks?: number }> => {
       return makeRequest(async (api) => {
@@ -274,6 +300,27 @@ export const useFeedApi = () => {
         const response = await api.get('/feed/friends', {
           params: { skip, limit },
         });
+        return response.data;
+      });
+    },
+  };
+};
+
+// Account API (feedback, delete)
+export const useAccountApi = () => {
+  const { makeRequest } = useAuthenticatedApi();
+
+  return {
+    submitFeedback: async (type: 'feedback' | 'bug' | 'feature', message: string): Promise<{ message: string }> => {
+      return makeRequest(async (api) => {
+        const response = await api.post('/auth/feedback', { type, message });
+        return response.data;
+      });
+    },
+
+    deleteAccount: async (reason: string): Promise<{ message: string }> => {
+      return makeRequest(async (api) => {
+        const response = await api.delete('/auth/account', { data: { reason } });
         return response.data;
       });
     },

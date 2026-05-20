@@ -96,6 +96,18 @@ def get_bookmarks(
 ):
     return bookmark_service.get_bookmarks(db, user_id=current_user.id, skip=skip, limit=limit, is_read=is_read, categories=categories, tags=tags)
 
+@router.get("/stats")
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get bookmark stats for the home page."""
+    try:
+        return bookmark_service.get_stats(db, user_id=current_user.id)
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get stats")
+
 @router.get("/categories", response_model=dict)
 def get_categories(
     is_read: Optional[bool] = Query(None, description="Filter by read status"),

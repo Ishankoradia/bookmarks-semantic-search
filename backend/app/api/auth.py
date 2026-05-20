@@ -6,11 +6,16 @@ from typing import Optional
 import httpx
 
 from app.core.database import get_db
+from app.core.auth import get_current_user
 from app.models.user import User
+from app.models.feedback import Feedback, FeedbackType
 from app.schemas.user import UserCreate, UserResponse
+from app.services.user_service import UserService
 from app.core.config import settings
 from app.core.jwt import create_user_token
 from app.core.logging import get_logger
+
+user_service = UserService()
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -221,3 +226,59 @@ async def google_extension_auth(
         "access_token": token,
         "token_type": "bearer"
     }
+
+
+class FeedbackRequest(BaseModel):
+    type: FeedbackType
+    message: str
+
+
+@router.post("/feedback")
+def submit_feedback(
+    data: FeedbackRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Submit feedback, bug report, or feature request."""
+    feedback = Feedback(
+        user_id=current_user.id,
+        user_email=current_user.email,
+        type=data.type,
+        message=data.message,
+    )
+    db.add(feedback)
+    db.commit()
+    return {"message": "Thank you for your feedback!"}
+
+
+class DeleteAccountRequest(BaseModel):
+    reason: str
+
+
+@router.delete("/account")
+def delete_account(
+    data: DeleteAccountRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete the current user's account and all associated data."""
+    # Save the deletion reason as feedback before deleting
+    feedback = Feedback(
+        user_id=None,
+        user_email=current_user.email,
+        type=FeedbackType.account_deletion,
+        message=data.reason,
+    )
+    db.add(feedback)
+    db.commit()
+
+    # Delete the user and all associated data
+    try:
+        user_service.delete_user(db, current_user)
+        return {"message": "Account deleted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to delete account for {current_user.email}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete account"
+        )

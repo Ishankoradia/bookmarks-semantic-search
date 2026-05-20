@@ -1,23 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { UserCard, FollowRequestCard, UserSearchModal } from '@/components/follows';
-import { useFollowApi } from '@/lib/auth-api';
+import { useFollowApi, useFeedApi, useBookmarkApi } from '@/lib/auth-api';
+import { ArticleCard } from '@/components/explore/ArticleCard';
+import { formatRelativeDate } from '@/lib/utils';
 import {
   UserSummary,
   FollowRequest,
-  FollowListResponse,
-  PendingRequestsResponse,
+  FriendBookmark,
+  FriendsFeedResponse,
 } from '@/lib/api';
-import { Loader2, UserPlus, Users } from 'lucide-react';
+import { Loader2, UserPlus, Users, Rss } from 'lucide-react';
 import { toast } from 'sonner';
 
-type TabValue = 'following' | 'followers' | 'requests';
+type TabValue = 'feed' | 'following' | 'followers' | 'requests';
 
 export default function SocialPage() {
-  const [activeTab, setActiveTab] = useState<TabValue>('following');
+  const [activeTab, setActiveTab] = useState<TabValue>('feed');
   const [following, setFollowing] = useState<UserSummary[]>([]);
   const [followers, setFollowers] = useState<UserSummary[]>([]);
   const [receivedRequests, setReceivedRequests] = useState<FollowRequest[]>([]);
@@ -26,7 +29,10 @@ export default function SocialPage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [requestsCount, setRequestsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [feedData, setFeedData] = useState<FriendsFeedResponse | null>(null);
+  const [feedLoading, setFeedLoading] = useState(true);
   const followApi = useFollowApi();
+  const feedApi = useFeedApi();
 
   const loadData = async () => {
     setLoading(true);
@@ -53,8 +59,21 @@ export default function SocialPage() {
     }
   };
 
+  const loadFeed = async () => {
+    setFeedLoading(true);
+    try {
+      const data = await feedApi.getFriendsFeed();
+      setFeedData(data);
+    } catch {
+      // ignore
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadFeed();
   }, []);
 
   const handleUnfollow = async (userUuid: string) => {
@@ -85,22 +104,65 @@ export default function SocialPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="following">
-            Following ({followingCount})
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsTrigger value="feed" className="text-xs sm:text-sm">Feed</TabsTrigger>
+          <TabsTrigger value="following" className="text-xs sm:text-sm">
+            <span className="hidden sm:inline">Following</span>
+            <span className="sm:hidden">Follow</span>
+            <span className="ml-1">({followingCount})</span>
           </TabsTrigger>
-          <TabsTrigger value="followers">
-            Followers ({followersCount})
+          <TabsTrigger value="followers" className="text-xs sm:text-sm">
+            <span className="hidden sm:inline">Followers</span>
+            <span className="sm:hidden">Fans</span>
+            <span className="ml-1">({followersCount})</span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className="relative">
-            Requests
+          <TabsTrigger value="requests" className="relative text-xs sm:text-sm">
+            <span className="hidden sm:inline">Requests</span>
+            <span className="sm:hidden">Req</span>
             {requestsCount > 0 && (
-              <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
                 {requestsCount}
               </span>
             )}
           </TabsTrigger>
         </TabsList>
+
+        {/* Feed Tab */}
+        <TabsContent value="feed" className="space-y-3">
+          {feedLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : !feedData || feedData.bookmarks.length === 0 ? (
+            <div className="text-center py-12">
+              <Rss className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No feed items yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Follow people to see their bookmarks here
+              </p>
+              <UserSearchModal
+                trigger={
+                  <Button>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Find People
+                  </Button>
+                }
+                onUserFollowed={() => { loadData(); loadFeed(); }}
+              />
+            </div>
+          ) : (
+            feedData.bookmarks.map((bookmark) => (
+              <ArticleCard
+                key={bookmark.id}
+                article={{
+                  ...bookmark,
+                  type: 'friend' as const,
+                }}
+                formatDate={formatRelativeDate}
+              />
+            ))
+          )}
+        </TabsContent>
 
         {loading ? (
           <div className="flex justify-center py-12">
