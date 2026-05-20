@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, LogOut, User, Settings, Eye, Pencil, Check, X, MessageSquare, Trash2 } from 'lucide-react';
+import { Loader2, LogOut, User, Settings, Eye, Pencil, Check, X, MessageSquare, Trash2, Chrome, Smartphone, ExternalLink, Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
@@ -324,6 +324,49 @@ export default function ProfilePage() {
             )}
             Send
           </Button>
+        </div>
+      </div>
+
+      {/* About Section */}
+      <div className="mb-8">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">About</h2>
+        <div className="bg-card border rounded-lg divide-y">
+          <div className="flex items-center gap-3 p-4">
+            <div className="p-1.5 bg-primary rounded-lg">
+              <Bookmark className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Semantic Bookmarks</p>
+              <p className="text-xs text-muted-foreground">AI-powered bookmark manager</p>
+            </div>
+          </div>
+          <a
+            href="https://chromewebstore.google.com/detail/mefbjommjlcdcllmcjdjcngjaegnelik"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-4 text-sm hover:bg-muted/50 transition-colors"
+          >
+            <Chrome className="h-4 w-4 text-muted-foreground" />
+            <span className="flex-1">Chrome Extension</span>
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+          </a>
+          <a
+            href="https://play.google.com/store/apps/details?id=com.semanticbookmarks.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-4 text-sm hover:bg-muted/50 transition-colors"
+          >
+            <Smartphone className="h-4 w-4 text-muted-foreground" />
+            <span className="flex-1">Android App</span>
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+          </a>
+          <a
+            href="/privacy"
+            className="flex items-center gap-3 p-4 text-sm hover:bg-muted/50 transition-colors"
+          >
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <span className="flex-1">Privacy Policy</span>
+          </a>
         </div>
       </div>
 
