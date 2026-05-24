@@ -127,13 +127,15 @@ export default function SocialPage() {
           </TabsTrigger>
         </TabsList>
 
+        {loading || feedLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
         {/* Feed Tab */}
         <TabsContent value="feed" className="space-y-3">
-          {feedLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : !feedData || feedData.bookmarks.length === 0 ? (
+          {!feedData || feedData.bookmarks.length === 0 ? (
             <div className="text-center py-12">
               <Rss className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No feed items yet</h3>
@@ -164,12 +166,6 @@ export default function SocialPage() {
           )}
         </TabsContent>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <>
             <TabsContent value="following" className="space-y-3">
               {following.length === 0 ? (
                 <div className="text-center py-12">
@@ -286,7 +282,7 @@ export default function SocialPage() {
             </TabsContent>
           </>
         )}
-      </Tabs>
+        </Tabs>
     </div>
   );
 }
