@@ -297,9 +297,9 @@ export function ArticleCard({
     : null;
 
   return (
-    <div className="border rounded-lg bg-card hover:bg-muted/30 transition-colors group">
+    <div className="border rounded-lg bg-card hover:bg-muted/30 transition-colors group w-full max-w-full">
       {/* Compact Row */}
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="flex items-center gap-3 px-3 py-2.5 w-full max-w-full">
         {/* Expand/Collapse button */}
         {hasExpandableContent ? (
           <button
@@ -333,19 +333,21 @@ export function ArticleCard({
         </div>
 
         {/* Title & Domain */}
-        <div className="flex-1 min-w-0 flex items-center gap-2">
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-sm truncate hover:text-primary transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {article.title}
-          </a>
-          <span className="text-xs text-muted-foreground flex-shrink-0 hidden sm:inline">
-            {article.domain}
-          </span>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-2">
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-sm truncate hover:text-primary transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {article.title}
+            </a>
+            <span className="text-xs text-muted-foreground flex-shrink-0 hidden sm:inline">
+              {article.domain}
+            </span>
+          </div>
         </div>
 
         {/* Friend avatar */}
@@ -366,7 +368,7 @@ export function ArticleCard({
 
         {/* Category pill */}
         {categoryLabel && (
-          <span className="flex-shrink-0 px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs hidden sm:inline">
+          <span className="flex-shrink-0 px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs hidden sm:inline max-w-[120px] truncate">
             {categoryLabel}
           </span>
         )}
@@ -475,7 +477,8 @@ export function ArticleCard({
 
             {openMenu && (
               <div
-                className="absolute right-0 top-7 w-44 bg-card rounded-md shadow-xl border py-1 z-50"
+                className="fixed right-4 w-44 bg-card rounded-md shadow-xl border py-1 z-[9999]"
+                style={{ bottom: 'auto', top: menuRef.current ? menuRef.current.getBoundingClientRect().bottom + 4 : 0 }}
                 onClick={(e) => e.stopPropagation()}
               >
                 {isBookmark && (

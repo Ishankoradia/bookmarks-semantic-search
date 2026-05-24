@@ -1207,7 +1207,7 @@ export default function BookmarksPage() {
         </>
       ) : (
         /* Category View */
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0 overflow-hidden">
           {sortedCategories.map((category) => {
             const count = categoryCounts[category] || 0;
             const bookmarksForCategory = categoryBookmarks[category] || [];
@@ -1271,7 +1271,7 @@ export default function BookmarksPage() {
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="border-t px-4 py-4 bg-muted/20">
+                    <div className="border-t px-4 py-4 bg-muted/20 min-w-0">
                       {isLoadingCategory && bookmarksForCategory.length === 0 ? (
                         <div className="space-y-2">
                           {[...Array(Math.min(count, 4))].map((_, i) => (
@@ -1298,16 +1298,16 @@ export default function BookmarksPage() {
                           )}
                           <div className="space-y-2">
                             {bookmarksForCategory.map((bookmark) => (
-                              <div key={bookmark.id} className="flex items-start gap-2">
+                              <div key={bookmark.id} className="flex items-start gap-2 min-w-0">
                                 {isSelectingThis && (
-                                  <div className="pt-3">
+                                  <div className="pt-3 flex-shrink-0">
                                     <Checkbox
                                       checked={selectedBookmarkIds.has(bookmark.id)}
                                       onCheckedChange={() => toggleBookmarkSelection(bookmark.id)}
                                     />
                                   </div>
                                 )}
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <ArticleCard
                                     article={{
                                       ...bookmark,
