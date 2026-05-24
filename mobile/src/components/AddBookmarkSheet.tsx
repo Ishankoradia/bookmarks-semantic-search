@@ -60,7 +60,8 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
       setPreview(data);
       setCategory(data.suggested_category);
     } catch (e: any) {
-      setError(e.response?.data?.detail || 'Failed to preview URL');
+      const detail = e.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map((d: any) => d.msg).join(', ') : 'Failed to preview URL');
     } finally {
       setLoading(false);
     }
@@ -121,7 +122,7 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
             keyboardType="url"
             onSubmitEditing={handlePreview}
             returnKeyType="go"
-            autoFocus
+            autoFocus={false}
           />
           <Pressable onPress={handlePaste} style={[styles.pasteBtn, { borderColor: colors.border }]}>
             <Ionicons name="clipboard-outline" size={16} color={colors.mutedForeground} />
@@ -214,7 +215,7 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
 
 const styles = StyleSheet.create({
   scroll: {
-    maxHeight: 500,
+    flexGrow: 0,
   },
   container: {
     paddingHorizontal: 20,

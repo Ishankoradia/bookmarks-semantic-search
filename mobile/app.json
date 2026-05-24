@@ -2,7 +2,7 @@
   "expo": {
     "name": "Semantic Bookmarks",
     "slug": "semantic-bookmarks",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -26,7 +26,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.semanticbookmarks.app",
-      "navigationBarColor": "#f8f9fb"
+      "navigationBarColor": "#f8f9fb",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png"

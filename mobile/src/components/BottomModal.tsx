@@ -1,5 +1,15 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, Pressable, View, StyleSheet, Animated, Dimensions } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  View,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -12,19 +22,18 @@ interface BottomModalProps {
 
 export function BottomModal({ visible, onClose, children }: BottomModalProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Reset to off-screen before animating in
       translateY.setValue(SCREEN_HEIGHT);
       backdropOpacity.setValue(0);
       Animated.parallel([
-        Animated.spring(translateY, {
+        Animated.timing(translateY, {
           toValue: 0,
-          damping: 20,
-          stiffness: 200,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(backdropOpacity, {
@@ -38,20 +47,32 @@ export function BottomModal({ visible, onClose, children }: BottomModalProps) {
 
   return (
     <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
-      <View style={styles.container}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        </Animated.View>
-        <Animated.View
-          style={[
-            styles.content,
-            { backgroundColor: colors.card, borderColor: colors.border, transform: [{ translateY }] },
-          ]}
-        >
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-          {children}
-        </Animated.View>
-      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'android' ? -insets.bottom : 0}
+      >
+        <View style={styles.container}>
+          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.content,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                paddingBottom: Math.max(insets.bottom, 16),
+                maxHeight: SCREEN_HEIGHT - insets.top - 20,
+                transform: [{ translateY }],
+              },
+            ]}
+          >
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            {children}
+          </Animated.View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
