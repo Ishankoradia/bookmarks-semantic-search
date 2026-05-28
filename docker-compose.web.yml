@@ -8,8 +8,10 @@ services:
     container_name: bookmark-backend
     ports:
       - "6005:6005"
+    expose:
+      - "6005"
     env_file:
-      - ./backend/.env
+      - ./backend/.env.prod
     networks:
       - bookmark-network
     restart: unless-stopped
@@ -21,8 +23,13 @@ services:
     container_name: bookmark-frontend
     ports:
       - "3002:3002"
+    expose:
+      - "3002"
     env_file:
-      - ./frontend/.env
+      - ./frontend/.env.prod
+    environment:
+      # Server-side calls use Docker internal network
+      INTERNAL_API_URL: http://backend:6005/api/v1
     depends_on:
       - backend
     networks:
