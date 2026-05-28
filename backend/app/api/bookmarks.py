@@ -96,6 +96,33 @@ def get_bookmarks(
 ):
     return bookmark_service.get_bookmarks(db, user_id=current_user.id, skip=skip, limit=limit, is_read=is_read, categories=categories, tags=tags)
 
+@router.get("/check")
+def check_bookmark_exists(
+    url: str = Query(..., description="URL to check"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Check if a URL is already bookmarked by the current user."""
+    from app.models.bookmark import Bookmark
+    # Try exact match first, then try with/without trailing slash and www
+    existing = db.query(Bookmark).filter(
+        Bookmark.url == url, Bookmark.user_id == current_user.id
+    ).first()
+    if not existing:
+        # Try variations
+        variations = [url.rstrip('/'), url.rstrip('/') + '/']
+        if '://www.' in url:
+            variations.append(url.replace('://www.', '://'))
+        else:
+            variations.append(url.replace('://', '://www.'))
+        for v in variations:
+            existing = db.query(Bookmark).filter(
+                Bookmark.url == v, Bookmark.user_id == current_user.id
+            ).first()
+            if existing:
+                break
+    return {"exists": existing is not None, "bookmark_id": str(existing.id) if existing else None}
+
 @router.get("/stats")
 def get_stats(
     db: Session = Depends(get_db),
