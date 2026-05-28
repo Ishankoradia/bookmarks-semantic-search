@@ -20,6 +20,7 @@ const elements = {
   titleInput: document.getElementById('title-input'),
   descriptionText: document.getElementById('description-text'),
   categoryInput: document.getElementById('category-input'),
+  categoryDropdown: document.getElementById('category-dropdown'),
   tagsContainer: document.getElementById('tags-container'),
   saveBtn: document.getElementById('save-btn'),
   cancelBtn: document.getElementById('cancel-btn'),
@@ -65,6 +66,56 @@ async function init() {
   elements.closeBtn.addEventListener('click', () => window.close());
   elements.retryBtn.addEventListener('click', () => startPreview());
   elements.logoutBtn.addEventListener('click', handleLogout);
+
+  // Category dropdown
+  elements.categoryInput.addEventListener('focus', () => showCategoryDropdown());
+  elements.categoryInput.addEventListener('input', () => showCategoryDropdown());
+  elements.categoryInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') elements.categoryDropdown.classList.add('hidden');
+    if (e.key === 'Enter') elements.categoryDropdown.classList.add('hidden');
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.category-dropdown-wrapper')) {
+      elements.categoryDropdown.classList.add('hidden');
+    }
+  });
+}
+
+let availableCategories = [];
+
+async function loadCategories() {
+  try {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_URL}/bookmarks/categories/list`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) availableCategories = await response.json();
+  } catch {}
+}
+
+function showCategoryDropdown() {
+  const query = elements.categoryInput.value.toLowerCase();
+  const filtered = availableCategories.filter(c => c.toLowerCase().includes(query));
+  const exactMatch = availableCategories.some(c => c.toLowerCase() === query.trim().toLowerCase());
+
+  let html = '';
+  if (query.trim() && !exactMatch) {
+    html += `<div class="category-dropdown-item create" data-value="${query.trim()}">+ Create "${query.trim()}"</div>`;
+  }
+  filtered.forEach(cat => {
+    const isActive = cat === elements.categoryInput.value ? ' active' : '';
+    html += `<div class="category-dropdown-item${isActive}" data-value="${cat}">${cat}${isActive ? ' ✓' : ''}</div>`;
+  });
+
+  elements.categoryDropdown.innerHTML = html;
+  elements.categoryDropdown.classList.toggle('hidden', !html);
+
+  elements.categoryDropdown.querySelectorAll('.category-dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      elements.categoryInput.value = item.dataset.value;
+      elements.categoryDropdown.classList.add('hidden');
+    });
+  });
 }
 
 // View Management
@@ -145,10 +196,25 @@ async function startPreview() {
   }
 
   showView('loading');
-  setLoadingText('Analyzing page...');
+  setLoadingText('Checking...');
 
   try {
     const token = await getAuthToken();
+
+    // Check if already bookmarked
+    const checkResponse = await fetch(`${API_URL}/bookmarks/check?url=${encodeURIComponent(currentUrl)}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json();
+      if (checkData.exists) {
+        showView('preview');
+        showAlreadyBookmarked();
+        return;
+      }
+    }
+
+    setLoadingText('Analyzing page...');
     const response = await fetch(`${API_URL}/bookmarks/preview`, {
       method: 'POST',
       headers: {
@@ -185,6 +251,7 @@ function displayPreview(preview) {
   elements.titleInput.value = preview.title || '';
   elements.descriptionText.textContent = preview.description || '-';
   elements.categoryInput.value = preview.suggested_category || '';
+  loadCategories();
 
   // Display tags
   elements.tagsContainer.innerHTML = '';
@@ -263,6 +330,25 @@ function showSuccess(title) {
 function showError(message) {
   elements.errorMessage.textContent = message;
   showView('error');
+}
+
+function showAlreadyBookmarked() {
+  // Show a clean "already saved" view instead of empty preview
+  const previewView = document.getElementById('preview-view');
+  if (previewView) {
+    previewView.innerHTML = `
+      <div class="already-saved-banner">✓ This page is already bookmarked</div>
+      <p style="text-align:center;color:#6b7280;font-size:13px;margin-bottom:16px;">
+        You can find it in your bookmarks.
+      </p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" style="flex:1" id="already-open-app">Open App</button>
+        <button class="btn btn-secondary" style="flex:1" id="already-close">Close</button>
+      </div>
+    `;
+    document.getElementById('already-open-app')?.addEventListener('click', handleOpenApp);
+    document.getElementById('already-close')?.addEventListener('click', () => window.close());
+  }
 }
 
 function handleOpenApp() {

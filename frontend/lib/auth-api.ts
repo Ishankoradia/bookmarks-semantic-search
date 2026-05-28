@@ -26,6 +26,14 @@ export const useBookmarkApi = () => {
   const { makeRequest } = useAuthenticatedApi();
 
   return {
+    // Check if URL is already bookmarked
+    checkBookmarkExists: async (url: string): Promise<{ exists: boolean; bookmark_id: string | null }> => {
+      return makeRequest(async (api) => {
+        const response = await api.get('/bookmarks/check', { params: { url } });
+        return response.data;
+      });
+    },
+
     // Preview bookmark - scrapes URL, creates pending bookmark, returns preview
     previewBookmark: async (url: string): Promise<BookmarkPreviewResponse> => {
       return makeRequest(async (api) => {

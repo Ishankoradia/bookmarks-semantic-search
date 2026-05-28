@@ -56,6 +56,7 @@ export function BookmarksScreen() {
   const [selectionMode, setSelectionMode] = useState<string | null>(null);
   const [selectedBookmarkIds, setSelectedBookmarkIds] = useState<Set<string>>(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [moveSearch, setMoveSearch] = useState('');
   const [isBulkMoving, setIsBulkMoving] = useState(false);
 
@@ -337,12 +338,7 @@ export function BookmarksScreen() {
         similarity_score: 'similarity_score' in item ? item.similarity_score : undefined,
       }}
       onToggleRead={() => handleToggleRead(item.id, !!item.is_read)}
-      onDelete={() =>
-        Alert.alert('Delete Bookmark', 'Are you sure?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item.id) },
-        ])
-      }
+      onDelete={() => setDeleteTarget({ id: item.id, title: item.title })}
       onUpdateTags={(tags) => handleUpdateTags(item.id, tags)}
       onUpdateCategory={(cat) => handleUpdateCategory(item.id, cat)}
       onTagClick={handleTagClick}
@@ -792,6 +788,33 @@ export function BookmarksScreen() {
           )}
         </View>
       </BottomModal>
+
+      {/* Delete Confirmation Modal */}
+      <BottomModal visible={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <View style={styles.deleteModal}>
+          <Text style={[styles.deleteModalTitle, { color: colors.foreground }]}>Delete Bookmark</Text>
+          <Text style={[styles.deleteModalDesc, { color: colors.mutedForeground }]}>
+            Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
+          </Text>
+          <View style={styles.deleteModalActions}>
+            <Pressable
+              onPress={() => setDeleteTarget(null)}
+              style={[styles.deleteModalCancel, { borderColor: colors.border }]}
+            >
+              <Text style={[styles.deleteModalCancelText, { color: colors.foreground }]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (deleteTarget) handleDelete(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+              style={[styles.deleteModalConfirm, { backgroundColor: colors.destructive }]}
+            >
+              <Text style={styles.deleteModalConfirmText}>Delete</Text>
+            </Pressable>
+          </View>
+        </View>
+      </BottomModal>
     </SafeAreaView>
   );
 }
@@ -1064,5 +1087,45 @@ const styles = StyleSheet.create({
   },
   moveItemText: {
     fontSize: 14,
+  },
+  deleteModal: {
+    padding: 20,
+    gap: 8,
+  },
+  deleteModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  deleteModalDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  deleteModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    width: '100%',
+  },
+  deleteModalCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  deleteModalConfirm: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

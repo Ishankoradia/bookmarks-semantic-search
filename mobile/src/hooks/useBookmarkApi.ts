@@ -11,6 +11,11 @@ import type {
 
 export function useBookmarkApi() {
   return {
+    checkBookmarkExists: async (url: string): Promise<{ exists: boolean; bookmark_id: string | null }> => {
+      const response = await apiClient.get('/bookmarks/check', { params: { url } });
+      return response.data;
+    },
+
     previewBookmark: async (url: string): Promise<BookmarkPreviewResponse> => {
       const response = await apiClient.post('/bookmarks/preview', { url });
       return response.data;

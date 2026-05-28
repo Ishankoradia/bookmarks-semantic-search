@@ -61,6 +61,7 @@ export default function BookmarksPage() {
   const [newBookmarkUrl, setNewBookmarkUrl] = useState('');
   const [newBookmarkReference, setNewBookmarkReference] = useState('');
   const [newBookmarkCategory, setNewBookmarkCategory] = useState('');
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [suggestedCategory, setSuggestedCategory] = useState('');
   const [newBookmarkTitle, setNewBookmarkTitle] = useState('');
   const [scrapeFailed, setScrapeFailed] = useState(false);
@@ -387,6 +388,15 @@ export default function BookmarksPage() {
     try {
       setIsPreviewing(true);
       setModalError(null);
+
+      // Check if already bookmarked
+      const check = await authApi.checkBookmarkExists(newBookmarkUrl.trim());
+      if (check.exists) {
+        setModalError('This URL is already bookmarked.');
+        setIsPreviewing(false);
+        return;
+      }
+
       const preview = await authApi.previewBookmark(newBookmarkUrl);
       setPreviewData({
         id: preview.id,
@@ -952,23 +962,51 @@ export default function BookmarksPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <div className="flex gap-2">
+                    <div className="relative">
                       <Input
                         id="category"
-                        placeholder="e.g. Technology, Health, Finance"
+                        placeholder="Search or create category..."
                         value={newBookmarkCategory}
                         onChange={(e) => setNewBookmarkCategory(e.target.value)}
+                        onFocus={() => setCategoryPickerOpen(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setCategoryPickerOpen(false);
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            setCategoryPickerOpen(false);
+                          }
+                        }}
+                        autoComplete="off"
                       />
-                      {newBookmarkCategory !== suggestedCategory && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setNewBookmarkCategory(suggestedCategory)}
-                          className="shrink-0"
-                        >
-                          Reset
-                        </Button>
+                      {categoryPickerOpen && (
+                        <>
+                        <div className="fixed inset-0 z-40" onClick={() => setCategoryPickerOpen(false)} />
+                        <div className="absolute top-10 left-0 right-0 z-50 max-h-48 overflow-y-auto bg-popover border rounded-md shadow-md">
+                          {newBookmarkCategory.trim() && !categoryList.some(
+                            (c) => c.toLowerCase() === newBookmarkCategory.trim().toLowerCase()
+                          ) && (
+                            <button
+                              onClick={() => { setCategoryPickerOpen(false); }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-primary flex items-center gap-1.5"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Create &quot;{newBookmarkCategory.trim()}&quot;
+                            </button>
+                          )}
+                          {categoryList
+                            .filter((c) => c.toLowerCase().includes(newBookmarkCategory.toLowerCase()))
+                            .map((cat) => (
+                              <button
+                                key={cat}
+                                onClick={() => { setNewBookmarkCategory(cat); setCategoryPickerOpen(false); }}
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between ${cat === newBookmarkCategory ? 'text-primary font-medium' : ''}`}
+                              >
+                                {cat}
+                                {cat === newBookmarkCategory && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                        </div>
+                        </>
                       )}
                     </div>
                     {!scrapeFailed && (

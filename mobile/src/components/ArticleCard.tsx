@@ -150,12 +150,7 @@ export function ArticleCard({
         label: 'Delete',
         icon: 'trash-outline',
         destructive: true,
-        onPress: () => {
-          Alert.alert('Delete Bookmark', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => onDelete?.() },
-          ]);
-        },
+        onPress: () => onDelete?.(),
       });
     } else if (isFeed && !(article as FeedArticle).is_saved) {
       items.push({ label: 'Save to Bookmarks', icon: 'bookmark-outline', onPress: () => onSave?.() });

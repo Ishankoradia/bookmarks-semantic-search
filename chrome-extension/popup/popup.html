@@ -70,7 +70,10 @@
         <!-- Category -->
         <div class="field">
           <label for="category-input">Category</label>
-          <input type="text" id="category-input" placeholder="Category..." />
+          <div class="category-dropdown-wrapper">
+            <input type="text" id="category-input" placeholder="Search or create category..." autocomplete="off" />
+            <div id="category-dropdown" class="category-dropdown hidden"></div>
+          </div>
         </div>
 
         <!-- Tags -->

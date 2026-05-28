@@ -31,6 +31,16 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
+
+  // Load categories when sheet opens
+  React.useEffect(() => {
+    if (visible) {
+      bookmarkApi.getCategoryList().then(setCategories).catch(() => {});
+    }
+  }, [visible]);
 
   const reset = () => {
     setUrl('');
@@ -38,6 +48,8 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
     setCategory('');
     setReference('');
     setError('');
+    setShowCategoryPicker(false);
+    setCategorySearch('');
   };
 
   const handleClose = () => {
@@ -56,6 +68,14 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
     setError('');
     setPreview(null);
     try {
+      // Check if already bookmarked
+      const check = await bookmarkApi.checkBookmarkExists(url.trim());
+      if (check.exists) {
+        setError('This URL is already bookmarked.');
+        setLoading(false);
+        return;
+      }
+
       const data = await bookmarkApi.previewBookmark(url.trim());
       setPreview(data);
       setCategory(data.suggested_category);
@@ -159,13 +179,15 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
         {preview && (
           <>
             <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Category</Text>
-            <TextInput
-              value={category}
-              onChangeText={setCategory}
-              placeholder="Category"
-              placeholderTextColor={colors.mutedForeground}
-              style={[styles.fieldInput, { color: colors.foreground, borderColor: colors.border }]}
-            />
+            <Pressable
+              onPress={() => { setShowCategoryPicker(true); setCategorySearch(''); }}
+              style={[styles.fieldInput, styles.categoryTap, { borderColor: colors.border }]}
+            >
+              <Text style={{ color: category ? colors.foreground : colors.mutedForeground, fontSize: 14 }}>
+                {category || 'Select category...'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.mutedForeground} />
+            </Pressable>
             {preview.suggested_category ? (
               <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
                 AI suggested: {preview.suggested_category}
@@ -209,6 +231,66 @@ export function AddBookmarkSheet({ visible, onClose, onBookmarkAdded }: AddBookm
           </Pressable>
         )}
       </ScrollView>
+
+      {/* Category Picker */}
+      <BottomModal visible={showCategoryPicker} onClose={() => { setShowCategoryPicker(false); setCategorySearch(''); }}>
+        <View style={styles.pickerContent}>
+          <View style={[styles.pickerSearch, { borderColor: colors.border }]}>
+            <Ionicons name="search" size={16} color={colors.mutedForeground} />
+            <TextInput
+              value={categorySearch}
+              onChangeText={setCategorySearch}
+              placeholder="Search or create category..."
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.pickerSearchInput, { color: colors.foreground }]}
+              autoFocus
+              onSubmitEditing={() => {
+                if (categorySearch.trim()) {
+                  setCategory(categorySearch.trim());
+                  setShowCategoryPicker(false);
+                  setCategorySearch('');
+                }
+              }}
+              returnKeyType="done"
+            />
+            {categorySearch.length > 0 && (
+              <Pressable onPress={() => setCategorySearch('')}>
+                <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            )}
+          </View>
+          <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled">
+            {categorySearch.trim() && !categories.some(
+              (c) => c.toLowerCase() === categorySearch.trim().toLowerCase()
+            ) && (
+              <Pressable
+                onPress={() => { setCategory(categorySearch.trim()); setShowCategoryPicker(false); setCategorySearch(''); }}
+                style={[styles.pickerItem, { backgroundColor: colors.primary + '0D' }]}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                <Text style={[styles.pickerItemText, { color: colors.primary, fontWeight: '600' }]}>
+                  Create &quot;{categorySearch.trim()}&quot;
+                </Text>
+              </Pressable>
+            )}
+            {categories
+              .filter((c) => c.toLowerCase().includes(categorySearch.toLowerCase()))
+              .map((cat) => (
+                <Pressable
+                  key={cat}
+                  onPress={() => { setCategory(cat); setShowCategoryPicker(false); setCategorySearch(''); }}
+                  style={[styles.pickerItem, cat === category && { backgroundColor: colors.primary + '1A' }]}
+                >
+                  <Ionicons name="folder-outline" size={16} color={cat === category ? colors.primary : colors.mutedForeground} />
+                  <Text style={[styles.pickerItemText, { color: cat === category ? colors.primary : colors.foreground }]}>
+                    {cat}
+                  </Text>
+                  {cat === category && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                </Pressable>
+              ))}
+          </ScrollView>
+        </View>
+      </BottomModal>
     </BottomModal>
   );
 }
@@ -284,6 +366,45 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderRadius: 8,
+  },
+  categoryTap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  pickerSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 8,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  pickerList: {
+    maxHeight: 300,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  pickerItemText: {
+    flex: 1,
+    fontSize: 14,
   },
   fieldHint: {
     fontSize: 12,
