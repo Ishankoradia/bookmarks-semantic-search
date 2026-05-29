@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   nginx:
@@ -13,6 +13,8 @@ services:
       - ./certbot/conf:/etc/letsencrypt:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - bookmark-network
     restart: unless-stopped
 
   certbot:
@@ -21,3 +23,8 @@ services:
     volumes:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
+
+networks:
+  bookmark-network:
+    external: true
+    name: bookmarks-semantic-search_bookmark-network

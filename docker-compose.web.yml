@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: bookmark-backend
     expose:
-      - "6005"
+      - "6005:6005"
     env_file:
       - ./backend/.env.prod
     networks:
@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
     container_name: bookmark-frontend
     expose:
-      - "3002"
+      - "3002:3002"
     env_file:
       - ./frontend/.env.prod
     environment:
