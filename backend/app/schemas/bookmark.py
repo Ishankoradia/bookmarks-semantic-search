@@ -11,6 +11,7 @@ class BookmarkBase(BaseModel):
     tags: List[str] = Field(default_factory=list)
     meta_data: Dict[str, Any] = Field(default_factory=dict)
     is_read: Optional[bool] = False
+    is_private: Optional[bool] = False
     reference: Optional[str] = None
     category: Optional[str] = None
 
@@ -43,6 +44,7 @@ class BookmarkUpdate(BaseModel):
     tags: Optional[List[str]] = None
     meta_data: Optional[Dict[str, Any]] = None
     is_read: Optional[bool] = None
+    is_private: Optional[bool] = None
     reference: Optional[str] = None
     category: Optional[str] = None
 

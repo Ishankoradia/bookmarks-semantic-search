@@ -21,6 +21,7 @@ import {
   Loader2,
   Folder,
   Check,
+  Lock,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ interface BookmarkArticle extends BaseArticle {
   type: 'bookmark';
   category?: string | null;
   is_read?: boolean;
+  is_private?: boolean;
   similarity_score?: number;
 }
 
@@ -56,6 +58,7 @@ interface FeedArticle extends BaseArticle {
 interface FriendBookmarkArticle extends BaseArticle {
   type: 'friend';
   category?: string | null;
+  is_read?: boolean | null;
   owner: {
     id?: string;
     email: string;
@@ -75,6 +78,7 @@ interface ArticleCardProps {
   onDelete?: () => void;
   onUpdateTags?: (tags: string[]) => Promise<void>;
   onUpdateCategory?: (category: string) => Promise<void>;
+  onTogglePrivate?: () => void;
   onTagClick?: (tag: string) => void;
   availableCategories?: string[];
   // Feed-specific actions
@@ -92,6 +96,7 @@ export function ArticleCard({
   onDelete,
   onUpdateTags,
   onUpdateCategory,
+  onTogglePrivate,
   onTagClick,
   availableCategories = [],
   onSave,
@@ -335,15 +340,12 @@ export function ArticleCard({
         {/* Title & Domain */}
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-center gap-2">
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-sm truncate hover:text-primary transition-colors"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+              className="font-medium text-sm truncate hover:text-primary transition-colors text-left"
             >
               {article.title}
-            </a>
+            </button>
             <span className="text-xs text-muted-foreground flex-shrink-0 hidden sm:inline">
               {article.domain}
             </span>
@@ -373,7 +375,12 @@ export function ArticleCard({
           </span>
         )}
 
-        {/* Read status indicator (bookmark only) */}
+        {/* Private indicator */}
+        {isBookmark && (article as BookmarkArticle).is_private && (
+          <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+        )}
+
+        {/* Read status indicator (bookmark and friend) */}
         {isBookmark && (
           <div
             className={cn(
@@ -381,6 +388,15 @@ export function ArticleCard({
               (article as BookmarkArticle).is_read ? "bg-success" : "bg-warning"
             )}
             title={(article as BookmarkArticle).is_read ? "Read" : "Unread"}
+          />
+        )}
+        {isFriend && (
+          <div
+            className={cn(
+              "w-2 h-2 rounded-full flex-shrink-0",
+              (article as FriendBookmarkArticle).is_read ? "bg-success" : "bg-warning"
+            )}
+            title={(article as FriendBookmarkArticle).is_read ? "Read" : "Unread"}
           />
         )}
 
@@ -396,73 +412,9 @@ export function ArticleCard({
           <Bookmark className="w-3.5 h-3.5 text-success flex-shrink-0" />
         )}
 
-        {/* Desktop Actions */}
-        <div className="hidden md:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          {isBookmark && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleRead?.();
-                }}
-                className="h-6 w-6 p-0 hover:bg-muted"
-                title={(article as BookmarkArticle).is_read ? 'Mark as unread' : 'Mark as read'}
-              >
-                {(article as BookmarkArticle).is_read ? (
-                  <CheckCircle className="w-3.5 h-3.5 text-success" />
-                ) : (
-                  <Circle className="w-3.5 h-3.5 text-muted-foreground" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCopyUrl?.();
-                }}
-                className="h-6 w-6 p-0 hover:bg-muted"
-                title="Copy URL"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete?.();
-                }}
-                className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                title="Delete bookmark"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </>
-          )}
-
-          {isFeed && !(article as FeedArticle).is_saved && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSave?.();
-              }}
-              disabled={isSaving}
-              className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary"
-              title="Save to bookmarks"
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-            </Button>
-          )}
-        </div>
-
-        {/* Mobile Actions - 3-dot menu */}
+        {/* 3-dot menu */}
         {(isBookmark || (isFeed && !(article as FeedArticle).is_saved)) && (
-          <div className="md:hidden relative flex-shrink-0" ref={menuRef}>
+          <div className="relative flex-shrink-0" ref={menuRef}>
             <Button
               variant="ghost"
               size="sm"
@@ -477,10 +429,23 @@ export function ArticleCard({
 
             {openMenu && (
               <div
-                className="fixed right-4 w-44 bg-card rounded-md shadow-xl border py-1 z-[9999]"
-                style={{ bottom: 'auto', top: menuRef.current ? menuRef.current.getBoundingClientRect().bottom + 4 : 0 }}
+                className="fixed w-44 bg-card rounded-md shadow-xl border py-1 z-[9999]"
+                style={{
+                  top: menuRef.current ? menuRef.current.getBoundingClientRect().bottom + 4 : 0,
+                  left: menuRef.current ? menuRef.current.getBoundingClientRect().right - 176 : 0,
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
+                <button
+                  onClick={() => {
+                    window.open(article.url, '_blank');
+                    setOpenMenu(false);
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted text-left"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open in Browser
+                </button>
                 {isBookmark && (
                   <>
                     <button
@@ -517,6 +482,18 @@ export function ArticleCard({
                       <Trash2 className="w-3.5 h-3.5" />
                       Delete
                     </button>
+                    {onTogglePrivate && (
+                      <button
+                        onClick={() => {
+                          onTogglePrivate();
+                          setOpenMenu(false);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted text-left"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        {(article as BookmarkArticle).is_private ? 'Make Public' : 'Make Private'}
+                      </button>
+                    )}
                     {onUpdateTags && (
                       <button
                         onClick={() => {

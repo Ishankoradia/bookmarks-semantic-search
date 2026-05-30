@@ -189,6 +189,7 @@ export interface FriendBookmark {
   domain: string | null;
   tags: string[];
   category: string | null;
+  is_read: boolean | null;
   created_at: string;
   owner: UserSummary;
 }

@@ -32,6 +32,7 @@ interface BookmarkArticle extends BaseArticle {
   type: 'bookmark';
   category?: string | null;
   is_read?: boolean;
+  is_private?: boolean;
   similarity_score?: number;
 }
 
@@ -47,6 +48,7 @@ interface FeedArticle extends BaseArticle {
 interface FriendBookmarkArticle extends BaseArticle {
   type: 'friend';
   category?: string | null;
+  is_read?: boolean | null;
   owner: {
     email: string;
     name: string | null;
@@ -62,6 +64,7 @@ interface ArticleCardProps {
   onDelete?: () => void;
   onUpdateTags?: (tags: string[]) => Promise<void>;
   onUpdateCategory?: (category: string) => Promise<void>;
+  onTogglePrivate?: () => void;
   onTagClick?: (tag: string) => void;
   availableCategories?: string[];
   onSave?: () => void;
@@ -74,6 +77,7 @@ export function ArticleCard({
   onDelete,
   onUpdateTags,
   onUpdateCategory,
+  onTogglePrivate,
   onTagClick,
   availableCategories = [],
   onSave,
@@ -145,6 +149,14 @@ export function ArticleCard({
       });
       if (onUpdateTags) {
         items.push({ label: 'Edit Tags', icon: 'pricetag-outline', onPress: startEditingTags });
+      }
+      if (onTogglePrivate) {
+        const bm = article as BookmarkArticle;
+        items.push({
+          label: bm.is_private ? 'Make Public' : 'Make Private',
+          icon: bm.is_private ? 'lock-open-outline' : 'lock-closed-outline',
+          onPress: () => onTogglePrivate(),
+        });
       }
       items.push({
         label: 'Delete',
@@ -288,13 +300,18 @@ export function ArticleCard({
           </>
         )}
 
+        {/* Private indicator */}
+        {isBookmark && (article as BookmarkArticle).is_private && (
+          <Ionicons name="lock-closed" size={12} color={colors.mutedForeground} />
+        )}
+
         {/* Read status */}
-        {isBookmark && (
+        {(isBookmark || isFriend) && (
           <View
             style={[
               styles.readDot,
               {
-                backgroundColor: (article as BookmarkArticle).is_read
+                backgroundColor: (isBookmark ? (article as BookmarkArticle).is_read : (article as FriendBookmarkArticle).is_read)
                   ? colors.success
                   : colors.warning,
               },

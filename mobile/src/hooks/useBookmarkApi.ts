@@ -75,6 +75,11 @@ export function useBookmarkApi() {
       return response.data;
     },
 
+    updatePrivacy: async (id: string, isPrivate: boolean): Promise<Bookmark> => {
+      const response = await apiClient.put(`/bookmarks/${id}`, { is_private: isPrivate });
+      return response.data;
+    },
+
     bulkUpdateCategory: async (bookmarkIds: string[], category: string): Promise<{ updated_count: number }> => {
       const response = await apiClient.patch('/bookmarks/bulk-category', {
         bookmark_ids: bookmarkIds,

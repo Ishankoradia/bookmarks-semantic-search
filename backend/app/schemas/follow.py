@@ -76,6 +76,7 @@ class FriendBookmark(BaseModel):
     domain: Optional[str] = None
     tags: List[str] = []
     category: Optional[str] = None
+    is_read: Optional[bool] = None
     created_at: datetime
     owner: UserSummary  # Who owns this bookmark
 

@@ -22,6 +22,7 @@ class Bookmark(Base):
     tags = Column(JSON, default=[])
     meta_data = Column(JSON, default={})
     is_read = Column(Boolean, default=False, nullable=True)
+    is_private = Column(Boolean, default=False, nullable=False)
     reference = Column(Text, nullable=True)  # How user found this bookmark
     category = Column(String, nullable=True)  # Category that best describes the content
 

@@ -225,6 +225,18 @@ export function BookmarksScreen() {
     }
   };
 
+  const handleTogglePrivate = async (id: string, currentPrivate: boolean) => {
+    try {
+      await bookmarkApi.updatePrivacy(id, !currentPrivate);
+      setBookmarks((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, is_private: !currentPrivate } : b))
+      );
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // ignore
+    }
+  };
+
   const handleUpdateTags = async (id: string, tags: string[]) => {
     await bookmarkApi.updateTags(id, tags);
     setBookmarks((prev) => prev.map((b) => (b.id === id ? { ...b, tags } : b)));
@@ -341,6 +353,7 @@ export function BookmarksScreen() {
       onDelete={() => setDeleteTarget({ id: item.id, title: item.title })}
       onUpdateTags={(tags) => handleUpdateTags(item.id, tags)}
       onUpdateCategory={(cat) => handleUpdateCategory(item.id, cat)}
+      onTogglePrivate={() => handleTogglePrivate(item.id, !!item.is_private)}
       onTagClick={handleTagClick}
       availableCategories={categories}
     />

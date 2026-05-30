@@ -350,9 +350,10 @@ class FollowService:
             FollowRelationship.status == FollowStatus.ACCEPTED
         ).subquery()
 
-        # Get bookmarks from followed users
+        # Get bookmarks from followed users (exclude private)
         query = db.query(Bookmark).filter(
-            Bookmark.user_id.in_(following_ids)
+            Bookmark.user_id.in_(following_ids),
+            Bookmark.is_private != True
         ).order_by(Bookmark.created_at.desc())
 
         total = query.count()
@@ -373,6 +374,7 @@ class FollowService:
                 domain=bookmark.domain,
                 tags=bookmark.tags or [],
                 category=bookmark.category,
+                is_read=bookmark.is_read,
                 created_at=bookmark.created_at,
                 owner=self._user_to_summary(bookmark.user)
             ))

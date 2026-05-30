@@ -117,6 +117,14 @@ export const useBookmarkApi = () => {
       });
     },
 
+    // Update bookmark privacy
+    updatePrivacy: async (id: string, isPrivate: boolean): Promise<Bookmark> => {
+      return makeRequest(async (api) => {
+        const response = await api.put(`/bookmarks/${id}`, { is_private: isPrivate });
+        return response.data;
+      });
+    },
+
     // Bulk update category for multiple bookmarks
     bulkUpdateCategory: async (bookmarkIds: string[], category: string): Promise<{ updated_count: number }> => {
       return makeRequest(async (api) => {

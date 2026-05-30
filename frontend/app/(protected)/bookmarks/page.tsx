@@ -505,6 +505,27 @@ export default function BookmarksPage() {
     }
   };
 
+  const handleTogglePrivate = async (bookmarkId: string, currentPrivate: boolean) => {
+    try {
+      await authApi.updatePrivacy(bookmarkId, !currentPrivate);
+      const updateBookmark = (bookmark: BookmarkType | BookmarkSearchResult) =>
+        bookmark.id === bookmarkId ? { ...bookmark, is_private: !currentPrivate } : bookmark;
+
+      setAllBookmarks((prev) => prev.map(updateBookmark));
+      setBookmarks((prev) => prev.map(updateBookmark));
+      setCategoryBookmarks((prev) => {
+        const updated = { ...prev };
+        for (const cat in updated) {
+          updated[cat] = updated[cat].map(updateBookmark);
+        }
+        return updated;
+      });
+      toast.success(!currentPrivate ? 'Bookmark set to private' : 'Bookmark set to public');
+    } catch {
+      toast.error('Failed to update privacy');
+    }
+  };
+
   const handleDeleteBookmark = async () => {
     if (!bookmarkToDelete) return;
 
@@ -1225,6 +1246,7 @@ export default function BookmarksPage() {
                 onDelete={() => handleDeleteClick(bookmark)}
                 onUpdateTags={(tags) => handleUpdateTags(bookmark.id, tags)}
                 onUpdateCategory={(category) => handleUpdateCategory(bookmark.id, category)}
+                onTogglePrivate={() => handleTogglePrivate(bookmark.id, !!bookmark.is_private)}
                 onTagClick={handleTagClick}
                 availableCategories={categoryList}
                 formatDate={formatRelativeDate}
