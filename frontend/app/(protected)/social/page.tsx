@@ -31,6 +31,8 @@ export default function SocialPage() {
   const [loading, setLoading] = useState(true);
   const [feedData, setFeedData] = useState<FriendsFeedResponse | null>(null);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
+  const feedSentinelRef = useRef<HTMLDivElement>(null);
   const followApi = useFollowApi();
   const feedApi = useFeedApi();
 
@@ -59,17 +61,39 @@ export default function SocialPage() {
     }
   };
 
-  const loadFeed = async () => {
-    setFeedLoading(true);
+  const loadFeed = async (skip = 0) => {
+    if (skip === 0) setFeedLoading(true);
+    else setFeedLoadingMore(true);
     try {
-      const data = await feedApi.getFriendsFeed();
-      setFeedData(data);
+      const data = await feedApi.getFriendsFeed(skip, 20);
+      if (skip === 0) {
+        setFeedData(data);
+      } else {
+        setFeedData((prev) => prev ? {
+          ...data,
+          bookmarks: [...prev.bookmarks, ...data.bookmarks],
+        } : data);
+      }
     } catch {
       // ignore
     } finally {
       setFeedLoading(false);
+      setFeedLoadingMore(false);
     }
   };
+
+  // Infinite scroll for feed
+  useEffect(() => {
+    const sentinel = feedSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && feedData?.has_more && !feedLoadingMore && !feedLoading) {
+        loadFeed(feedData.bookmarks.length);
+      }
+    }, { threshold: 0.1 });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [feedData, feedLoadingMore, feedLoading]);
 
   useEffect(() => {
     loadData();
@@ -153,16 +177,24 @@ export default function SocialPage() {
               />
             </div>
           ) : (
-            feedData.bookmarks.map((bookmark) => (
-              <ArticleCard
-                key={bookmark.id}
-                article={{
-                  ...bookmark,
-                  type: 'friend' as const,
-                }}
-                formatDate={formatRelativeDate}
-              />
-            ))
+            <>
+              {feedData.bookmarks.map((bookmark) => (
+                <ArticleCard
+                  key={bookmark.id}
+                  article={{
+                    ...bookmark,
+                    type: 'friend' as const,
+                  }}
+                  formatDate={formatRelativeDate}
+                />
+              ))}
+              <div ref={feedSentinelRef} className="h-1" />
+              {feedLoadingMore && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
 

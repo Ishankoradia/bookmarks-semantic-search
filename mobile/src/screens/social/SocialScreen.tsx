@@ -35,6 +35,7 @@ export function SocialScreen() {
   const [sentRequests, setSentRequests] = useState<FollowRequest[]>([]);
   const [feedData, setFeedData] = useState<FriendsFeedResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,15 +56,24 @@ export function SocialScreen() {
     }
   };
 
-  const loadFeed = async () => {
-    setFeedLoading(true);
+  const loadFeed = async (skip = 0) => {
+    if (skip === 0) setFeedLoading(true);
+    else setFeedLoadingMore(true);
     try {
-      const data = await feedApi.getFriendsFeed();
-      setFeedData(data);
+      const data = await feedApi.getFriendsFeed(skip, 20);
+      if (skip === 0) {
+        setFeedData(data);
+      } else {
+        setFeedData((prev) => prev ? {
+          ...data,
+          bookmarks: [...prev.bookmarks, ...data.bookmarks],
+        } : data);
+      }
     } catch {
       // ignore
     } finally {
       setFeedLoading(false);
+      setFeedLoadingMore(false);
     }
   };
 
@@ -135,6 +145,17 @@ export function SocialScreen() {
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+            onEndReached={() => {
+              if (feedData.has_more && !feedLoadingMore) {
+                loadFeed(feedData.bookmarks.length);
+              }
+            }}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={
+              feedLoadingMore ? (
+                <ActivityIndicator style={{ paddingVertical: 16 }} color={colors.primary} />
+              ) : null
+            }
           />
         );
 
