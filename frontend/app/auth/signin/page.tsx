@@ -2,7 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Bookmark, Search, Tags, Compass, Users, Chrome, Smartphone, ExternalLink } from "lucide-react";
+import { Bookmark, Search, Tags, Compass, Users, Chrome, Smartphone, ExternalLink, Lock } from "lucide-react";
 import Link from "next/link";
 
 export default function SignInPage() {
@@ -114,6 +114,18 @@ export default function SignInPage() {
                 <h3 className="font-semibold text-foreground">Share with friends</h3>
                 <p className="text-sm text-muted-foreground">
                   Follow friends and see what they're reading. Discover content through your network.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-card border border-border">
+              <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                <Lock className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Private bookmarks</h3>
+                <p className="text-sm text-muted-foreground">
+                  Mark any bookmark as private to hide it from your followers' feed. Only you can see it.
                 </p>
               </div>
             </div>

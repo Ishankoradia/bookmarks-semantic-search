@@ -413,7 +413,7 @@ export function ArticleCard({
         )}
 
         {/* 3-dot menu */}
-        {(isBookmark || (isFeed && !(article as FeedArticle).is_saved)) && (
+        {(isBookmark || isFriend || (isFeed && !(article as FeedArticle).is_saved)) && (
           <div className="relative flex-shrink-0" ref={menuRef}>
             <Button
               variant="ghost"
@@ -446,6 +446,18 @@ export function ArticleCard({
                   <ExternalLink className="w-3.5 h-3.5" />
                   Open in Browser
                 </button>
+                {(isBookmark || isFriend) && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(article.url);
+                      setOpenMenu(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted text-left"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy URL
+                  </button>
+                )}
                 {isBookmark && (
                   <>
                     <button
@@ -461,16 +473,6 @@ export function ArticleCard({
                         <CheckCircle className="w-3.5 h-3.5 text-success" />
                       )}
                       {(article as BookmarkArticle).is_read ? 'Mark unread' : 'Mark read'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onCopyUrl?.();
-                        setOpenMenu(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted text-left"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      Copy URL
                     </button>
                     <button
                       onClick={() => {
