@@ -27,8 +27,19 @@ def get_whitelisted_emails() -> list[str]:
         return []
     return [email.strip().lower() for email in emails.split(",") if email.strip()]
 
+BLOCKED_EMAIL_DOMAINS = [
+    "cloudtestlabaccounts.com",
+]
+
+def is_email_blocked(email: str) -> bool:
+    """Check if an email belongs to a blocked domain."""
+    domain = email.lower().split("@")[-1]
+    return domain in BLOCKED_EMAIL_DOMAINS
+
 def is_email_whitelisted(email: str) -> bool:
     """Check if an email is in the whitelist."""
+    if is_email_blocked(email):
+        return False
     whitelisted = get_whitelisted_emails()
     # If no whitelist is configured, allow all
     if not whitelisted:
