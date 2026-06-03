@@ -652,8 +652,8 @@ class BookmarkService:
                 )
 
                 sql_query = text(f"""
-                    SELECT 
-                        id, url, title, description, content, domain, tags, meta_data,
+                    SELECT
+                        id, url, title, description, domain, tags, meta_data,
                         is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
@@ -675,8 +675,8 @@ class BookmarkService:
                     "No results from metadata filters, searching entire database"
                 )
                 sql_query = text("""
-                    SELECT 
-                        id, url, title, description, content, domain, tags, meta_data,
+                    SELECT
+                        id, url, title, description, domain, tags, meta_data,
                         is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
@@ -693,8 +693,8 @@ class BookmarkService:
         else:
             # No filters, search entire database
             sql_query = text("""
-                SELECT 
-                    id, url, title, description, content, domain, tags, meta_data,
+                SELECT
+                    id, url, title, description, domain, tags, meta_data,
                     is_read, reference, category, created_at, updated_at,
                     1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                 FROM bookmarks
@@ -720,8 +720,8 @@ class BookmarkService:
                     f"Vector search returned no results, falling back to metadata-filtered results with original threshold: {threshold}"
                 )
                 fallback_query = text(f"""
-                    SELECT 
-                        id, url, title, description, content, domain, tags, meta_data,
+                    SELECT
+                        id, url, title, description, domain, tags, meta_data,
                         is_read, reference, category, created_at, updated_at,
                         1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
                     FROM bookmarks
@@ -788,8 +788,8 @@ class BookmarkService:
         query_embedding = await self.embedding_service.create_embedding(query)
 
         sql_query = text("""
-            SELECT 
-                id, url, title, description, content, domain, tags, meta_data,
+            SELECT
+                id, url, title, description, domain, tags, meta_data,
                 is_read, reference, category, created_at, updated_at,
                 1 - (embedding <=> CAST(:embedding AS vector)) AS similarity_score
             FROM bookmarks
@@ -895,7 +895,7 @@ class BookmarkService:
 
         sql_query = text(f"""
             SELECT
-                id, url, title, description, content, domain, tags, meta_data,
+                id, url, title, description, domain, tags, meta_data,
                 is_read, reference, category, created_at, updated_at,
                 ts_rank_cd(search_vector, websearch_to_tsquery('english', :query), 32) AS similarity_score
             FROM bookmarks

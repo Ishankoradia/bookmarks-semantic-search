@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Text, DateTime, JSON, Integer, Boolean, F
 from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, deferred
 import uuid
 from app.core.database import Base
 
@@ -13,11 +13,11 @@ class Bookmark(Base):
     url = Column(String, nullable=False, index=True)  # Unique per user, not globally
     title = Column(String, nullable=False)
     description = Column(Text)
-    content = Column(Text)
-    raw_html = Column(Text)  # Store raw HTML content
+    content = deferred(Column(Text))
+    raw_html = deferred(Column(Text))  # Store raw HTML content
     domain = Column(String)
-    
-    embedding = Column(Vector(1536))
+
+    embedding = deferred(Column(Vector(1536)))
     
     tags = Column(JSON, default=[])
     meta_data = Column(JSON, default={})

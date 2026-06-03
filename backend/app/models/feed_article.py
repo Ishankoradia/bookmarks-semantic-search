@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Text, DateTime, Integer, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, deferred
 import uuid
 from app.core.database import Base
 
@@ -16,7 +16,7 @@ class FeedArticle(Base):
     url = Column(String, nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text)
-    content = Column(Text)
+    content = deferred(Column(Text))
     domain = Column(String)
     image_url = Column(String)  # og:image for card display
 
