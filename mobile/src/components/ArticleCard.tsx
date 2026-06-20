@@ -25,7 +25,7 @@ interface BaseArticle {
   description?: string | null;
   domain?: string | null;
   tags?: string[];
-  created_at?: string;
+  created_at?: string | null;
 }
 
 interface BookmarkArticle extends BaseArticle {

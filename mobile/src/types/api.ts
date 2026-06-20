@@ -10,6 +10,7 @@ export interface Bookmark {
   tags: string[];
   meta_data: Record<string, any>;
   is_read?: boolean;
+  is_private?: boolean;
   reference?: string | null;
   category?: string | null;
   created_at: string;
