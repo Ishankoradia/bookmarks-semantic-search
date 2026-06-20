@@ -66,7 +66,7 @@ Then reload the extension in `chrome://extensions` (click the refresh icon).
 
 Make sure your backend is running:
 ```bash
-cd backend && ./run.sh
+cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 6005
 ```
 
 ## Usage

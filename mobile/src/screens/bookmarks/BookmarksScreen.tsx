@@ -434,6 +434,14 @@ export function BookmarksScreen() {
                 readFilter === filter && [styles.readFilterItemActive, { backgroundColor: colors.card }],
               ]}
             >
+              {filter !== 'all' && (
+                <View
+                  style={[
+                    styles.readFilterDot,
+                    { backgroundColor: filter === 'read' ? colors.success : colors.warning },
+                  ]}
+                />
+              )}
               <Text
                 style={[
                   styles.readFilterText,
@@ -877,9 +885,17 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   readFilterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 18,
+  },
+  readFilterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   readFilterItemActive: {
     shadowColor: '#000',

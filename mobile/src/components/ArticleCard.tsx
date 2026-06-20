@@ -84,7 +84,6 @@ export function ArticleCard({
   isSaving = false,
 }: ArticleCardProps) {
   const { colors } = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
   const [editedTags, setEditedTags] = useState<string[]>([]);
@@ -111,9 +110,6 @@ export function ArticleCard({
   const faviconUrl = article.domain
     ? `https://www.google.com/s2/favicons?domain=${article.domain}&sz=32`
     : null;
-
-  const hasExpandableContent =
-    article.description || (article.tags && article.tags.length > 0) || (isBookmark && onUpdateTags) || categoryLabel;
 
   const handleOpenUrl = () => Linking.openURL(article.url);
 
@@ -175,7 +171,6 @@ export function ArticleCard({
     setEditedTags(article.tags || []);
     setIsEditingTags(true);
     setNewTagInput('');
-    if (!isExpanded) setIsExpanded(true);
   };
 
   const removeTag = async (tagToRemove: string) => {
@@ -243,7 +238,7 @@ export function ArticleCard({
     <View
       style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
-      {/* Compact Row */}
+      {/* Header Row */}
       <Pressable
         onLongPress={openMenu}
         onPress={() => {
@@ -252,21 +247,10 @@ export function ArticleCard({
             setNewTagInput('');
             return;
           }
-          if (hasExpandableContent) setIsExpanded(!isExpanded);
+          handleOpenUrl();
         }}
         style={styles.compactRow}
       >
-        {/* Expand chevron */}
-        {hasExpandableContent ? (
-          <Ionicons
-            name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-            size={16}
-            color={colors.mutedForeground}
-          />
-        ) : (
-          <View style={{ width: 16 }} />
-        )}
-
         {/* Favicon */}
         {faviconUrl ? (
           <Image source={{ uri: faviconUrl }} style={styles.favicon} />
@@ -337,21 +321,22 @@ export function ArticleCard({
         </Pressable>
       </Pressable>
 
-      {/* Expanded Content */}
-      {isExpanded && hasExpandableContent && (
-        <Pressable
-          onPress={() => { if (isEditingTags) { setIsEditingTags(false); setNewTagInput(''); } }}
-          style={[styles.expandedContent, { borderTopColor: colors.border }]}
-        >
-          {article.description && (
-            <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={3}>
-              {article.description}
-            </Text>
-          )}
+      {/* Body (always visible): description, tags, meta — nothing hidden */}
+      <Pressable
+        onPress={() => { if (isEditingTags) { setIsEditingTags(false); setNewTagInput(''); } }}
+        style={styles.bodyContent}
+      >
+          {/* Description — always reserve 3 lines so card heights stay consistent */}
+          <Text
+            style={[styles.description, { color: colors.mutedForeground }]}
+            numberOfLines={3}
+          >
+            {article.description || ''}
+          </Text>
 
           {/* Tags */}
           <Pressable onPress={() => { if (isEditingTags) { setIsEditingTags(false); setNewTagInput(''); } }}>
-            <View style={styles.tagsRow}>
+            <View style={[styles.tagsRow, !isEditingTags && styles.tagsRowSingle]}>
               <Ionicons name="pricetag-outline" size={14} color={colors.mutedForeground} />
               {(isEditingTags ? editedTags : (article.tags || [])).slice(0, isEditingTags ? undefined : 5).map((tag) => (
                 <View key={tag} style={[styles.tag, { backgroundColor: colors.primary + '1A' }]}>
@@ -363,6 +348,11 @@ export function ArticleCard({
                   )}
                 </View>
               ))}
+              {!isEditingTags && article.tags && article.tags.length > 5 && (
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+                  +{article.tags.length - 5}
+                </Text>
+              )}
               {(!article.tags || article.tags.length === 0) && !isEditingTags && (
                 <Text style={[styles.noTags, { color: colors.mutedForeground }]}>No tags</Text>
               )}
@@ -450,8 +440,7 @@ export function ArticleCard({
               </Pressable>
             ) : null}
           </View>
-        </Pressable>
-      )}
+      </Pressable>
     </View>
 
       {/* Category Picker Modal */}
@@ -616,14 +605,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  categoryPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  categoryText: {
-    fontSize: 11,
-  },
   readDot: {
     width: 8,
     height: 8,
@@ -636,23 +617,27 @@ const styles = StyleSheet.create({
   menuBtn: {
     padding: 4,
   },
-  expandedContent: {
+  bodyContent: {
     paddingHorizontal: 12,
     paddingBottom: 12,
-    paddingTop: 8,
+    paddingTop: 4,
     marginLeft: 24,
-    borderTopWidth: 1,
     gap: 8,
   },
   description: {
     fontSize: 13,
     lineHeight: 18,
+    minHeight: 54, // reserve 3 lines (3 × lineHeight) so card heights stay consistent
   },
   tagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  tagsRowSingle: {
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
   },
   tag: {
     flexDirection: 'row',

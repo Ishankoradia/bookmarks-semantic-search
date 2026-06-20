@@ -9,6 +9,7 @@ from typing import List, Optional
 from datetime import datetime
 from urllib.parse import urlparse
 from app.core.logging import get_logger
+from app.utils.text import html_to_text
 
 logger = get_logger(__name__)
 
@@ -100,12 +101,14 @@ class RSSParser:
                 if not title:
                     continue
 
-                # Get description/summary
+                # Get description/summary (strip HTML — feeds often embed markup)
                 description = None
                 if entry.get("summary"):
-                    description = entry.summary[:500]  # Limit description length
+                    description = html_to_text(entry.summary)
                 elif entry.get("description"):
-                    description = entry.description[:500]
+                    description = html_to_text(entry.description)
+                if description:
+                    description = description[:500]  # Limit description length
 
                 # Parse published date
                 published_at = None

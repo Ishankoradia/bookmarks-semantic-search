@@ -65,7 +65,7 @@ Get personalized article recommendations based on your interests. Explore conten
    uv run alembic upgrade head
    
    # Start the backend server
-   ./run.sh
+   uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 6005
    ```
    Backend will be available at http://localhost:6005
 

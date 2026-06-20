@@ -4,6 +4,7 @@ import html2text
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 import re
+from app.utils.text import html_to_text
 
 class WebScraper:
     def __init__(self):
@@ -68,17 +69,17 @@ class WebScraper:
     def _extract_description(self, soup: BeautifulSoup) -> Optional[str]:
         meta_description = soup.find('meta', attrs={'name': 'description'})
         if meta_description:
-            return meta_description.get('content', '').strip()
-        
+            return html_to_text(meta_description.get('content', '').strip())
+
         og_description = soup.find('meta', property='og:description')
         if og_description:
-            return og_description.get('content', '').strip()
-        
+            return html_to_text(og_description.get('content', '').strip())
+
         first_p = soup.find('p')
         if first_p:
-            text = first_p.get_text().strip()
-            return text[:300] if len(text) > 300 else text
-        
+            text = html_to_text(first_p.get_text().strip())
+            return text[:300] if text and len(text) > 300 else text
+
         return None
     
     def _extract_content(self, soup: BeautifulSoup) -> str:

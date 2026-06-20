@@ -35,16 +35,28 @@ import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Skeleton that mimics compact ArticleCard row
+// Skeleton that mimics the (taller) ArticleCard: header row + description + meta
 function BookmarkCardSkeleton() {
   return (
-    <div className="border rounded-lg p-2.5 bg-card flex items-center gap-3">
-      <Skeleton className="h-4 w-4 rounded" />
-      <Skeleton className="h-4 w-4 rounded" />
-      <Skeleton className="h-4 flex-1 max-w-[300px]" />
-      <Skeleton className="h-4 w-20 hidden sm:block" />
-      <Skeleton className="h-5 w-16 rounded hidden sm:block" />
-      <Skeleton className="h-2 w-2 rounded-full" />
+    <div className="border rounded-lg bg-card">
+      {/* Header row */}
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <Skeleton className="h-4 w-4 rounded" />
+        <Skeleton className="h-4 flex-1 max-w-[300px]" />
+        <Skeleton className="h-4 w-20 hidden sm:block" />
+        <Skeleton className="h-2 w-2 rounded-full" />
+      </div>
+      {/* Body: description + tags + meta */}
+      <div className="px-3 pb-3 ml-7 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-11/12" />
+        <Skeleton className="h-3 w-2/3" />
+        <div className="flex items-center gap-2 pt-1">
+          <Skeleton className="h-5 w-14 rounded" />
+          <Skeleton className="h-5 w-14 rounded" />
+          <Skeleton className="h-4 w-24 rounded" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1107,8 +1119,14 @@ export default function BookmarksPage() {
           <Tabs value={activeFilter} onValueChange={(v) => handleFilterChange(v as FilterTab)}>
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="unread">Unread</TabsTrigger>
-              <TabsTrigger value="read">Read</TabsTrigger>
+              <TabsTrigger value="unread" className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-warning" />
+                Unread
+              </TabsTrigger>
+              <TabsTrigger value="read" className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-success" />
+                Read
+              </TabsTrigger>
             </TabsList>
           </Tabs>
 

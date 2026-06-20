@@ -12,8 +12,6 @@ import {
   MoreVertical,
   Bookmark,
   User,
-  ChevronDown,
-  ChevronRight,
   Globe,
   Pencil,
   X,
@@ -106,7 +104,6 @@ export function ArticleCard({
     return d.toLocaleDateString();
   },
 }: ArticleCardProps) {
-  const [isExpanded, setIsExpanded] = React.useState(false);
   const [openMenu, setOpenMenu] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -224,9 +221,6 @@ export function ArticleCard({
     return email[0].toUpperCase();
   };
 
-  // Check if there's expandable content
-  const hasExpandableContent = article.description || (article.tags && article.tags.length > 0) || (isBookmark && onUpdateTags);
-
   // Tag editing handlers
   const startEditingTags = () => {
     const initialTags = article.tags || [];
@@ -234,10 +228,6 @@ export function ArticleCard({
     originalTagsRef.current = initialTags;
     setIsEditingTags(true);
     setNewTagInput('');
-    // Expand if not already
-    if (!isExpanded) {
-      setIsExpanded(true);
-    }
     // Focus input after render
     setTimeout(() => tagInputRef.current?.focus(), 100);
   };
@@ -303,24 +293,8 @@ export function ArticleCard({
 
   return (
     <div className="border rounded-lg bg-card hover:bg-muted/30 transition-colors group w-full max-w-full">
-      {/* Compact Row */}
+      {/* Header Row */}
       <div className="flex items-center gap-3 px-3 py-2.5 w-full max-w-full">
-        {/* Expand/Collapse button */}
-        {hasExpandableContent ? (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex-shrink-0 p-0.5 hover:bg-muted rounded transition-colors"
-          >
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
-          </button>
-        ) : (
-          <div className="w-5" />
-        )}
-
         {/* Favicon */}
         <div className="flex-shrink-0">
           {faviconUrl ? (
@@ -341,7 +315,10 @@ export function ArticleCard({
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+              onClick={() => {
+                onReadArticle?.();
+                window.open(article.url, '_blank', 'noopener,noreferrer');
+              }}
               className="font-medium text-sm truncate hover:text-primary transition-colors text-left"
             >
               {article.title}
@@ -366,13 +343,6 @@ export function ArticleCard({
               ) || <User className="h-2.5 w-2.5" />}
             </AvatarFallback>
           </Avatar>
-        )}
-
-        {/* Category pill */}
-        {categoryLabel && (
-          <span className="flex-shrink-0 px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs hidden sm:inline max-w-[120px] truncate">
-            {categoryLabel}
-          </span>
         )}
 
         {/* Private indicator */}
@@ -530,17 +500,12 @@ export function ArticleCard({
         )}
       </div>
 
-      {/* Expanded Content */}
-      {isExpanded && hasExpandableContent && (
-        <div className="px-3 pb-3 pt-0 ml-9 border-t mt-0 space-y-2">
-          <div className="pt-2" />
-
-          {/* Description */}
-          {article.description && (
-            <p className="text-sm text-muted-foreground line-clamp-3">
-              {article.description}
-            </p>
-          )}
+      {/* Body (always visible): description, tags, meta — nothing hidden */}
+      <div className="px-3 pb-3 ml-7 space-y-2">
+        {/* Description — always reserve 3 lines so card heights stay consistent across pages */}
+        <p className="text-sm text-muted-foreground line-clamp-3 min-h-[3.75rem]">
+          {article.description || ''}
+        </p>
 
           {/* Tags */}
           {isEditingTags ? (
@@ -587,29 +552,36 @@ export function ArticleCard({
               </div>
             </div>
           ) : (
-            // View mode
-            <div className="flex items-center gap-2 flex-wrap">
-              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+            // View mode — single row, no wrap, with +N overflow to keep height fixed
+            <div className="flex items-center gap-2 flex-nowrap overflow-hidden">
+              <Tag className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
               {article.tags && article.tags.length > 0 ? (
-                article.tags.slice(0, 5).map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => onTagClick?.(tag)}
-                    className={cn(
-                      "px-2 py-0.5 bg-primary/10 text-primary rounded text-xs",
-                      onTagClick && "hover:bg-primary/20 cursor-pointer transition-colors"
-                    )}
-                  >
-                    {tag}
-                  </button>
-                ))
+                <>
+                  {article.tags.slice(0, 5).map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => onTagClick?.(tag)}
+                      className={cn(
+                        "px-2 py-0.5 bg-primary/10 text-primary rounded text-xs flex-shrink-0 truncate max-w-[120px]",
+                        onTagClick && "hover:bg-primary/20 cursor-pointer transition-colors"
+                      )}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  {article.tags.length > 5 && (
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      +{article.tags.length - 5}
+                    </span>
+                  )}
+                </>
               ) : (
                 <span className="text-xs text-muted-foreground italic">No tags</span>
               )}
               {isBookmark && onUpdateTags && (
                 <button
                   onClick={startEditingTags}
-                  className="p-1 hover:bg-muted rounded transition-colors"
+                  className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
                   title="Edit tags"
                 >
                   <Pencil className="w-3 h-3 text-muted-foreground" />
@@ -722,8 +694,7 @@ export function ArticleCard({
               </button>
             ) : null}
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
