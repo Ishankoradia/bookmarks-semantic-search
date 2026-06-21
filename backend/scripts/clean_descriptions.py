@@ -22,28 +22,37 @@ BATCH_SIZE = 500
 
 
 def clean_table(db, model, label, dry_run):
-    # Only consider rows whose description might contain HTML/entities.
-    query = (
-        db.query(model)
-        .filter(model.description.isnot(None))
-        .filter(model.description != "")
-        .filter(model.description.op("~")(r"[<&]"))
-    )
-
+    # Only consider rows whose description might contain HTML/entities. We page
+    # by id (keyset pagination) rather than a streaming server-side cursor so we
+    # can commit between batches without invalidating the cursor.
     scanned = 0
     updated = 0
-    for row in query.yield_per(BATCH_SIZE):
-        scanned += 1
-        cleaned = html_to_text(row.description)
-        if cleaned != row.description:
-            updated += 1
-            if not dry_run:
-                row.description = cleaned
-                if updated % BATCH_SIZE == 0:
-                    db.commit()
+    last_id = None
 
-    if not dry_run:
-        db.commit()
+    while True:
+        query = (
+            db.query(model)
+            .filter(model.description.isnot(None))
+            .filter(model.description != "")
+            .filter(model.description.op("~")(r"[<&]"))
+        )
+        if last_id is not None:
+            query = query.filter(model.id > last_id)
+        batch = query.order_by(model.id).limit(BATCH_SIZE).all()
+        if not batch:
+            break
+
+        for row in batch:
+            scanned += 1
+            cleaned = html_to_text(row.description)
+            if cleaned != row.description:
+                updated += 1
+                if not dry_run:
+                    row.description = cleaned
+
+        last_id = batch[-1].id
+        if not dry_run:
+            db.commit()
 
     verb = "would update" if dry_run else "updated"
     print(f"{label}: scanned {scanned} candidate rows, {verb} {updated}")
