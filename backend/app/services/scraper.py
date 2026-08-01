@@ -4,6 +4,7 @@ import html2text
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 import re
+import io
 from app.utils.text import html_to_text
 
 class WebScraper:
@@ -22,17 +23,22 @@ class WebScraper:
                 }
                 response = await client.get(url, headers=headers)
                 response.raise_for_status()
-                
+
+                content_type = response.headers.get('content-type', '')
+                domain = urlparse(url).netloc
+
+                if 'application/pdf' in content_type or url.lower().endswith('.pdf'):
+                    return self._extract_pdf(url, response.content, domain)
+
                 raw_html = response.text
                 soup = BeautifulSoup(raw_html, 'lxml')
-                
+
                 title = self._extract_title(soup)
                 description = self._extract_description(soup)
                 content = self._extract_content(soup)
-                domain = urlparse(url).netloc
-                
+
                 cleaned_content = self._clean_content(content)
-                
+
                 return {
                     'title': title or domain,
                     'description': description,
@@ -41,7 +47,7 @@ class WebScraper:
                     'domain': domain,
                     'metadata': {
                         'status_code': response.status_code,
-                        'content_type': response.headers.get('content-type', ''),
+                        'content_type': content_type,
                         'word_count': len(cleaned_content.split()) if cleaned_content else 0
                     }
                 }
@@ -51,6 +57,49 @@ class WebScraper:
         except Exception as e:
             raise Exception(f"Error scraping URL: {str(e)}")
     
+    PDF_MAX_PAGES = 20  # only read first N pages to limit token usage
+
+    def _extract_pdf(self, url: str, pdf_bytes: bytes, domain: str) -> Dict[str, Any]:
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            info = reader.metadata or {}
+            title = (info.get('/Title') or '').strip() or None
+            pages_text = []
+            for page in reader.pages[:self.PDF_MAX_PAGES]:
+                text = page.extract_text() or ''
+                if text.strip():
+                    pages_text.append(text)
+            full_text = '\n\n'.join(pages_text)
+        except Exception as e:
+            title = None
+            full_text = ''
+
+        # derive title from URL filename if PDF metadata had none
+        if not title:
+            path = urlparse(url).path
+            filename = path.rstrip('/').rsplit('/', 1)[-1]
+            if filename.lower().endswith('.pdf'):
+                filename = filename[:-4]
+            title = filename.replace('-', ' ').replace('_', ' ').strip() or domain
+
+        cleaned_content = self._clean_content(full_text)
+        # use first ~300 chars of body as description
+        description = cleaned_content[:300].strip() if cleaned_content else None
+
+        return {
+            'title': title,
+            'description': description,
+            'content': cleaned_content,
+            'raw_html': '',
+            'domain': domain,
+            'metadata': {
+                'content_type': 'application/pdf',
+                'word_count': len(cleaned_content.split()) if cleaned_content else 0,
+                'page_count': len(pdf_bytes),
+            }
+        }
+
     def _extract_title(self, soup: BeautifulSoup) -> Optional[str]:
         title_tag = soup.find('title')
         if title_tag:
