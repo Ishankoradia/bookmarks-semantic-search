@@ -62,9 +62,16 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Write Play service account key
+        # Consumed by eas.json submit.production.android.serviceAccountKeyPath.
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY" > google-service-account.json
+
       - name: EAS build + auto-submit (draft)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_BUILD_NO_EXPO_GO_WARNING: "true"
         run: eas build --platform ${{ inputs.platform }} --profile production --auto-submit --non-interactive
 
       # Only runs if the build+submit above succeeded — a failed step stops the job,

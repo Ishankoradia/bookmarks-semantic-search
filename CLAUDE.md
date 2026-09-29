@@ -47,7 +47,8 @@ CI lives in `.github/workflows/` (details in `docs/DEVELOPMENT.md`):
   patch/minor/major bump → bumps `app.json`, EAS build + auto-submit as a **draft**.
 - Required secrets: web → `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` (opt. `EC2_PORT`,
   `EC2_PATH` — defaults to `/home/ubuntu/bookmarks-semantic-search`); mobile →
-  `EXPO_TOKEN`. GHCR packages are public (arm64), so no registry secret in CI;
+  `EXPO_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_KEY` (Play service-account JSON for
+  auto-submit). GHCR packages are public (arm64), so no registry secret in CI;
   `GHCR_PAT` is only for local `deploy-web.sh` pushes.
 
 ## Conventions

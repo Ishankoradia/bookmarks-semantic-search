@@ -5,3 +5,6 @@ chrome-extension.zip
 chrome-extension-prod/
 # Local/deploy env (holds IMAGE_TAG for docker-compose.web.yml)
 /.env
+
+# EAS Play submit service-account key (written from CI secret — never commit)
+mobile/google-service-account.json

@@ -139,7 +139,10 @@ Trigger via GitHub Actions → "Mobile Release (draft)" → pick `bump`
    store as a **draft** (`releaseStatus: draft` in `mobile/eas.json`).
    Android `versionCode` auto-increments remotely (`appVersionSource: remote`).
 
-**Required GitHub secret:** `EXPO_TOKEN` (Expo access token).
+**Required GitHub secrets:** `EXPO_TOKEN` (Expo access token) and
+`GOOGLE_SERVICE_ACCOUNT_KEY` (full JSON of a Google Play service account with release
+permission — the workflow writes it to `mobile/google-service-account.json`, which
+`eas.json` references as `serviceAccountKeyPath` for the auto-submit).
 
 **Release notes:** EAS does not set store release notes. The build lands as a draft;
 add "What's new" in the Play Console / App Store Connect before rolling out.
