@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { OfflineBanner } from './src/components/OfflineBanner';
+import { InAppUpdateGate } from './src/components/InAppUpdateGate';
 
 function AppContent() {
   const { isDark, colors } = useTheme();
@@ -33,6 +34,7 @@ function AppContent() {
     >
       <OfflineBanner />
       <RootNavigator />
+      <InAppUpdateGate />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>
   );

@@ -74,6 +74,19 @@ Web login uses NextAuth (`frontend/lib/auth.ts`) → Google → posts to backend
   always returns light → "System" never resolves to dark on device. Set
   `"automatic"` if System-follows-device is wanted.
 
+### Design system / shared UI primitives
+Reuse these instead of native defaults or one-off markup (enforced by the
+`ship-feature` skill):
+- **Mobile:** `BottomModal` (all dialogs/sheets — never `Alert.alert` for user-facing
+  prompts), `TopicSelector`, and the title + description + outline-`Later`/primary-
+  action button layout used by ProfileScreen's modals. Colors via `useTheme()`.
+- **Web:** shadcn/Radix components in `frontend/components/ui` (`Dialog`,
+  `AlertDialog`, `Button`, `Switch`, `Sonner`/`toast`, …) — never `window.alert`/
+  `confirm`. Colors via Tailwind token classes.
+- Add a new shared widget once as a themed component; don't inline one-off styles.
+- Only exception: system-owned surfaces you can't restyle (e.g. Google Play's
+  in-app-update consent sheet).
+
 ## Releasing & CI
 
 CI lives in `.github/workflows/`.
@@ -146,3 +159,12 @@ permission — the workflow writes it to `mobile/google-service-account.json`, w
 
 **Release notes:** EAS does not set store release notes. The build lands as a draft;
 add "What's new" in the Play Console / App Store Connect before rolling out.
+
+**In-app update prompt (Android):** `mobile/src/components/InAppUpdateGate.tsx`
+(mounted in `App.tsx`) uses Google Play In-App Updates
+(`sp-react-native-in-app-updates`) to prompt users on launch when a newer *published*
+version is live — FLEXIBLE = soft, dismissible. Play owns the initial consent sheet;
+the post-download "Update ready" prompt is a themed `BottomModal` (design-system
+consistent). No backend involved; Google Play is the source of truth. Only works on
+a Play-installed build (internal/closed/prod track) — no-op in Expo Go / dev clients
+/ sideloaded APKs. iOS is skipped.

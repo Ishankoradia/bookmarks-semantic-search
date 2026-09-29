@@ -39,6 +39,22 @@ Reference map: `docs/DEVELOPMENT.md`. Cross-surface rule: `CLAUDE.md`.
 5. **Parity.** Same behavior, states (loading / empty / error / disabled), and
    user-facing copy on both surfaces. Wording should match unless a platform idiom
    requires otherwise.
+6. **Reuse the design system — no ad-hoc or native-default UI.** Build from the
+   existing themed primitives; never drop to platform-default dialogs or bespoke
+   markup for user-facing UI.
+   - **Mobile:** use `BottomModal` for dialogs/sheets — **never** React Native
+     `Alert.alert` / `Alert` for user-facing prompts. Reuse existing patterns
+     (`TopicSelector`, the title + description + outline-`Later`/primary-action button
+     layout used by ProfileScreen's modals) and `colors` from `useTheme()`.
+   - **Web:** use the shadcn/Radix components in `frontend/components/ui` (`Dialog`,
+     `AlertDialog`, `Button`, `Switch`, `Sonner`/`toast`, …) — never raw
+     `window.alert`/`confirm` or hand-rolled equivalents.
+   - Need a new shared widget? Add it **once** as a themed component and reuse it;
+     don't inline one-off styles. Match the spacing/typography/border-radius of
+     neighbouring components.
+   - Exception: a truly system-owned surface you can't restyle (e.g. Google Play's
+     in-app-update consent sheet) is fine — but any prompt *you* render must use the
+     design system.
 
 ## Token parity (web ↔ mobile)
 
