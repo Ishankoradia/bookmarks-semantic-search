@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/ishankoradia/bookmarks-backend:${IMAGE_TAG:?IMAGE_TAG is required (commit sha; deploy writes .env)}
     container_name: bookmark-backend
     ports:
       - "6005:6005"
@@ -15,9 +13,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/ishankoradia/bookmarks-frontend:${IMAGE_TAG:?IMAGE_TAG is required (commit sha; deploy writes .env)}
     container_name: bookmark-frontend
     ports:
       - "3002:3002"

@@ -2,6 +2,10 @@
 
 Guidance for working in this repo (semantic bookmarks search).
 
+> **See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)** for the feature map (where
+> topics/sources, theming, feed refresh, auth live), how-to recipes, local-dev
+> gotchas, and the release/CI process. Start there when adding features.
+
 ## ⚠️ Cross-surface rule (read first)
 
 This product ships across **four** surfaces backed by one shared backend:
@@ -33,6 +37,18 @@ This product ships across **four** surfaces backed by one shared backend:
 - Webapp: `cd frontend && npm run dev` / `npm run build` / `npm run lint`.
 - Mobile: `cd mobile && npm start` (Expo); `npm run ios` / `npm run android`. Release builds via EAS (`mobile/eas.json`).
 - Deploy: `deploy.sh`, `docker-compose.web.yml`, `docker-compose.nginx.yml`.
+
+## Releasing & CI
+
+CI lives in `.github/workflows/` (details in `docs/DEVELOPMENT.md`):
+- **Web — automatic** (`deploy-web.yml`): push to `master` builds backend+frontend
+  images → GHCR → SSH into EC2 → `docker compose pull && up -d`.
+- **Mobile — manual** (`mobile-release.yml`): run the workflow with a
+  patch/minor/major bump → bumps `app.json`, EAS build + auto-submit as a **draft**.
+- Required secrets: web → `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` (opt. `EC2_PORT`,
+  `EC2_PATH` — defaults to `/home/ubuntu/bookmarks-semantic-search`); mobile →
+  `EXPO_TOKEN`. GHCR packages are public (arm64), so no registry secret in CI;
+  `GHCR_PAT` is only for local `deploy-web.sh` pushes.
 
 ## Conventions
 
