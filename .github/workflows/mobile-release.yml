@@ -54,13 +54,6 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, "version=" + j.expo.version + "\n");
           '
 
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore(mobile): bump version to ${{ steps.bump.outputs.version }}"
-          git push
-
       - name: Install dependencies
         # eas build resolves app.json config plugins (expo-secure-store, etc.)
         # locally before uploading, so node_modules must be present.
@@ -73,3 +66,13 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform ${{ inputs.platform }} --profile production --auto-submit --non-interactive
+
+      # Only runs if the build+submit above succeeded — a failed step stops the job,
+      # so the version bump is never committed/pushed on a failed release.
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(mobile): bump version to ${{ steps.bump.outputs.version }}"
+          git pull --rebase origin master
+          git push
