@@ -26,8 +26,15 @@ import type { UserPreference } from '../../types/api';
 
 type FeedbackType = 'feedback' | 'bug' | 'feature';
 
+const THEME_OPTIONS = [
+  { mode: 'system', label: 'System', icon: 'phone-portrait-outline' },
+  { mode: 'light', label: 'Light', icon: 'sunny-outline' },
+  { mode: 'dark', label: 'Dark', icon: 'moon-outline' },
+  { mode: 'amoled', label: 'AMOLED', icon: 'contrast-outline' },
+] as const;
+
 export function ProfileScreen() {
-  const { colors } = useTheme();
+  const { colors, themeMode, setThemeMode } = useTheme();
   const { user, signOut } = useAuth();
   const preferencesApi = usePreferencesApi();
   const accountApi = useAccountApi();
@@ -240,6 +247,45 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        {/* Appearance */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APPEARANCE</Text>
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.themeRow}>
+              {THEME_OPTIONS.map((option) => {
+                const active = themeMode === option.mode;
+                return (
+                  <Pressable
+                    key={option.mode}
+                    onPress={() => setThemeMode(option.mode)}
+                    style={[
+                      styles.themeOption,
+                      {
+                        borderColor: active ? colors.primary : colors.border,
+                        backgroundColor: active ? colors.primary : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={option.icon}
+                      size={18}
+                      color={active ? colors.primaryForeground : colors.mutedForeground}
+                    />
+                    <Text
+                      style={[
+                        styles.themeOptionText,
+                        { color: active ? colors.primaryForeground : colors.mutedForeground },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
         {/* Feedback */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>FEEDBACK</Text>
@@ -443,6 +489,11 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 13, fontWeight: '500' },
   saveBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6, minWidth: 60, alignItems: 'center' },
   saveBtnText: { fontSize: 13, fontWeight: '600' },
+
+  // Appearance
+  themeRow: { flexDirection: 'row', gap: 8, padding: 14 },
+  themeOption: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 12, borderRadius: 8, borderWidth: 1 },
+  themeOptionText: { fontSize: 12, fontWeight: '500' },
 
   // Feedback
   feedbackContent: { padding: 14, gap: 10 },

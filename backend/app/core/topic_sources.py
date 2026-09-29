@@ -81,9 +81,10 @@ TOPIC_SOURCES = {
     },
     "Finance & Investing": {
         "rss": [
-            "https://www.bloomberg.com/feed/podcast/etf-report.xml",
-            "https://feeds.a]cast.com/public/shows/allinchamath",
             "https://stratechery.com/feed/",
+            "https://awealthofcommonsense.com/feed/",
+            "https://ritholtz.com/feed/",
+            "https://www.calculatedriskblog.com/feeds/posts/default",
         ],
         "hn_keywords": ["finance", "investing", "stocks", "crypto", "bitcoin"],
     },
@@ -94,6 +95,99 @@ TOPIC_SOURCES = {
             "https://nesslabs.com/feed",
         ],
         "hn_keywords": ["productivity", "habits", "workflow", "tools"],
+    },
+    "Security & Privacy": {
+        "rss": [
+            "https://krebsonsecurity.com/feed/",
+            "https://www.schneier.com/feed/atom/",
+            "https://www.bleepingcomputer.com/feed/",
+            "https://feeds.feedburner.com/TheHackersNews",
+        ],
+        "hn_keywords": ["security", "cybersecurity", "privacy", "encryption", "vulnerability"],
+    },
+    "Web Development": {
+        "rss": [
+            "https://css-tricks.com/feed/",
+            "https://web.dev/feed.xml",
+            "https://developer.mozilla.org/en-US/blog/rss.xml",
+            "https://www.joshwcomeau.com/rss.xml",
+        ],
+        "hn_keywords": ["javascript", "frontend", "css", "react", "typescript"],
+    },
+    "Data Science & Analytics": {
+        "rss": [
+            "https://www.kdnuggets.com/feed",
+            "https://flowingdata.com/feed/",
+            "https://simplystatistics.org/index.xml",
+        ],
+        "hn_keywords": ["data science", "data engineering", "analytics", "sql", "statistics"],
+    },
+    "Open Source": {
+        "rss": [
+            "https://github.blog/feed/",
+            "https://opensource.com/feed",
+            "https://lwn.net/headlines/rss",
+        ],
+        "hn_keywords": ["open source", "foss", "linux", "self-hosted"],
+    },
+    "Gaming": {
+        "rss": [
+            "https://www.polygon.com/rss/index.xml",
+            "https://www.rockpapershotgun.com/feed",
+            "https://kotaku.com/rss",
+        ],
+        "hn_keywords": ["gaming", "game development", "gamedev", "indie games"],
+    },
+    "Space & Astronomy": {
+        "rss": [
+            "https://www.universetoday.com/feed/",
+            "https://spacenews.com/feed/",
+            "https://www.space.com/feeds/all",
+        ],
+        "hn_keywords": ["space", "nasa", "astronomy", "spacex", "rocket"],
+    },
+    "Climate & Environment": {
+        "rss": [
+            "https://grist.org/feed/",
+            "https://insideclimatenews.org/feed/",
+            "https://www.carbonbrief.org/feed/",
+        ],
+        "hn_keywords": ["climate", "environment", "renewable energy", "sustainability"],
+    },
+    "Economics": {
+        "rss": [
+            "https://marginalrevolution.com/feed",
+            "https://www.calculatedriskblog.com/feeds/posts/default",
+        ],
+        "hn_keywords": ["economics", "economy", "inflation", "monetary policy"],
+    },
+    "Health & Wellness": {
+        "rss": [
+            "https://www.health.harvard.edu/blog/feed",
+        ],
+        "hn_keywords": ["health", "nutrition", "fitness", "sleep", "mental health"],
+    },
+    "Books & Writing": {
+        "rss": [
+            "https://lithub.com/feed/",
+            "https://www.themarginalian.org/feed/",
+        ],
+        "hn_keywords": ["books", "writing", "reading", "literature"],
+    },
+    "Marketing & Growth": {
+        "rss": [
+            "https://blog.hubspot.com/marketing/rss.xml",
+            "https://sparktoro.com/blog/feed/",
+            "https://cxl.com/blog/feed/",
+        ],
+        "hn_keywords": ["marketing", "seo", "growth", "advertising", "branding"],
+    },
+    "Self-Improvement": {
+        "rss": [
+            "https://fs.blog/feed/",
+            "https://markmanson.net/feed",
+        ],
+        "hn_keywords": ["psychology", "self improvement", "mental health", "habits"],
     },
 }
 

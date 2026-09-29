@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
+const THEME_KEY = 'theme_mode';
 
 export interface StoredUser {
   uuid: string;
@@ -52,4 +53,13 @@ export async function clearCache(): Promise<void> {
   const keys = await AsyncStorage.getAllKeys();
   const cacheKeys = keys.filter((k) => k.startsWith('cache_'));
   await AsyncStorage.multiRemove(cacheKeys);
+}
+
+// Theme preference (system | light | dark | amoled)
+export async function saveThemeMode(mode: string): Promise<void> {
+  await AsyncStorage.setItem(THEME_KEY, mode);
+}
+
+export async function getThemeMode(): Promise<string | null> {
+  return AsyncStorage.getItem(THEME_KEY);
 }

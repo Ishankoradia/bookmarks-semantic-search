@@ -2,20 +2,12 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
+from app.core.topic_sources import TOPIC_SOURCES
 
-# Available topics for user interests
-AVAILABLE_TOPICS = [
-    "Technology",
-    "Programming",
-    "AI & Machine Learning",
-    "Startups & Business",
-    "Product & Design",
-    "DevOps & Cloud",
-    "Career & Growth",
-    "Science",
-    "Finance & Investing",
-    "Productivity",
-]
+
+# Available topics for user interests — derived from the source map so the two
+# can never drift. Add a new topic in topic_sources.py and it shows up here.
+AVAILABLE_TOPICS = list(TOPIC_SOURCES.keys())
 
 
 class UserPreferenceBase(BaseModel):

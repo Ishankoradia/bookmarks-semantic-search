@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *, .amoled *));
 
 :root {
   /* Light Blue Theme */
@@ -102,6 +102,57 @@
   --border: oklch(0.3 0.025 260);
   --input: oklch(0.3 0.025 260);
   --ring: oklch(0.7 0.18 250);
+}
+
+.amoled {
+  /* True-black theme for OLED/AMOLED displays */
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.12 0.01 260);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.12 0.01 260);
+  --popover-foreground: oklch(0.95 0.01 250);
+
+  /* Primary - Bright blue */
+  --primary: oklch(0.7 0.18 250);
+  --primary-foreground: oklch(0.1 0.02 260);
+
+  /* Secondary */
+  --secondary: oklch(0.16 0.02 260);
+  --secondary-foreground: oklch(0.9 0.01 250);
+
+  /* Muted */
+  --muted: oklch(0.15 0.015 260);
+  --muted-foreground: oklch(0.6 0.02 250);
+
+  /* Accent */
+  --accent: oklch(0.2 0.03 260);
+  --accent-foreground: oklch(0.9 0.01 250);
+
+  /* Semantic colors */
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.95 0 0);
+  --success: oklch(0.55 0.15 145);
+  --success-foreground: oklch(0.95 0.02 145);
+  --warning: oklch(0.7 0.14 70);
+  --warning-foreground: oklch(0.2 0.05 70);
+  --info: oklch(0.6 0.14 230);
+  --info-foreground: oklch(0.95 0.02 230);
+
+  /* Borders & inputs */
+  --border: oklch(0.22 0.02 260);
+  --input: oklch(0.22 0.02 260);
+  --ring: oklch(0.7 0.18 250);
+
+  /* Sidebar */
+  --sidebar: oklch(0 0 0);
+  --sidebar-foreground: oklch(0.95 0.01 250);
+  --sidebar-primary: oklch(0.7 0.18 250);
+  --sidebar-primary-foreground: oklch(0.1 0.02 260);
+  --sidebar-accent: oklch(0.2 0.03 260);
+  --sidebar-accent-foreground: oklch(0.9 0.01 250);
+  --sidebar-border: oklch(0.22 0.02 260);
+  --sidebar-ring: oklch(0.7 0.18 250);
 }
 
 @theme inline {

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { usePreferencesApi, useAccountApi } from '@/lib/auth-api';
 import { UserPreference } from '@/lib/api';
 import { TopicSelector } from '@/components/explore/TopicSelector';
+import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
@@ -277,6 +278,15 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Appearance Section */}
+      <div className="mb-8">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Appearance</h2>
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-sm font-medium mb-3">Theme</p>
+          <ThemeSwitcher />
         </div>
       </div>
 

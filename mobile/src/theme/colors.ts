@@ -40,4 +40,25 @@ export const darkColors = {
   input: '#334155',
 };
 
+export const amoledColors = {
+  background: '#000000',
+  foreground: '#e5e7eb',
+  card: '#0a0a0c',
+  cardForeground: '#e5e7eb',
+  primary: '#60a5fa',
+  primaryForeground: '#000000',
+  secondary: '#14161c',
+  secondaryForeground: '#d1d5db',
+  muted: '#111318',
+  mutedForeground: '#9ca3af',
+  accent: '#1a1d26',
+  accentForeground: '#d1d5db',
+  destructive: '#dc2626',
+  success: '#15803d',
+  warning: '#a16207',
+  info: '#2563eb',
+  border: '#1f2937',
+  input: '#1f2937',
+};
+
 export type ColorScheme = typeof lightColors;

@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import AuthSessionProvider from '@/components/auth/session-provider'
+import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as SonnerToaster } from '@/components/ui/sonner'
 import { ServiceWorkerRegister } from '@/components/pwa/sw-register'
@@ -47,15 +48,23 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <AuthSessionProvider>
-          {children}
-        </AuthSessionProvider>
-        <Toaster />
-        <SonnerToaster position="top-center" />
-        <Analytics />
-        <ServiceWorkerRegister />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          themes={['light', 'dark', 'amoled']}
+          disableTransitionOnChange
+        >
+          <AuthSessionProvider>
+            {children}
+          </AuthSessionProvider>
+          <Toaster />
+          <SonnerToaster position="top-center" />
+          <Analytics />
+          <ServiceWorkerRegister />
+        </ThemeProvider>
       </body>
     </html>
   )
