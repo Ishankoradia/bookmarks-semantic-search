@@ -113,6 +113,16 @@ Package settings → change visibility) so the server pulls with no login. Then:
 - `GHCR_PAT` is only needed locally, for `deploy-web.sh` to *push* from your laptop
   (a GitHub PAT with `write:packages`; `docker login ghcr.io -u <gh-user>`).
 
+**Env handling (build vs runtime):** images are built **secret-free**.
+- Build time: the frontend only needs the public `NEXT_PUBLIC_API_URL` — passed as a
+  Docker `ARG` (default = prod URL) in `frontend/Dockerfile`, not from `.env.prod`.
+  The backend needs no build-time env.
+- Runtime: all real secrets (NextAuth, Google, DB, OpenAI, JWT) come from
+  `backend/.env.prod` and `frontend/.env.prod` on the EC2 box via compose `env_file`.
+  These files stay on the server (gitignored) — never in git, never baked into an
+  image. So do NOT store `.env.prod` as a GitHub secret / COPY it into the image:
+  images are public, and that would leak the secrets.
+
 **Required GitHub secrets:**
 - `EC2_HOST`, `EC2_USER` (e.g. `ubuntu`/`ec2-user`), `EC2_SSH_KEY` (the `.pem`
   private key contents). Optional: `EC2_PORT` (default 22), `EC2_PATH` (repo path on

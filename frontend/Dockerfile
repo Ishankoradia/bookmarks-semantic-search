@@ -12,8 +12,10 @@ RUN npm ci
 # Copy all application files
 COPY . .
 
-# Copy .env.prod as .env for build-time variables (NEXT_PUBLIC_*)
-COPY .env.prod .env
+# Build-time public config only — Next.js inlines NEXT_PUBLIC_* into the client
+# bundle. Real secrets are NOT baked in; they arrive at runtime via compose env_file.
+ARG NEXT_PUBLIC_API_URL=https://bookmarks.ishankoradia.in/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build the application
 RUN npm run build
@@ -31,8 +33,9 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy .env.prod for runtime variables (secrets, etc.)
-COPY .env.prod .env
+# Runtime env (NextAuth secrets, Google creds, etc.) is injected by docker-compose
+# `env_file: ./frontend/.env.prod` on the server — never copied into the image, so
+# published images stay secret-free.
 
 EXPOSE 3002
 
