@@ -1,0 +1,25 @@
+# build output
+build/
+bin/
+*.o
+*.a
+*.so
+*.dylib
+a.out
+*.dSYM/
+
+# sanitizer / profiling
+*.profraw
+*.gcda
+*.gcno
+crash-*
+leak-*
+timeout-*
+
+# fuzzing corpus is kept; its findings are not
+fuzz/findings/
+
+# editor / os
+.DS_Store
+compile_commands.json
+.cache/

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(clang:*)",
+      "Bash(cc:*)",
+      "Bash(gcc:*)",
+      "Bash(lldb:*)",
+      "Bash(nm:*)",
+      "Bash(otool:*)",
+      "Bash(size:*)",
+      "Bash(file:*)",
+      "Bash(leaks:*)",
+      "Bash(man:*)",
+      "Bash(ctags:*)",
+      "Bash(./build/*)",
+      "Bash(./bin/*)",
+      "Bash(./tests/*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  }
+}
