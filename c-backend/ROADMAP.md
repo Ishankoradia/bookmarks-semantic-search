@@ -4,7 +4,8 @@
 A working C backend is the *vehicle*, not the goal. If a choice trades speed-of-
 delivery for depth-of-understanding, take depth.
 
-Companion files: `BUGS.md` (the lab notebook — the real deliverable of all this)
+Companion files: `BUGS.md` (the lab notebook — the real deliverable of all this),
+`TUNING.md` (how this roadmap has been corrected by contact with reality)
 and `CLAUDE.md` (the teaching contract Claude is held to).
 
 ## Status
@@ -72,7 +73,7 @@ separate facts and both matter:
 
 ## How we work
 
-**Four commands.** I never have to remember where we were — `STATE.md` holds it.
+**Six commands.** I never have to remember where we were — `STATE.md` holds it.
 
 | | |
 | --- | --- |
@@ -81,6 +82,14 @@ separate facts and both matter:
 | `/review` | I've written something. Bugs reported by category and location, never the fix. |
 | `/stuck` | 30+ min of banging on it. The hint ladder, one rung at a time. |
 | `/wrap` | End of session. Saves state, updates the recall queue and bug tally, logs the line. |
+| `/tune` | Feedback on *how this is being taught*, not on C. Folds it into `CLAUDE.md` / `ROADMAP.md` / the skills, so it survives past today. |
+
+These documents are a first guess, written before I'd been taught any C —
+`/tune` is how they get corrected, and `TUNING.md` is the record of it. The
+exception is the spine: no-code rule, sanitizer gates, no phase skipped, the
+30-minute rule, hand-rolled deps. Those can't be tuned in the moment; `/tune`
+parks the request until I reaffirm it on a different day, because the evening I
+most want them gone is the evening they're doing their job.
 
 `STATE.md` is the single source of truth for position, last-session recap, open
 threads and the recall queue. `/wrap` is the only thing that writes it — so if I

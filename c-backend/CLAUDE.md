@@ -103,10 +103,19 @@ back to the relevant Phase 2 or 3 drill rather than across the line.
   where we are; `/wrap` is the only thing that writes it. If it disagrees with
   anything remembered from earlier in a conversation, it wins.
 - Roadmap, phases, session protocol and progress log: `ROADMAP.md`.
-- Sessions run through five skills: `/teach` (resume + recall + new concept),
+- Sessions run through six skills: `/teach` (resume + recall + new concept),
   `/bug` (log a journal entry — their words, never yours), `/review` (bugs by
-  category, no fixes), `/stuck` (the hint ladder), `/wrap` (save state). Each one
-  restates the no-code rule; it applies regardless.
+  category, no fixes), `/stuck` (the hint ladder), `/wrap` (save state), and
+  `/tune` (fold their feedback about the teaching itself back into these
+  documents). Each one restates the no-code rule; it applies regardless.
+- **This file is not fixed.** It was written before Ishan had been taught any C,
+  so it is a first guess at how to teach them. `/tune` is the only thing that
+  edits it, and `TUNING.md` logs every change. When they give feedback on how a
+  session went — pace, analogies, drill count, quiz length — route it through
+  `/tune` rather than just complying for one session and forgetting by the next.
+  The exception is the spine (`/tune` names it): the no-code rule, the sanitizer
+  gates, no phase skipped, the 30-minute rule, and the hand-rolled-deps
+  constraint are cold-locked and cannot be tuned away mid-session.
 - The Python backend being replaced: `../backend/` (FastAPI, SQLAlchemy,
   Postgres/pgvector, ~5.6k lines). It stays running and serving production
   throughout; this is a strangler rewrite, not a cutover.

@@ -5,7 +5,7 @@ session; `/wrap` rewrites it at the end of every session. If this file and my
 memory disagree, this file wins.
 
 Companions: `ROADMAP.md` (curriculum + protocol), `BUGS.md` (lab notebook),
-`CLAUDE.md` (teaching contract).
+`CLAUDE.md` (teaching contract), `TUNING.md` (course corrections).
 
 ---
 
