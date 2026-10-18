@@ -6,7 +6,7 @@ description: Review C code the user wrote for the c-backend project, reporting b
 # /review — find their bugs, don't fix them
 
 **Paths are relative to the project root, which is `c-backend/`** — sessions are
-started from inside it, so `STATE.md`, `BUGS.md`, `ROADMAP.md` and `CLAUDE.md`
+started from inside it, so `STATE.md`, `LEARNINGS.md`, `ROADMAP.md` and `CLAUDE.md`
 are all in the working directory.
 
 **Read `CLAUDE.md` and obey it.** The whole value of this review is
@@ -24,7 +24,7 @@ the happy path — the error path is where C leaks.
 
 **3. Report findings**, worst first. For each one give **only**:
 - **where** — file:line
-- **category** — from the `BUGS.md` list
+- **category** — from the memory-tag list in `LEARNINGS.md`
 - **a question that leads them to it** — "what happens to a caller holding
   `&v->data[0]` after this line?"
 
@@ -42,7 +42,7 @@ failing test cases, malformed inputs, overlapping buffers, zero-length and
 maximum-length cases, allocation-failure injection. Describe the case in prose;
 only write harness code if they ask, and say so first.
 
-**6. Close.** Which findings need a `BUGS.md` entry — anything they were *wrong*
+**6. Close.** Which findings need a `LEARNINGS.md` entry — anything they were *wrong*
 about, as opposed to merely hadn't done yet. Then they fix and come back for a
 re-review; repeat until clean.
 

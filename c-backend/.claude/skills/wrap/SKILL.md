@@ -6,7 +6,7 @@ description: Close a C training session for the c-backend project - updates STAT
 # /wrap — close the session and save the state
 
 **Paths are relative to the project root, which is `c-backend/`** — sessions are
-started from inside it, so `STATE.md`, `BUGS.md`, `ROADMAP.md` and `CLAUDE.md`
+started from inside it, so `STATE.md`, `LEARNINGS.md`, `ROADMAP.md` and `CLAUDE.md`
 are all in the working directory.
 
 The point: they should be able to walk away for three weeks and resume with no
@@ -18,7 +18,7 @@ memory of what they were doing. Everything needed for that lives in
 **1. Ask what happened**, if you weren't there for it: what they built, what
 broke, what they're unsure about. Keep it to one round of questions.
 
-**2. Check `BUGS.md` is honest.** Did anything surprise them today that isn't
+**2. Check `LEARNINGS.md` is honest.** Did anything surprise them today that isn't
 written down? Entries get written at the moment of surprise, but people forget —
 catch the misses now, while it's still recoverable. If they describe a bug with
 no entry, get it written before anything else.
@@ -34,7 +34,7 @@ no entry, get it written before anything else.
 - **Recall queue** — add a question for anything load-bearing they learned today;
   update last-asked dates and streaks from this session's quiz; retire anything
   answered correctly twice on different days
-- **Bug tally** — recount from `BUGS.md` by category
+- **Tag tally** — recount from `LEARNINGS.md` by tag
 
 **4. Append one line to the session log** at the bottom of `ROADMAP.md`:
 `YYYY-MM-DD — P2 — arena alloc/reset, ASan clean — 4 bugs (2 overrun, 1 lifetime-design, 1 ownership)`

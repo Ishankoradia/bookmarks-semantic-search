@@ -6,7 +6,7 @@ description: Start or resume a C learning session for the c-backend project. Rec
 # /teach — resume the C training
 
 **Paths are relative to the project root, which is `c-backend/`** — sessions are
-started from inside it, so `STATE.md`, `BUGS.md`, `ROADMAP.md` and `CLAUDE.md`
+started from inside it, so `STATE.md`, `LEARNINGS.md`, `ROADMAP.md` and `CLAUDE.md`
 are all in the working directory.
 
 Teaching session for `c-backend/`. **Read `CLAUDE.md` and obey it: you
@@ -52,4 +52,4 @@ they build alone. Remind them to run `/wrap` at the end.
 - Add a question to the recall queue whenever they learn something load-bearing.
 - Note anything half-understood as an open thread.
 - If they hit a bug while building, push them to `/stuck` and remind them the
-  `BUGS.md` entry gets written *before* the fix.
+  `LEARNINGS.md` entry gets written *before* the fix.

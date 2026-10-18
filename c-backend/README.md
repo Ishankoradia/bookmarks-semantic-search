@@ -1,7 +1,7 @@
 # c-backend — learning C from scratch
 
 Self-contained. **Start Claude sessions from this directory** — `CLAUDE.md` and
-the `/teach` `/bug` `/review` `/stuck` `/wrap` commands only load when it's the project
+the `/teach` `/learnings` `/review` `/stuck` `/wrap` `/tune` commands only load when it's the project
 root.
 
 ```
@@ -9,7 +9,7 @@ cd c-backend && claude
 > /teach
 ```
 
-`/bug` whenever something surprises you, `/wrap` when you stop.
+`/learnings` whenever something surprises you, `/wrap` when you stop.
 
 That's the whole interface. `/teach` reads `STATE.md`, tells you where you were,
 quizzes you on old material, and picks up from there. You never have to remember
@@ -22,7 +22,8 @@ the only thing that saves state.
 | --- | --- |
 | `STATE.md` | **Where we are.** Position, last-session recap, open threads, recall queue, bug tally. Written only by `/wrap`. |
 | `ROADMAP.md` | The curriculum — 8 phases, exit tests, reading list, session log. |
-| `BUGS.md` | The lab notebook. One entry per surprise, written *before* the fix. The real deliverable. |
+| `LEARNINGS.md` | The lab notebook. One generalized rule per surprise, written *before* the fix. The real deliverable. |
+| `TUNING.md` | How the course itself has been corrected by contact with reality. Written by `/tune`. |
 | `CLAUDE.md` | The teaching contract. Auto-loaded. |
 | `.claude/skills/` | The five session commands. |
 | `.claude/settings.json` | Pre-approved toolchain commands (clang, make, lldb, nm, leaks, test binaries) so sessions don't stall on permission prompts. |

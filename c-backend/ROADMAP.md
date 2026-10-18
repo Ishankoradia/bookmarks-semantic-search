@@ -4,7 +4,7 @@
 A working C backend is the *vehicle*, not the goal. If a choice trades speed-of-
 delivery for depth-of-understanding, take depth.
 
-Companion files: `BUGS.md` (the lab notebook — the real deliverable of all this),
+Companion files: `LEARNINGS.md` (the lab notebook — the real deliverable of all this),
 `TUNING.md` (how this roadmap has been corrected by contact with reality)
 and `CLAUDE.md` (the teaching contract Claude is held to).
 
@@ -35,9 +35,13 @@ separate facts and both matter:
 - **My instincts are from garbage-collected, memory-safe languages** and most of
   them are actively wrong here. Expect me to assume values get copied when they
   don't, that strings know their own length, that things clean themselves up,
-  and that out-of-bounds access raises an error. Name those collisions explicitly
-  when they come up — "in Python this would X; here it does Y" is a legitimate
-  and useful teaching move. It is *not* a licence to write C for me.
+  and that out-of-bounds access raises an error.
+  **Lead with those collisions — don't just name them when they come up.** When
+  introducing anything that also exists in Python with different semantics, open
+  with "in Python this would X; here it does Y" *before* stating the C rule. The
+  comparison is what makes it land; it is the explanation, not a garnish on it.
+  Reach for the analogy by default, including for things I haven't flagged as
+  confusing. It is *not* a licence to write C for me.
 
 **Teaching consequences:**
 
@@ -78,7 +82,7 @@ separate facts and both matter:
 | | |
 | --- | --- |
 | `/teach` | Start or resume. Recaps last session, quizzes me cold on old material, then teaches the next concept. |
-| `/bug` | Something surprised me. Interviews me for the four fields and appends to `BUGS.md`. 90 seconds. |
+| `/learnings` | Something surprised me, or clicked. Banks it as a *generalized rule* in `LEARNINGS.md`. 60 seconds. |
 | `/review` | I've written something. Bugs reported by category and location, never the fix. |
 | `/stuck` | 30+ min of banging on it. The hint ladder, one rung at a time. |
 | `/wrap` | End of session. Saves state, updates the recall queue and bug tally, logs the line. |
@@ -101,7 +105,7 @@ is where most of the learning is; being handed the right one skips it.
 
 **Rhythm beats volume.** Five 3-hour evenings beats one 15-hour Saturday.
 Pointer bugs are found by a rested brain. Roughly: 2 hrs reading + Socratic
-intake, 10 hrs building alone, 2 hrs review, 2 hrs consolidation (BUGS.md
+intake, 10 hrs building alone, 2 hrs review, 2 hrs consolidation (LEARNINGS.md
 entries, ownership comments in headers, tests topped up).
 
 **Claude never writes my code.** Not snippets, not "just the tricky bit", not a
@@ -119,10 +123,10 @@ is no heap for ASan to have an opinion about. Their gate is the exit test alone,
 built with the sanitizer flags on. From Phase 1B onward the rule is absolute.)
 
 At each phase close, 5 minutes in the session log: what I can do now that I
-couldn't before; my `BUGS.md` category tally for the phase; one thing I still
+couldn't before; my `LEARNINGS.md` tag tally for the phase; one thing I still
 don't really understand, carried forward.
 
-**Monthly** (first of the month, 30 min): reread `BUGS.md`, tally categories,
+**Monthly** (first of the month, 30 min): reread `LEARNINGS.md`, tally tags,
 check the mix is shifting from mechanical (leak, off-by-one) toward structural
 (ownership-ambiguity, lifetime-design) — that shift is the actual measure of
 progress. Then re-derive one thing cold from memory: the process address space,
@@ -405,7 +409,7 @@ a crash handler that dumps a backtrace.
 
 # How I'll know it's working
 
-- `BUGS.md` entries shift over time from *leak/double-free* to *design/ownership
+- `LEARNINGS.md` memory tags shift over time from *leak/double-free* to *design/ownership
   ambiguity*. That shift is the whole curriculum.
 - I stop reaching for `malloc` reflexively and start asking "what's this
   allocation's **lifetime**, and whose arena does it belong to?"
@@ -415,7 +419,8 @@ a crash handler that dumps a backtrace.
 
 # Session log
 
-One line per session. Date — phase — what I built — bugs logged.
+One line per session. Date — phase — what I built — learnings logged.
 Phase-close entries get the three-question retro above.
+Newest at the bottom.
 
-<!-- e.g. 2026-10-18 — P0 — Makefile w/ asan target, broke it 4 ways — 0 bugs -->
+2026-10-18 — P0 — step 0.1 complete: hello.c built, run, and broken five ways (exit status, `%s` UB, Mach-O, `clang -E`, falling off the end of `main`) — 12 learnings (4 ub, 5 python-collision, 3 toolchain)

@@ -6,7 +6,7 @@ description: Take feedback on how the C training itself is going - pace, teachin
 # /tune — fold feedback back into the course
 
 **Paths are relative to the project root, which is `c-backend/`** — sessions are
-started from inside it, so `STATE.md`, `BUGS.md`, `ROADMAP.md`, `TUNING.md` and
+started from inside it, so `STATE.md`, `LEARNINGS.md`, `ROADMAP.md`, `TUNING.md` and
 `CLAUDE.md` are all in the working directory, and the skills are in
 `.claude/skills/`.
 
@@ -44,7 +44,7 @@ real change, and only touch the second file if it would otherwise contradict.
 | --- | --- |
 | How I teach — pace, Socratic depth, analogies, diagrams, how much to tell vs ask, when to intervene, tone | `CLAUDE.md` |
 | What gets learned and in what order — phase contents, step ordering, drills, scope, exit tests, time budget | `ROADMAP.md` |
-| Session ritual mechanics — quiz length, hint-ladder speed, how `/wrap` writes, what `/bug` asks | that skill's `SKILL.md` in `.claude/skills/` |
+| Session ritual mechanics — quiz length, hint-ladder speed, how `/wrap` writes, what `/learnings` asks | that skill's `SKILL.md` in `.claude/skills/` |
 | Position, recall queue contents, open threads | `STATE.md` |
 | Calibration — what they do and don't already know | `ROADMAP.md` → "Starting point" |
 

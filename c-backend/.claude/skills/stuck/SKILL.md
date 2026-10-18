@@ -6,7 +6,7 @@ description: Unblock the user on the C training project using a graduated hint l
 # /stuck — the escalation ladder
 
 **Paths are relative to the project root, which is `c-backend/`** — sessions are
-started from inside it, so `STATE.md`, `BUGS.md`, `ROADMAP.md` and `CLAUDE.md`
+started from inside it, so `STATE.md`, `LEARNINGS.md`, `ROADMAP.md` and `CLAUDE.md`
 are all in the working directory.
 
 **Read `CLAUDE.md` and obey it.** Being stuck is where the learning
@@ -18,7 +18,7 @@ happens; your job is to make it productive, not to end it.
    send them back to do that. Articulating the wrong theory is most of the
    learning; being handed the right one skips it. Ask what they *think* is
    happening and why before you say anything else.
-2. **Is there a `BUGS.md` entry?** If this is a bug and no entry exists, get it
+2. **Is there a `LEARNINGS.md` entry?** If this is a bug and no entry exists, get it
    written first — before the fix, while they still don't understand it. Afterwards
    it's obvious in hindsight and the entry becomes worthless.
 
