@@ -42,8 +42,14 @@ Three fields. Append to `LEARNINGS.md`, newest at the bottom.
 
 - **I used to assume:** ...
 - **Found out by:** <one line - the concrete thing that proved it>
+- **When:** YYYY-MM-DD · P<phase>[.<step>]
 - **Tags:** `tag`, `tag`
 ```
+
+`When` is today's real date and the phase from `STATE.md` — `P0.2`, `P1B`,
+`P3`. Step-level precision when it's obvious, phase-level when it isn't; don't
+interrupt them to ask. The date makes the recurrence gap measurable and the
+phase makes a phase-close retro possible, so neither is optional.
 
 The heading **is** the rule — a reader scanning only the headings should get a
 usable summary of everything they know. If a heading can't carry the rule on its

@@ -75,3 +75,16 @@ classification, and buried the one line that mattered — the general rule.
 rather than deleting it, on the grounds that Phase 0 and 1A allocate nothing so
 there are no memory bugs to log yet. Ishan reaffirmed the deletion. Tags carry
 the metric instead.
+
+## 2026-10-18 — tag learnings with date and phase
+
+> "i think we need to tag learnings with the phase etc"
+
+**Changed:** `LEARNINGS.md` and `.claude/skills/learnings/SKILL.md`. Added a
+`**When:** YYYY-MM-DD · P<phase>` field to the entry format and backfilled all
+13 existing entries.
+
+**Added the date unprompted**, because the file already promised a metric it
+couldn't compute: "the lengthening gap between occurrences is the evidence it's
+sticking" is unmeasurable without dates. The phase enables the other half — a
+phase-close retro can now ask what that phase actually taught.

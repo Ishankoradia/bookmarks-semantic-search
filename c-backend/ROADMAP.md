@@ -424,3 +424,4 @@ Phase-close entries get the three-question retro above.
 Newest at the bottom.
 
 2026-10-18 — P0 — step 0.1 complete: hello.c built, run, and broken five ways (exit status, `%s` UB, Mach-O, `clang -E`, falling off the end of `main`) — 12 learnings (4 ub, 5 python-collision, 3 toolchain)
+2026-10-18 — P0 — session 2: first cold recall quiz (2/3). Pipeline miss became the session — rebuilt hello through all four stages by hand (`-E`/`-S`/`-c`/link), read `hello.s`, `file hello.o` → object not executable, renamed `main` and read the compiler-warning-vs-linker-error output properly — 1 learning (toolchain/python-collision/process)

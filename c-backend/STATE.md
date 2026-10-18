@@ -12,62 +12,75 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
 ## Position
 
 - **Phase:** 0 — Toolchain and the mental model
-- **Task in flight:** none — **0.1 is complete**, 0.2 not started
+- **Task in flight:** none — 0.1 complete, the build pipeline now solid.
+  **0.2 still not started** (it was displaced twice).
 - **Next action:** **ROADMAP 0.2** — still one file, still compiled by hand every
   time. Variables and the basic types (`int`, `char`, `double`, `size_t`),
-  `if`/`while`/`for`, writing and calling my own functions, arrays as a block of
-  N things, `sizeof`. Four tiny drills: sum 1..n, print a triangle, find the max
-  in an array, count vowels in a fixed `char` array.
+  `if`/`while`/`for`, writing and calling my own functions, declaration-before-use,
+  arrays as a block of N things, `sizeof`. Four tiny drills: sum 1..n, print a
+  triangle, find the max in an array, count vowels in a fixed `char` array.
   **First question to answer before writing any of it:** what does `5 / 2`
-  evaluate to in C, and why is that not the same answer Python gives?
-- **Sessions this phase:** 1
+  evaluate to in C, and why is that not the answer Python gives?
+- **Sessions this phase:** 2
 - **Phase exit test:** can explain the path from `clang a.c b.c` to a binary
   without notes, naming preprocessor / compiler / assembler / linker and what
-  each consumed and produced. (ASan isn't a meaningful gate yet — nothing here
-  allocates.)
+  each consumed and produced. **Close to passing** — see below. (ASan isn't a
+  meaningful gate yet; nothing here allocates.)
 
 ## Last session
 
-**2026-10-18 — Phase 0.1, `hello.c` built and run.** First C ever written.
-Compiled by hand with `clang hello.c -o hello`, ran it, and then spent most of
-the session deliberately breaking it, which is where everything actually came
-from. Covered: the four-stage build pipeline; `main` as a contract with the OS
-rather than a convention; exit status and `$?`; `printf`'s format string as a
-*promise* rather than a description; undefined behaviour; `NULL` and the unmapped
-guard page at address 0; Mach-O vs ELF; declarations vs definitions.
+**2026-10-18 (session 2) — the build pipeline, properly.** Opened with the first
+cold recall quiz. Got 2 of 3. The miss was *"name the four stages and what each
+consumes and produces"* — the order and the names were right, but the
+preprocessor was described as "copying the code of imported libraries" (it
+copies *declarations*, never code) and the compiler and assembler were swapped.
+So the pipeline became the session and 0.2 was pushed again.
 
-**Built and observed:**
-- `hello.c` → `./hello`, `return 3` round-tripping out through `echo $?`
-- a segfault from `%s` with an `int` — first bug, logged
-- `%s` with `0` printing `(null)` — UB that *didn't* crash, which turned out to
-  be the more important of the two
-- `%d` and `%s` on the same `0` in one call → `hello, world 0 (null)`
-- `file hello` → `Mach-O 64-bit executable arm64`
-- `clang -E hello.c | wc -l` → 599 lines from a 4-line file
-- deleted `return 0;` from `main`; still compiled, `$?` still `0` (C11 §5.1.2.2.3)
+**Covered:** the corrected four-stage pipeline with consume/produce for each;
+that stages 1-2 emit **text** and the assembler is where it turns binary; that
+the compiler is the only stage that understands C at all; warning vs error;
+compiler diagnostics (`file:line`) vs linker diagnostics (`ld:` + symbol, no
+line); a first look at dynamic linking.
 
-**Mid-session detour:** rebuilt the capture tooling. `/bug` and `BUGS.md` are
-gone — replaced by `/learnings` + `LEARNINGS.md`, where the unit is a
-*generalized rule* rather than a bug report, and memory categories survive as
-tags. Also added `/tune` + `TUNING.md` for feedback on the teaching itself.
-Both logged in `TUNING.md`.
+**Built — ran all four stages separately for the first time:**
+- `clang -E` → `hello.i`, `-S` → `hello.s`, `-c` → `hello.o`, then linked
+- read `hello.s` and found the string literal in it — **the compiler's output is
+  readable text**, which was the surprise of the session
+- `file hello.o` → `Mach-O 64-bit object arm64` — *object*, not *executable*
+- renamed `main` → `main123` and read the failure properly
 
-**Where I left off mid-thought:** nothing open on the C side — 0.1 closed cleanly
-and everything was observed, not just explained. `hello.c` is on disk in whatever
-state the last experiment left it (no `return`, possibly still with a `%s` bug).
-Start 0.2 fresh rather than trying to recover it.
+**The accident worth remembering:** the rename produced *two* diagnostics —
+a compiler **warning** (`hello.c:5:1: non-void function does not return a value`,
+the leftover from last session's deleted `return 0;`) and a linker **error**
+(`ld: Undefined symbols: _main`). I first read the warning as the failure. It
+wasn't; the build died at the linker. And that warning only appeared *because*
+the function was no longer called `main` — the toolchain independently proved
+the C11 §5.1.2.2.3 rule I'd recited from memory ten minutes earlier.
+
+**Where I left off mid-thought:** nothing open. `hello.c` is on disk with `main`
+renamed to `main123` and no `return` statement, so **it does not currently
+link** — fix or delete it before starting 0.2; don't debug it, it's deliberate
+wreckage.
 
 ## Open threads
 
 *Things I half-understand, deferred questions, "come back to this". Claude
 should offer to close one of these when a session has slack at the end.*
 
-- **Why is a 4-line program's binary ~33KB?** I formed a theory but never
-  checked it against `ls -l` properly. Comes back properly in Phase 3 with `nm`.
-- **`int main(void)` — what is the `void` doing?** Asked, never answered. The
-  real answer involves `argv`, which Phase 0 defers.
-- **UB and the optimiser.** I know "the compiler may assume UB never happens"
-  as a sentence, not as something I've seen happen. Revisit at `-O2` in Phase 2.
+- **Dynamic linking.** The linker may not copy `printf`'s body in at all — on
+  macOS it records a reference that a *dynamic linker* resolves at launch, every
+  run. I have the sentence, not the mechanism. Properly met in Phase 3 with
+  `otool -L`, and it partly explains the 33KB thread below.
+- **Why is a 4-line program's binary ~33KB?** Theory formed, never checked.
+  Phase 3, with `nm`.
+- **`int main(void)` — what is the `void` doing?** Asked twice, never answered.
+  The real answer involves `argv`, which Phase 0 defers.
+- **UB and the optimiser.** I know "the compiler may assume UB never happens" as
+  a sentence, not as something I've watched happen. Revisit at `-O2` in Phase 2.
+- **Not banked:** the second rule from the linker output — *the prefix on a
+  diagnostic names the stage that produced it, and a warning and an error in one
+  output can come from different stages.* Offered twice, not written up. It's in
+  the recall queue anyway.
 
 ## Recall queue
 
@@ -78,19 +91,23 @@ different days.*
 
 | Question | Added | Last asked | Correct streak |
 | --- | --- | --- | --- |
-| A C program ran, printed what you expected, and exited `0`. What does that prove? | 2026-10-18 | — | 0 |
-| `printf` is handed a value. How does it work out what type it is — and what happens when you're wrong? | 2026-10-18 | — | 0 |
-| Name the four stages between `hello.c` and `hello`. What does each one consume and produce? | 2026-10-18 | — | 0 |
-| A function returning `int` reaches its closing brace with no `return`. When is that defined, and when is it not? | 2026-10-18 | — | 0 |
-| A program returns `3`, but `echo $?` says `130`. What happened, and what does `130` decompose into? | 2026-10-18 | — | 0 |
+| Name the four stages between `hello.c` and `hello`. What does each one consume and produce? | 2026-10-18 | 2026-10-18 | 0 — **missed, retaught** |
 | `clang -E hello.c` turns 4 lines into 599. What is in those lines — and what is definitely *not*? | 2026-10-18 | — | 0 |
 | Your binary is arm64 and your EC2 box is arm64. Why won't it run there? | 2026-10-18 | — | 0 |
 | Give three ways `#include` differs from `import`. | 2026-10-18 | — | 0 |
 | Why does dereferencing `NULL` usually crash, and what is doing the checking? | 2026-10-18 | — | 0 |
+| `printf` is handed a value. How does it work out what type it is — and what happens when you're wrong? | 2026-10-18 | — | 0 |
+| A program returns `3`, but `echo $?` says `130`. What happened, and what does `130` decompose into? | 2026-10-18 | — | 0 |
+| A build prints a warning with a `file:line` and an error prefixed `ld:`. Which one stopped the build, and what does each prefix tell you? | 2026-10-18 | — | 0 |
+| You rename `main` to `run` and rebuild. Which stage fails — and will the message name a file and line, or a symbol? | 2026-10-18 | — | 0 |
+| Is `printf`'s machine code copied into your binary when you link? If not, what is, and when does the real thing arrive? | 2026-10-18 | — | 0 |
+| Which of the four stages is the only one that understands C? What does that imply about where a syntax error can come from? | 2026-10-18 | — | 0 |
+| A C program ran, printed what you expected, and exited `0`. What does that prove? | 2026-10-18 | 2026-10-18 | 1 |
+| A function returning `int` reaches its closing brace with no `return`. When is that defined, and when is it not? | 2026-10-18 | 2026-10-18 | 1 |
 
 ## Phase progress
 
-- [ ] **P0** Toolchain and the mental model — *0.1 done; 0.2-0.5 remain*
+- [ ] **P0** Toolchain and the mental model — *0.1 done, pipeline solid; 0.2-0.5 remain*
 - [ ] **P1** Core language, drilled
 - [ ] **P2** Memory ★
 - [ ] **P3** Data structures (`libcore`)
@@ -106,13 +123,15 @@ different days.*
 real measure of progress — mechanical memory tags should give way to structural
 ones by Phase 5.*
 
+13 entries.
+
 | Tag | Count |
 | --- | --- |
+| `python-collision` | 6 |
 | `ub` | 4 |
-| `python-collision` | 5 |
-| `toolchain` | 3 |
+| `toolchain` | 4 |
+| `process` | 3 |
 | `types` | 2 |
-| `process` | 2 |
 | `standard` | 2 |
 | `memory` | 1 |
 | `alignment-aliasing` | 1 |

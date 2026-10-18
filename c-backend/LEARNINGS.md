@@ -13,6 +13,11 @@ Everything lands here: Python collisions, toolchain behaviour, what the standard
 does and doesn't promise, experiments that came out the other way, and the
 lesson from every bug I debug.
 
+Every entry carries **When** — the date and the phase it came from. The date
+makes the recurrence gap measurable (a rule arriving twice, six months apart, is
+different from twice in a week); the phase makes it possible to ask what each
+phase actually taught me when it closes.
+
 ## Bugs
 
 A segfault, leak or sanitizer hit gets an entry **at the moment of surprise,
@@ -58,6 +63,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   on my behalf. "It worked" and "it is correct" are unrelated claims.
 - **Found out by:** `printf` with `%s` and an integer `0` printed `(null)` and
   exited `0`. Undefined behaviour that a polite libc happened to absorb.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `ub`, `python-collision`
 
 ## A crash is the good outcome; silent undefined behaviour is the dangerous one
@@ -67,6 +73,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   what ships, runs for months, and breaks on an OS upgrade or at `-O2`.
 - **Found out by:** `%s` with `3` segfaulted instantly; `%s` with `0` printed
   `(null)` and looked fine. Same category of mistake, opposite visibility.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `ub`
 
 ## Undefined behaviour means the standard imposes no requirements at all
@@ -78,6 +85,7 @@ recall queue. It is also the source for `/teach`'s quiz.
 - **Found out by:** C11 §5.1.2.2.3 explicitly guarantees that `main` falling off
   the end returns `0`, while nothing guarantees anything about `%s` with a null
   pointer. Both "worked". Only one was promised.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `ub`, `standard`
 
 ## At runtime there are only bytes — types exist for the compiler and are gone
@@ -87,6 +95,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   erases them. Nothing downstream can inspect what it was handed.
 - **Found out by:** one `printf` call rendered the same `0` as `0` and as
   `(null)` in the same line of output, with no way to notice the contradiction.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `types`, `python-collision`
 
 ## C does no implicit conversion at a call — a format string is a promise, not a description
@@ -98,6 +107,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   way to catch me.
 - **Found out by:** `%s` with an `int` — segfault, because `printf` took the
   integer as an address and tried to read from it.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `types`, `python-collision`, `alignment-aliasing`
 
 ## `main`'s return value is the process exit status, and the outside world reads it
@@ -107,6 +117,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   it dies: `0` is success, non-zero is failure, and the shell, `&&`, `make` and
   CI all branch on it. `$?` is the shell's `subprocess.returncode`.
 - **Found out by:** `return 3` from `main`, then `echo $?` printing `3`.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `process`, `python-collision`
 
 ## An exit status above 128 means the process was killed, not that it returned
@@ -116,6 +127,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   SIGINT, Ctrl-C. `$?` is also clobbered by *every* command, so it has to be
   read immediately after the one I care about.
 - **Found out by:** `echo $?` printing `130` after a program that returned `3`.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `process`
 
 ## Falling off the end of a function is a trap everywhere except `main`
@@ -126,6 +138,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   and using that value is undefined.
 - **Found out by:** deleting `return 0;` from `main`; it compiled, ran, and
   `$?` was `0`.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `standard`, `ub`
 
 ## A header carries the shape of a function, never its body
@@ -136,6 +149,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   emit a correct call; the linker supplies the body later from libc. That split
   is why a C build fails in two unrelated ways.
 - **Found out by:** `clang -E hello.c | wc -l` → 599 lines from a 4-line file.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `toolchain`
 
 ## `#include` is text substitution, not `import`
@@ -146,6 +160,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   which is why include guards have to exist.
 - **Found out by:** scrolling `clang -E hello.c` and finding my four lines at
   the bottom of 595 pasted ones.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `toolchain`, `python-collision`
 
 ## A binary is tied to its OS's executable format, not just to the CPU
@@ -155,6 +170,7 @@ recall queue. It is also the source for `/teach`'s quiz.
   program at all — same arm64 CPU or not.
 - **Found out by:** `file hello` → `Mach-O 64-bit executable arm64`, then
   working out what would happen if I `scp`'d it to the arm64 EC2 box.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `toolchain`
 
 ## Address 0 is left unmapped on purpose, so null dereferences fail loudly
@@ -165,4 +181,16 @@ recall queue. It is also the source for `/teach`'s quiz.
   something. The hardware is the check — there is no runtime doing it.
 - **Found out by:** `%s` with `3` segfaulting: the read was refused by the
   memory unit, not by `printf`.
+- **When:** 2026-10-18 · P0.1
 - **Tags:** `memory`
+
+## `main` is the contract with the OS, not a convention
+
+- **I used to assume:** that main could be named anything else, just like in
+  Python, and it would still be compiled and invoked.
+- **Found out by:** renaming `main` to `main123`. Renaming it breaks at the
+  **linker** stage, because the linker adds the startup code and that is what
+  calls `main` — `ld: Undefined symbols: _main, referenced from:
+  <initial-undefines>`. The compiler had no objection at all.
+- **When:** 2026-10-18 · P0.1 (pipeline rebuild)
+- **Tags:** `toolchain`, `python-collision`, `process`
