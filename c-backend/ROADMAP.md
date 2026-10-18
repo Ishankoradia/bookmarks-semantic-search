@@ -11,13 +11,44 @@ and `CLAUDE.md` (the teaching contract Claude is held to).
 
 | | |
 | --- | --- |
-| **Current phase** | Phase 0 — Toolchain and the mental model |
+| **Current phase** | Phase 0 — First contact with C and the toolchain |
 | **Started** | 2026-10-17 |
-| **Target: first C-served production endpoint** | ~April 2027 (Phase 6 exit) |
+| **Target: first C-served production endpoint** | ~May 2027 (Phase 6 exit) |
 | **Budget** | 15-20 hrs/week |
 
-Realistic end-to-end: **~6 months** to the first production endpoint served by
-C, **~9-12 months** to a full replacement. Shorter is a sign I skipped the drills.
+Realistic end-to-end: **~7 months** to the first production endpoint served by
+C, **~10-13 months** to a full replacement. Shorter is a sign I skipped the drills.
+
+## Starting point (calibration — read before teaching me anything)
+
+**I am an experienced programmer and a total beginner in C.** Those are two
+separate facts and both matter:
+
+- **I know how to program.** Python, TypeScript, SQL, Docker, git, the terminal.
+  I ship a full-stack product. Don't explain what a function, a loop, a return
+  value, a compiler, a library or a test is in the abstract.
+- **I know no C, and no systems-level anything.** I have never written a line of
+  C. I don't know pointers, stack vs heap, what `malloc` is, what a header file
+  is for, what the compiler does with my code, what an object file is, what
+  `argv` is, or how a program's memory is laid out. Every one of these is new.
+- **My instincts are from garbage-collected, memory-safe languages** and most of
+  them are actively wrong here. Expect me to assume values get copied when they
+  don't, that strings know their own length, that things clean themselves up,
+  and that out-of-bounds access raises an error. Name those collisions explicitly
+  when they come up — "in Python this would X; here it does Y" is a legitimate
+  and useful teaching move. It is *not* a licence to write C for me.
+
+**Teaching consequences:**
+
+- One concept per session, taught to the bottom. Not three.
+- **Every session ends with code I compiled and ran myself.** A session of pure
+  theory is a failed session in Phase 0-2, however good the theory was.
+- Introduce tools and compiler flags **one at a time, each explained**. Never
+  hand me a nine-flag command line and move on.
+- Socratic still applies, but the ladder starts lower: ask me to predict
+  outcomes of things I've already seen, not to derive things I've never met.
+- When I can't answer a prediction question, that is normal and expected at this
+  stage, not a gap to be alarmed about. Teach it and move on.
 
 ## Standing decisions
 
@@ -74,6 +105,10 @@ A phase closes only when its exit test passes **clean under
 `-fsanitize=address,undefined`, zero leaks.** No partial credit, no "I'll come
 back to it". Claude refuses to open the next phase otherwise.
 
+(Exception, and only this one: Phase 0 and Phase 1A allocate nothing, so there
+is no heap for ASan to have an opinion about. Their gate is the exit test alone,
+built with the sanitizer flags on. From Phase 1B onward the rule is absolute.)
+
 At each phase close, 5 minutes in the session log: what I can do now that I
 couldn't before; my `BUGS.md` category tally for the phase; one thing I still
 don't really understand, carried forward.
@@ -86,52 +121,131 @@ or exactly what `realloc` guarantees. If I can't, that's next month's intake.
 
 ---
 
-# Phase 0 — Toolchain and the mental model (week 1)
+# Phase 0 — First contact with C and the toolchain (weeks 1-2)
 
-**Learn:** translation units, the preprocessor, compiling vs linking, why C has
-no modules, header/implementation split, include guards, the ODR in practice.
+The point of this phase is that C stops being alien. No pointers yet, no
+`malloc` yet, no multi-file anything until step 4. Five steps, in order; each
+one ends with a binary I built and ran.
 
-**Build:** a multi-file project skeleton with a hand-written `Makefile`
-(not CMake — I want to understand the build). Targets: `build`, `test`, `asan`,
-`clean`. Standard flags:
+### 0.1 — One file, one command
+
+Write `hello.c`. Compile it with `clang hello.c -o hello` and run `./hello`.
+**Learn:** what `main` is and why it returns an `int` (check it with `echo $?`);
+what `#include <stdio.h>` is doing; `printf` and its format specifiers; why
+there is a build step at all, when `python hello.py` needs none; what the file
+`hello` actually *is* (`file hello`).
+
+### 0.2 — The language's small vocabulary, one file at a time
+
+Still one file, still compiled by hand every time. Variables and the basic
+types (`int`, `char`, `double`, `size_t`), `if`/`while`/`for`, writing and
+calling my own functions, declaration-before-use, arrays as a block of N things,
+`sizeof`. **Deliberately collide with my Python instincts:** integer division,
+`char` is a number, an array that does not know its own length, no strings as a
+first-class type, no booleans until `<stdbool.h>`.
+
+**Drill:** three or four tiny programs — sum 1..n, print a triangle, find the
+max in an array, count vowels in a fixed `char` array.
+
+### 0.3 — Reading errors, and the first flags
+
+Break 0.2's working program on purpose, one way at a time, and read what clang
+says: missing semicolon, undeclared variable, typo'd function name, wrong
+`printf` specifier for the type, calling a function with the wrong argument
+count. **Then add warning flags one at a time**, understanding each before
+adding the next: `-Wall`, then `-Wextra`, then `-std=c11`, then `-g`.
+`-Werror`, `-Wshadow` and `-Wconversion` come at the *end* of this step, once
+the output is quiet. Goal: a clang diagnostic is something I read, not something
+I panic at.
+
+### 0.4 — Two files, and why headers exist
+
+Split a working single-file program into `main.c` + `util.c` + `util.h`.
+**Learn:** translation units (the compiler sees one `.c` file at a time and is
+blind to the others); what the preprocessor does (`clang -E` and look at it);
+declaration vs definition; compiling to object files with `-c`; linking them;
+include guards; the difference between a *compiler* error (names a file and
+line) and a *linker* error (names a symbol). Break it four ways and predict
+which kind of error each produces first: misspelled header, object file left
+out of the link, circular include, function declared but never defined.
+
+### 0.5 — The Makefile
+
+Only now, with files that exist and a build I've been running by hand and am
+tired of retyping. Hand-written, not CMake. **Learn first:** what a make rule
+is (target, prerequisites, recipe), how make decides a target is stale, and the
+tab-not-spaces rule — GNU make manual §2. Targets: `build`, `test`, `asan`,
+`clean`. The full flag set, now that I know what each flag is for:
 
 ```
 -std=c11 -Wall -Wextra -Werror -Wshadow -Wconversion -g -O0
 -fsanitize=address,undefined -fno-omit-frame-pointer
 ```
 
-**Tools to be fluent in:** `clang`, `make`, `lldb` (breakpoints, `bt`, `frame
-variable`, watchpoints), ASan/UBSan output format, `nm`, `otool -L`, `leaks`.
+**Tools introduced in this phase:** `clang`, `file`, `make`. Deferred to the
+phase where they're needed rather than front-loaded: `lldb` (Phase 1), ASan
+report format (Phase 2, where there are finally heap bugs to find), `nm` and
+`otool -L` (Phase 3, with a real static library), `leaks` (Phase 2).
 (Valgrind is unreliable on Apple Silicon — ASan is the daily driver; keep
 Valgrind for the Linux/EC2 side later.)
 
-**Exit test:** I can explain, without notes, what happens between `clang a.c b.c`
-and a binary existing, and I can read an ASan report and name the bug class from
-it alone.
+**Exit test:** from an empty directory, I can write a two-file C program with a
+header, build it with a Makefile I typed myself, and explain out loud what
+happened between `make` and the binary existing — naming the preprocessor,
+compiler, assembler and linker and what each one consumed and produced.
+(ASan-clean is not yet a meaningful gate: nothing here allocates.)
 
 ---
 
-# Phase 1 — Core language, drilled (weeks 2-4)
+# Phase 1 — Core language, drilled (weeks 3-7)
 
-**Learn:** integer types and promotion, signed overflow is UB vs unsigned wrap,
-`sizeof`/alignment/padding, arrays vs pointers and array decay, pointer
-arithmetic, NUL-terminated strings, struct layout, unions, enums, function
-pointers, `const` correctness, storage duration (automatic / static / allocated),
-`static` at file scope vs block scope, variadic functions.
+Split in two, because pointers are the wall and everything before them is
+cheap. **1A has no pointers in it at all.**
+
+## 1A — Everything that isn't a pointer (weeks 3-4)
+
+**Learn:** the integer types and why there are so many; `size_t`; integer
+promotion and implicit conversion; signed overflow is UB while unsigned wraps;
+`sizeof`, alignment and struct padding; `enum`; `struct` as a value (and the
+shock that assigning one copies it); `const`; storage duration — automatic vs
+static vs allocated — and what `static` means at file scope vs block scope;
+scope and shadowing; the stack frame as a mental model (what happens to a local
+when the function returns).
+
+**Drills:** a struct whose padding I predict *before* printing `sizeof`; a
+program that demonstrates unsigned wraparound and one that trips `-Wconversion`;
+an `enum`-based state machine; a function returning a struct by value.
+
+**1A exit test:** I can draw the stack for a three-deep call chain and say which
+locals exist at each moment and when each one dies.
+
+## 1B — Pointers and memory you don't own yet (weeks 5-7)
+
+**Learn:** what a pointer *is* (an address, which is just a number, with a type
+attached saying how to read what's there); `&` and `*`; `NULL`; pointers to
+locals and the dangling-pointer-to-dead-stack-frame trap; pass-by-value vs
+passing a pointer and why C has no pass-by-reference; arrays vs pointers and
+array decay; pointer arithmetic and why `p + 1` moves by `sizeof(*p)`;
+NUL-terminated strings and the fact that `strlen` is O(n); `char *` vs
+`char[]` and which one you may write to; `void *`; function pointers; `const`
+on each side of the `*`.
 
 **Drills (write every one from scratch, no libc):** `strlen`, `strcpy`,
 `strncpy` (and explain why its semantics are a trap), `strcmp`, `memcpy`,
-`memmove` (overlap!), `strdup`, in-place string reverse, word tokeniser without
-`strtok`, `atoi`, a bitset, generic `swap`, generic bubble-sort over `void*` with
-a comparator, a 2D matrix with one allocation vs array-of-pointers, a struct
-whose padding I predict *before* printing `sizeof`.
+`memmove` (overlap!), in-place string reverse, word tokeniser without `strtok`,
+`atoi`, a bitset, generic `swap`, generic bubble-sort over `void*` with a
+comparator. (`strdup` and the 2D-matrix drill move to Phase 2 — they allocate.)
+
+**Learn `lldb` here:** breakpoints, `bt`, `frame variable`, printing a pointer
+and what it points at, watchpoints. Pointers become real when you can look at
+the addresses.
 
 **Exit test:** given any of my drills, I can state for each pointer: what it
 points at, who owns that memory, and when it dies.
 
 ---
 
-# Phase 2 — Memory, the heart of it (weeks 5-8) ★ the most important phase
+# Phase 2 — Memory, the heart of it (weeks 8-12) ★ the most important phase
 
 **Learn:** the process address space (text/rodata/data/bss/heap/stack — draw it
 from memory); `malloc`/`calloc`/`realloc`/`free` exact semantics; `realloc`
@@ -157,7 +271,7 @@ every public function in every header.
 
 ---
 
-# Phase 3 — Data structures I'll actually need (weeks 9-11)
+# Phase 3 — Data structures I'll actually need (weeks 13-15)
 
 **Build `libcore`,** a static library, each with unit tests:
 hash map (open addressing, FNV-1a, tombstones, resize), dynamic string map,
@@ -173,7 +287,7 @@ runner (I write the runner too), and the whole suite is sanitizer-clean.
 
 ---
 
-# Phase 4 — The OS boundary (weeks 12-14)
+# Phase 4 — The OS boundary (weeks 16-18)
 
 **Learn:** `errno` discipline, syscalls vs libc wrappers, partial `read`/`write`
 loops, `EINTR`, file descriptors and their lifetimes (an fd is memory too),
@@ -193,7 +307,7 @@ fds or memory.
 
 ---
 
-# Phase 5 — Protocols, hand-rolled (weeks 15-19)
+# Phase 5 — Protocols, hand-rolled (weeks 19-23)
 
 **`libhttp`:** HTTP/1.1 request parser — request line, headers, `Content-Length`,
 chunked transfer-encoding, keep-alive, pipelining. Design decision to make
@@ -212,7 +326,7 @@ Correctness checked against a small suite of real captured requests.
 
 ---
 
-# Phase 6 — Persistence and the outside world (weeks 20-23)
+# Phase 6 — Persistence and the outside world (weeks 24-27)
 
 **Learn:** `libpq` — connection lifecycle, `PQexecParams` (never string
 concatenation), **result ownership and `PQclear`**, binary vs text params,
@@ -229,7 +343,7 @@ synthetic load with flat RSS.
 
 ---
 
-# Phase 7 — Strangler rewrite, endpoint by endpoint (months 6+)
+# Phase 7 — Strangler rewrite, endpoint by endpoint (months 7+)
 
 Run C and FastAPI side by side behind the existing nginx; move one route at a
 time. Alembic stays Python — migrations are not being rewritten.
@@ -258,8 +372,15 @@ a crash handler that dumps a backtrace.
 
 # Reading list
 
-- **Modern C** — Jens Gustedt (free PDF). Primary text; actually current C.
-- **K&R, 2nd ed.** — for the exercises, not the idioms. Its style is dated.
+- **C Programming: A Modern Approach, 2nd ed.** — K. N. King. **The Phase 0-1
+  primary text.** Written for people who don't know C yet, and unlike K&R it
+  doesn't assume you already think like a 1978 systems programmer. Chapters
+  1-12 cover Phase 0 and Phase 1 almost exactly; its exercises are the drills.
+- **Modern C** — Jens Gustedt (free PDF). Becomes the primary text from Phase 2
+  on; it's the one that's actually current about C11/C17. Its "Level 0" is
+  readable now, the rest is better once pointers have landed.
+- **K&R, 2nd ed.** — for the exercises, not the idioms. Its style is dated and
+  it is a *terrible* first book despite its reputation. Phase 1B at the earliest.
 - **C Interfaces and Implementations** — Hanson. The best book on *ownership
   discipline* and designing C APIs. Read during Phase 3.
 - **Expert C Programming: Deep C Secrets** — van der Linden. Arrays-vs-pointers

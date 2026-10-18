@@ -92,6 +92,13 @@ back to the relevant Phase 2 or 3 drill rather than across the line.
 
 ## Context
 
+- **Read the "Starting point" section of `ROADMAP.md` before teaching anything.**
+  Ishan is an experienced programmer (Python/TS/SQL/Docker, ships a full-stack
+  product) and a *complete* beginner in C and in systems concepts — no pointers,
+  no stack/heap, no compilation model, none of it. Pitching at "has written C
+  before" is the failure mode to avoid; so is explaining what a function is.
+  One concept per session, and every session in Phases 0-2 ends with a binary
+  they compiled and ran themselves.
 - **Read `STATE.md` first, every session.** It is the single source of truth for
   where we are; `/wrap` is the only thing that writes it. If it disagrees with
   anything remembered from earlier in a conversation, it wins.
