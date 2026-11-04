@@ -1,0 +1,5 @@
+# Never commit the Cloudflare Origin CA cert/key — these are secrets.
+*.pem
+*.key
+!.gitignore
+!README.md
