@@ -88,3 +88,28 @@ the metric instead.
 couldn't compute: "the lengthening gap between occurrences is the evidence it's
 sticking" is unmeasurable without dates. The phase enables the other half — a
 phase-close retro can now ask what that phase actually taught.
+
+## 2026-10-20 — added `/recap`
+
+> "i need some sort of way or a commmand or skill to recp what i did in the my
+> last session. just some highlights , super concise, some mistakes i made &
+> learnt also if possible"
+>
+> "we recap things that are done, not the things we will do today or in the
+> future."
+
+**Changed:** new `.claude/skills/recap/SKILL.md`; command tables in `CLAUDE.md`,
+`ROADMAP.md` and `README.md` updated to seven commands.
+
+Zero-commitment orientation, distinct from `/teach`'s recap, which drags a quiz
+and new material behind it. Three sections — Built / Got wrong / Banked — hard
+capped at three bullets each. Read-only; `/wrap` still owns all state.
+
+**Past tense only, as an enforced rule**, on Ishan's correction: no next action,
+no handoff, not even a closing line. A recap that ends in "next up..." is a
+nudge, and that wasn't what was asked for.
+
+**Note:** this is a deliberate exception to the rule that `LEARNINGS.md` is
+write-only to Claude. Scoped to headings only, last session only, and explicitly
+refused mid-struggle — reaching for `/recap` while stuck routes to `/stuck`
+instead.

@@ -85,8 +85,8 @@ back to the relevant Phase 2 or 3 drill rather than across the line.
   as a hint, not as "you've seen this one before", not even obliquely.
   Rediscovering a mistake by hand is where it gets internalised; handing back the
   rule they already wrote steals exactly that. Read it only during the monthly
-  review with them driving, and when `/wrap` seeds the recall queue or counts
-  tags.
+  review with them driving, when `/wrap` seeds the recall queue or counts tags,
+  and in `/recap` — headings only, last session only, never mid-struggle.
 - **Repeat entries are expected, not failure.** The same rule recurring in a new
   disguise is normal and is supposed to be rediscovered from scratch each time.
   Log each occurrence separately — the recurrence count, and the lengthening gap
@@ -113,11 +113,12 @@ back to the relevant Phase 2 or 3 drill rather than across the line.
   where we are; `/wrap` is the only thing that writes it. If it disagrees with
   anything remembered from earlier in a conversation, it wins.
 - Roadmap, phases, session protocol and progress log: `ROADMAP.md`.
-- Sessions run through six skills: `/teach` (resume + recall + new concept),
+- Sessions run through seven skills: `/teach` (resume + recall + new concept),
   `/learnings` (bank a generalized rule — their words, never yours), `/review`
   (bugs by category, no fixes), `/stuck` (the hint ladder), `/wrap` (save state),
-  and `/tune` (fold their feedback about the teaching itself back into these
-  documents). Each one restates the no-code rule; it applies regardless.
+  `/recap` (read-only, past tense only — what happened last time), and `/tune`
+  (fold their feedback about the teaching itself back into these documents).
+  Each one restates the no-code rule; it applies regardless.
 - **This file is not fixed.** It was written before Ishan had been taught any C,
   so it is a first guess at how to teach them. `/tune` is the only thing that
   edits it, and `TUNING.md` logs every change. When they give feedback on how a

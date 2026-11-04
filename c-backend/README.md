@@ -1,7 +1,7 @@
 # c-backend — learning C from scratch
 
 Self-contained. **Start Claude sessions from this directory** — `CLAUDE.md` and
-the `/teach` `/learnings` `/review` `/stuck` `/wrap` `/tune` commands only load when it's the project
+the `/recap` `/teach` `/learnings` `/review` `/stuck` `/wrap` `/tune` commands only load when it's the project
 root.
 
 ```

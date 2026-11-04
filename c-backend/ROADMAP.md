@@ -77,10 +77,11 @@ separate facts and both matter:
 
 ## How we work
 
-**Six commands.** I never have to remember where we were — `STATE.md` holds it.
+**Seven commands.** I never have to remember where we were — `STATE.md` holds it.
 
 | | |
 | --- | --- |
+| `/recap` | What did I do last time? Read-only, past tense only, ~12 lines. No commitment to a session. |
 | `/teach` | Start or resume. Recaps last session, quizzes me cold on old material, then teaches the next concept. |
 | `/learnings` | Something surprised me, or clicked. Banks it as a *generalized rule* in `LEARNINGS.md`. 60 seconds. |
 | `/review` | I've written something. Bugs reported by category and location, never the fix. |
