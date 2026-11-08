@@ -12,55 +12,51 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
 ## Position
 
 - **Phase:** 0 — Toolchain and the mental model
-- **Task in flight:** none — 0.1 complete, the build pipeline now solid.
-  **0.2 still not started** (it was displaced twice).
-- **Next action:** **ROADMAP 0.2** — still one file, still compiled by hand every
-  time. Variables and the basic types (`int`, `char`, `double`, `size_t`),
-  `if`/`while`/`for`, writing and calling my own functions, declaration-before-use,
-  arrays as a block of N things, `sizeof`. Four tiny drills: sum 1..n, print a
-  triangle, find the max in an array, count vowels in a fixed `char` array.
-  **First question to answer before writing any of it:** what does `5 / 2`
-  evaluate to in C, and why is that not the answer Python gives?
-- **Sessions this phase:** 2
+- **Task in flight:** **0.2 in progress.** First drill done — `sum 1..n` built,
+  compiled and run (`p0.2/sum.c` → prints `Sum = 55`, exit 0). I even wrote my
+  own `sum(int n)` function, a step early. **Three drills remain.**
+- **Next action:** **ROADMAP 0.2, next drill — print a triangle** (e.g. `n` rows
+  of `*`), which forces a *nested* loop (a `for` inside a `for`). Then: find the
+  max in an array, then count vowels in a fixed `char` array. Folder `p0.2/` is
+  ready. **First question before writing the triangle:** what does the *inner*
+  loop's condition depend on — a constant, or the *current row* of the outer loop?
+- **Sessions this phase:** 3
 - **Phase exit test:** can explain the path from `clang a.c b.c` to a binary
   without notes, naming preprocessor / compiler / assembler / linker and what
-  each consumed and produced. **Close to passing** — see below. (ASan isn't a
-  meaningful gate yet; nothing here allocates.)
+  each consumed and produced. **Now passing cold** — the four-stage question was
+  answered clean this session (see recall queue). (ASan isn't a meaningful gate
+  yet; nothing here allocates.)
 
 ## Last session
 
-**2026-10-18 (session 2) — the build pipeline, properly.** Opened with the first
-cold recall quiz. Got 2 of 3. The miss was *"name the four stages and what each
-consumes and produces"* — the order and the names were right, but the
-preprocessor was described as "copying the code of imported libraries" (it
-copies *declarations*, never code) and the compiler and assembler were swapped.
-So the pipeline became the session and 0.2 was pushed again.
+**2026-11-08 (session 3) — 0.2 started at last: types, and the first drill.**
+Opened with a cold recall quiz (3 questions). Four-stage pipeline: **clean pass
+this time** — compiler/assembler in the right order, text→binary boundary right,
+"declarations not code" stuck. Mach-O/EC2 question: got "it fails" but the reason
+was wrong (said "different OS libraries/paths"); recovered with one nudge to the
+real reason — **executable format** (Mach-O vs ELF), kernel refuses before it
+starts. Warning-vs-`ld:` question: prefix→stage mapping correct cold, named which
+stopped the build once asked directly.
 
-**Covered:** the corrected four-stage pipeline with consume/produce for each;
-that stages 1-2 emit **text** and the assembler is where it turns binary; that
-the compiler is the only stage that understands C at all; warning vs error;
-compiler diagnostics (`file:line`) vs linker diagnostics (`ld:` + symbol, no
-line); a first look at dynamic linking.
+**Covered (the new material):** C's first type collisions. Arithmetic is chosen
+by *operand* types at compile time, not by the variable on the left
+(`double r = 5/2;` is `2.0`). Name shadowing — a local shadows a same-named
+function in its scope. Fixed-width integer overflow is **silent** (and signed
+overflow is UB). Also, housekeeping: moved session work into per-step folders
+(`p0.1/`, `p0.2/`) and tuned `/teach` to create the step folder at handoff.
 
-**Built — ran all four stages separately for the first time:**
-- `clang -E` → `hello.i`, `-S` → `hello.s`, `-c` → `hello.o`, then linked
-- read `hello.s` and found the string literal in it — **the compiler's output is
-  readable text**, which was the surprise of the session
-- `file hello.o` → `Mach-O 64-bit object arm64` — *object*, not *executable*
-- renamed `main` → `main123` and read the failure properly
+**Built — first working C with a loop and a hand-written function:**
+- `p0.2/sum.c` — `sum 1..n` via a `for` loop and a `sum(int n)` function of my
+  own; prints `Sum = 55` for `n=10`, exit 0.
+- Proved the shadowing bug by hand: added `sum(1)` below `int sum = 0;` →
+  `called object type 'int' is not a function`.
+- Proved the overflow by hand: `n=100000` printed `705082704` (the true
+  `5,000,050,000` minus `2³²`), exit 0 — a confident wrong answer, no complaint.
 
-**The accident worth remembering:** the rename produced *two* diagnostics —
-a compiler **warning** (`hello.c:5:1: non-void function does not return a value`,
-the leftover from last session's deleted `return 0;`) and a linker **error**
-(`ld: Undefined symbols: _main`). I first read the warning as the failure. It
-wasn't; the build died at the linker. And that warning only appeared *because*
-the function was no longer called `main` — the toolchain independently proved
-the C11 §5.1.2.2.3 rule I'd recited from memory ten minutes earlier.
-
-**Where I left off mid-thought:** nothing open. `hello.c` is on disk with `main`
-renamed to `main123` and no `return` statement, so **it does not currently
-link** — fix or delete it before starting 0.2; don't debug it, it's deliberate
-wreckage.
+**Where I left off mid-thought:** nothing open. `p0.2/sum.c` works and is clean.
+`p0.1/hello.c` still has no `return 0;` (warning only, not an error) — harmless,
+left as-is. The `git mv` into `p0.1/`/`p0.2/` is **staged but not committed**.
+Three 0.2 drills remain (triangle, max-in-array, count-vowels).
 
 ## Open threads
 
@@ -91,19 +87,22 @@ different days.*
 
 | Question | Added | Last asked | Correct streak |
 | --- | --- | --- | --- |
-| Name the four stages between `hello.c` and `hello`. What does each one consume and produce? | 2026-10-18 | 2026-10-18 | 0 — **missed, retaught** |
+| Name the four stages between `hello.c` and `hello`. What does each one consume and produce? | 2026-10-18 | 2026-11-08 | 1 |
 | `clang -E hello.c` turns 4 lines into 599. What is in those lines — and what is definitely *not*? | 2026-10-18 | — | 0 |
-| Your binary is arm64 and your EC2 box is arm64. Why won't it run there? | 2026-10-18 | — | 0 |
+| Your binary is arm64 and your EC2 box is arm64. Why won't it run there? | 2026-10-18 | 2026-11-08 | 0 — recovered w/ nudge, re-ask |
 | Give three ways `#include` differs from `import`. | 2026-10-18 | — | 0 |
 | Why does dereferencing `NULL` usually crash, and what is doing the checking? | 2026-10-18 | — | 0 |
 | `printf` is handed a value. How does it work out what type it is — and what happens when you're wrong? | 2026-10-18 | — | 0 |
 | A program returns `3`, but `echo $?` says `130`. What happened, and what does `130` decompose into? | 2026-10-18 | — | 0 |
-| A build prints a warning with a `file:line` and an error prefixed `ld:`. Which one stopped the build, and what does each prefix tell you? | 2026-10-18 | — | 0 |
+| A build prints a warning with a `file:line` and an error prefixed `ld:`. Which one stopped the build, and what does each prefix tell you? | 2026-10-18 | 2026-11-08 | 1 |
 | You rename `main` to `run` and rebuild. Which stage fails — and will the message name a file and line, or a symbol? | 2026-10-18 | — | 0 |
 | Is `printf`'s machine code copied into your binary when you link? If not, what is, and when does the real thing arrive? | 2026-10-18 | — | 0 |
 | Which of the four stages is the only one that understands C? What does that imply about where a syntax error can come from? | 2026-10-18 | — | 0 |
 | A C program ran, printed what you expected, and exited `0`. What does that prove? | 2026-10-18 | 2026-10-18 | 1 |
 | A function returning `int` reaches its closing brace with no `return`. When is that defined, and when is it not? | 2026-10-18 | 2026-10-18 | 1 |
+| `double r = 5 / 2;` — what is `r`, and why isn't it `2.5`? | 2026-11-08 | — | 0 |
+| You declare a local variable with the same name as the function it lives in. What can you no longer do below it, and what error names the problem? | 2026-11-08 | — | 0 |
+| `sum(100000)` returns a positive number far below the true sum and exits `0`. Where did the missing value go, and why did nothing complain? | 2026-11-08 | — | 0 |
 
 ## Phase progress
 
@@ -123,15 +122,16 @@ different days.*
 real measure of progress — mechanical memory tags should give way to structural
 ones by Phase 5.*
 
-13 entries.
+16 entries.
 
 | Tag | Count |
 | --- | --- |
-| `python-collision` | 6 |
-| `ub` | 4 |
+| `python-collision` | 8 |
+| `ub` | 5 |
 | `toolchain` | 4 |
 | `process` | 3 |
-| `types` | 2 |
-| `standard` | 2 |
+| `types` | 3 |
+| `standard` | 3 |
 | `memory` | 1 |
 | `alignment-aliasing` | 1 |
+| `integer` | 1 |

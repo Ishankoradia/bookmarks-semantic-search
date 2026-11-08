@@ -113,3 +113,13 @@ nudge, and that wasn't what was asked for.
 write-only to Claude. Scoped to headings only, last session only, and explicitly
 refused mid-struggle — reaching for `/recap` while stuck routes to `/stuck`
 instead.
+
+## 2026-11-08 — teach handoff preps the work folder
+
+> "can you add this in my workflow, if its a new session or new phase - make the
+> folder ready for me and then ask me the question to build"
+
+**File:** `.claude/skills/teach/SKILL.md` (step 5, Hand off to building).
+**Added** a new rule: on a new step or new phase, `/teach` creates the step's
+work folder (`mkdir -p p<phase>.<step>/`) before asking the build question, so
+no session starts with the builder setting up scaffolding.

@@ -194,3 +194,44 @@ recall queue. It is also the source for `/teach`'s quiz.
   <initial-undefines>`. The compiler had no objection at all.
 - **When:** 2026-10-18 · P0.1 (pipeline rebuild)
 - **Tags:** `toolchain`, `python-collision`, `process`
+
+## The type of an arithmetic result comes from the operands, not the variable on the left
+
+- **I used to assume:** the output type is based on the variable type we define
+  on the left side. It isn't — the operation and its result type are chosen from
+  the *operands'* types, decided at compile time, before the result is ever
+  assigned to anything.
+- **Found out by:** `5 / 2` gave `2` (both `int` → integer division), but
+  `double r = 5 / 2;` gave `2.0`, not `2.5` — the right side was computed as two
+  ints first, *then* the `2` was widened to `double`. The `double` on the left
+  had no say in how the division was done.
+- **When:** 2026-11-08 · P0.2
+- **Tags:** `types`, `python-collision`
+
+## In one scope a name binds to one thing — a local shadows a function of the same name
+
+- **I used to assume:** the compiler could tell a `sum` variable and a `sum`
+  function apart by context and understand both together. It can't — within a
+  scope (e.g. inside a function) a name can mean only one thing.
+- **Found out by:** declaring `int sum = 0;` inside my function `sum`, then
+  trying to call `sum(1)` below it → `called object type 'int' is not a function
+  or function pointer`. After the local declaration, the name `sum` *is* the int;
+  the function is unreachable by that name in its own body. My working program
+  only survived because it never called `sum` after the shadow — the bug was
+  latent, not active.
+- **When:** 2026-11-08 · P0.2
+- **Tags:** `standard`
+
+## A fixed-width integer overflows silently and hands back a wrong answer, not an error
+
+- **I used to assume:** if the result went past what an `int` can hold, it would
+  fail — I guessed at the compiler step. An integer has a fixed limit; when the
+  value goes beyond it and we store it in an `int`, it silently gives us the
+  wrong answer with no crash and no warning.
+- **Found out by:** `sum(100000)` should be `5,000,050,000` but printed
+  `705082704` and exited `0`. That's exactly the true sum minus `2³²` — the low
+  32 bits; the top bits fell off and nobody checked. The compiler never knew the
+  value, because `n` is only known at run time. (Signed overflow is also *UB*,
+  not a guaranteed wrap — revisit at `-O2`.)
+- **When:** 2026-11-08 · P0.2
+- **Tags:** `integer`, `ub`, `python-collision`

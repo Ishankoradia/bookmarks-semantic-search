@@ -43,9 +43,12 @@ it feels unpleasant, which is why it works.
 - Point at the primary source by exact chapter/section/man page.
 - Check understanding by asking them to predict an outcome, not to recite a rule.
 
-**5. Hand off to building.** End by stating plainly what they're building next
-and the first question they'll have to answer to start. Then get out of the way —
-they build alone. Remind them to run `/wrap` at the end.
+**5. Hand off to building.** When the session starts a new step or a new phase,
+first create that step's work folder ready to go (`mkdir -p p<phase>.<step>/`,
+e.g. `p0.2/`) so they can start typing into it immediately — never make them set
+up scaffolding. Then end by stating plainly what they're building next and the
+first question they'll have to answer to start. Then get out of the way — they
+build alone. Remind them to run `/wrap` at the end.
 
 ## During the session
 
