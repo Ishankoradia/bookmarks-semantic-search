@@ -26,10 +26,21 @@ where we resume — don't start something new.
 - anything left mid-thought
 - what today's session is for, in one line
 
-**3. Recall quiz — do not skip this.** Ask 2-3 questions from the recall queue
-in `STATE.md`, oldest-asked first, cold — no hints, no multiple choice, one at a
-time. This is retrieval practice; it is the highest-value part of the session and
-it feels unpleasant, which is why it works.
+**3. Recall quiz — but only when a gap makes it worth it.** Recall earns its
+value from *elapsed time*: brushing up after sleeping on it, or a few days away,
+is the highest-value part of a session; re-testing something from hours ago is
+just badgering and makes the quiz feel never-ending. So **gate the quiz on the
+gap since the last session** (compute it from the "Last session" date in
+`STATE.md`):
+- **Same day / only hours since the last session:** skip it, or ask at most
+  *one* genuinely older item that predates today. Say you're skipping and why,
+  then go to step 4.
+- **Overnight or longer:** run it properly — ask 2-3 from the recall queue,
+  oldest-asked first, cold — no hints, no multiple choice, one at a time. It
+  feels unpleasant, which is why it works. Prefer items last touched long enough
+  ago to actually need brushing, not ones from a previous same-day session.
+
+Then, for any question you did ask:
 - Answered well → say so, increment the streak at `/wrap`.
 - Answered badly or not at all → **that is today's material.** Reteach it now and
   push the planned new content to next session. Do not comfort them past a gap;

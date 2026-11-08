@@ -123,3 +123,30 @@ instead.
 **Added** a new rule: on a new step or new phase, `/teach` creates the step's
 work folder (`mkdir -p p<phase>.<step>/`) before asking the build question, so
 no session starts with the builder setting up scaffolding.
+
+## 2026-11-08 — spend depth on C's nuances, move fast through the trivial
+
+> "lets move a bit quickly through all this. we should spend time when we are
+> comparing things between languages or looking at internals or how the languages
+> works. basically spend more time on the nuances of C, memory, pointers. stuff
+> thats not so trivial or is abstracted in python"
+
+**File:** `CLAUDE.md` (What Claude does instead → item 1, Explain concepts).
+**Sharpened** the existing "go deep; this is unlimited" line — which said to go
+deep but not *where* — into a depth-allocation rule: move briskly through
+mechanical/Python-like syntax (stop once correct), and bank the time for memory,
+pointers, stack/heap, UB, internals, and Python↔C divergences. Name which kind of
+topic is in play.
+
+## 2026-11-08 — recall is gap-gated, not every-session
+
+> "also recall makes sense when i done something today & i come later maybe
+> tomorrow or after a few days. because i will definiltey need brushin there"
+
+**File:** `.claude/skills/teach/SKILL.md` (step 3), + a one-line consequence fix
+in `STATE.md`'s recall-queue note so it doesn't contradict.
+**Changed** step 3 from "do not skip this" (every session) to **gap-gated**:
+same-day / hours-later resumes skip the quiz (or ask ≤1 older item); the full
+cold 2-3-question quiz runs only after an overnight-or-longer gap. Reason: four
+same-day sessions today each opened with a quiz on hours-old material — badgering,
+not spaced repetition.

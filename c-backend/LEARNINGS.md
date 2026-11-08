@@ -235,3 +235,13 @@ recall queue. It is also the source for `/teach`'s quiz.
   not a guaranteed wrap — revisit at `-O2`.)
 - **When:** 2026-11-08 · P0.2
 - **Tags:** `integer`, `ub`, `python-collision`
+
+## Integer divide-by-zero is undefined behaviour in C — depending on the machine it may or may not crash
+
+- **I used to assume:** it would raise a divide-by-zero error or crash — the way
+  Python guarantees a `ZeroDivisionError` every time.
+- **Found out by:** `7 / b` with `b = 0` on my arm64 Mac printed `0` and exited
+  `0` — no crash at all. On an x86 machine the same code would trap (SIGFPE,
+  `$? = 136`). Same UB, opposite outcome by architecture.
+- **When:** 2026-11-08 · P0.2
+- **Tags:** `ub`, `integer`, `python-collision`
