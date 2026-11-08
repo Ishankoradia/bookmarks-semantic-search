@@ -36,7 +36,7 @@ This product ships across **four** surfaces backed by one shared backend:
   - Start server: `cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 6005`
 - Webapp: `cd frontend && npm run dev` / `npm run build` / `npm run lint`.
 - Mobile: `cd mobile && npm start` (Expo); `npm run ios` / `npm run android`. Release builds via EAS (`mobile/eas.json`).
-- Deploy: `deploy.sh`, `docker-compose.web.yml`, `docker-compose.nginx.yml`.
+- Deploy: `deploy-web.sh` + `docker-compose.web.yml` (backend + frontend). The reverse proxy / TLS (nginx + Cloudflare Origin cert) lives on the server, outside this repo.
 
 ## Releasing & CI
 
