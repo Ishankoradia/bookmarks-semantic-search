@@ -35,24 +35,20 @@ class Settings(BaseSettings):
 
     # Claude (Anthropic) model configurations for the LLM tasks below.
     # Defaults to Haiku 4.5 - the fast/cheap tier that matches the previous
-    # gpt-4o-mini usage. Bump to claude-sonnet-5-5 or claude-opus-5-5 for
-    # higher quality (note: those models reject a custom `temperature`, so set
-    # the matching *_TEMPERATURE to 1.0 if you switch to them).
+    # gpt-4o-mini usage. Bump to claude-sonnet-5-5 or claude-opus-5-5 for higher
+    # quality. (Sampling params like temperature are not configurable: the
+    # current-generation Claude models and the anthropic SDK don't accept them.)
     # Tag generation model - Fast and cheap for quick tag generation
     TAG_GENERATION_MODEL: str = "claude-haiku-4-5"
-    TAG_GENERATION_TEMPERATURE: float = 0.3
 
     # Category generation model - Accurate categorization
     CATEGORY_GENERATION_MODEL: str = "claude-haiku-4-5"
-    CATEGORY_GENERATION_TEMPERATURE: float = 0.1
 
     # Query parsing model - Understanding user intent
     QUERY_PARSING_MODEL: str = "claude-haiku-4-5"
-    QUERY_PARSING_TEMPERATURE: float = 0.2
 
     # Content analysis model - For future complex analysis
     CONTENT_ANALYSIS_MODEL: str = "claude-haiku-4-5"
-    CONTENT_ANALYSIS_TEMPERATURE: float = 0.5
 
     MAX_CONTENT_LENGTH: int = 50000
 

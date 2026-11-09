@@ -12,16 +12,13 @@ class EmbeddingService:
         # Claude handles the reasoning tasks: tagging, categorization, query parsing.
         self.anthropic = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         self.logger = get_logger(__name__)
-        # Model configurations from settings
+        # Model configurations from settings. Note: no temperature/sampling params —
+        # current-generation Claude models don't accept them.
         self.embedding_model = settings.EMBEDDING_MODEL
         self.tag_generation_model = settings.TAG_GENERATION_MODEL
-        self.tag_generation_temperature = settings.TAG_GENERATION_TEMPERATURE
         self.category_generation_model = settings.CATEGORY_GENERATION_MODEL
-        self.category_generation_temperature = settings.CATEGORY_GENERATION_TEMPERATURE
         self.query_parsing_model = settings.QUERY_PARSING_MODEL
-        self.query_parsing_temperature = settings.QUERY_PARSING_TEMPERATURE
         self.content_analysis_model = settings.CONTENT_ANALYSIS_MODEL
-        self.content_analysis_temperature = settings.CONTENT_ANALYSIS_TEMPERATURE
     
     async def create_embedding(self, text: str) -> List[float]:
         if not text or len(text.strip()) == 0:
@@ -53,24 +50,20 @@ class EmbeddingService:
         except Exception as e:
             raise Exception(f"Failed to generate batch embeddings: {str(e)}")
     
-    async def _generate_json(self, model: str, temperature: float, prompt: str, schema: Dict[str, Any], max_tokens: int = 512) -> Dict[str, Any]:
+    async def _generate_json(self, model: str, prompt: str, schema: Dict[str, Any], max_tokens: int = 512) -> Dict[str, Any]:
         """Call Claude and return a dict validated against `schema` via structured outputs.
 
         Uses `output_config.format` (json_schema), the model-agnostic analog of the
-        OpenAI function-calling we used before. Note: a custom `temperature` is only
-        accepted by Haiku; Opus/Sonnet 5.x reject non-default values, so only pass it
-        when it differs from the default.
+        OpenAI function-calling we used before. Sampling params like `temperature` are
+        intentionally not passed: current-generation Claude models don't accept them
+        (the anthropic SDK removed `temperature` from `messages.create`).
         """
-        kwargs: Dict[str, Any] = {
-            "model": model,
-            "max_tokens": max_tokens,
-            "messages": [{"role": "user", "content": prompt}],
-            "output_config": {"format": {"type": "json_schema", "schema": schema}},
-        }
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-
-        response = await self.anthropic.messages.create(**kwargs)
+        response = await self.anthropic.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+            output_config={"format": {"type": "json_schema", "schema": schema}},
+        )
         # output_config.format guarantees the first text block is valid JSON.
         text = next((b.text for b in response.content if b.type == "text"), None)
         if text is None:
@@ -119,7 +112,6 @@ Classify the content format (article, tutorial, documentation, etc.) and choose 
         try:
             result = await self._generate_json(
                 self.tag_generation_model,
-                self.tag_generation_temperature,
                 prompt,
                 schema,
                 max_tokens=256,
@@ -175,7 +167,6 @@ Generate a concise category (1-3 words) that best describes both the content typ
         try:
             result = await self._generate_json(
                 self.category_generation_model,
-                self.category_generation_temperature,
                 prompt,
                 schema,
                 max_tokens=64,
@@ -247,7 +238,6 @@ Query to parse: "{query}"
         try:
             result = await self._generate_json(
                 self.query_parsing_model,
-                self.query_parsing_temperature,
                 prompt,
                 schema,
                 max_tokens=256,
