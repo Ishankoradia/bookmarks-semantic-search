@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     DATABASE_URL: str
-    OPENAI_API_KEY: str
+    OPENAI_API_KEY: str  # Embeddings only (Claude has no embeddings API)
+    ANTHROPIC_API_KEY: str  # LLM tasks: tagging, categorization, query parsing
     SECRET_KEY: str
     ENVIRONMENT: str = "development"
 
@@ -28,25 +29,29 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_DAYS: int = 30  # Token expiration in days
 
-    # Embedding model configuration
+    # Embedding model configuration (OpenAI - Claude has no embeddings API)
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
 
-    # AI model configurations for different use cases
+    # Claude (Anthropic) model configurations for the LLM tasks below.
+    # Defaults to Haiku 4.5 - the fast/cheap tier that matches the previous
+    # gpt-4o-mini usage. Bump to claude-sonnet-5-5 or claude-opus-5-5 for
+    # higher quality (note: those models reject a custom `temperature`, so set
+    # the matching *_TEMPERATURE to 1.0 if you switch to them).
     # Tag generation model - Fast and cheap for quick tag generation
-    TAG_GENERATION_MODEL: str = "gpt-4o-mini"
+    TAG_GENERATION_MODEL: str = "claude-haiku-4-5"
     TAG_GENERATION_TEMPERATURE: float = 0.3
 
     # Category generation model - Accurate categorization
-    CATEGORY_GENERATION_MODEL: str = "gpt-4o-mini"
+    CATEGORY_GENERATION_MODEL: str = "claude-haiku-4-5"
     CATEGORY_GENERATION_TEMPERATURE: float = 0.1
 
     # Query parsing model - Understanding user intent
-    QUERY_PARSING_MODEL: str = "gpt-4o-mini"
+    QUERY_PARSING_MODEL: str = "claude-haiku-4-5"
     QUERY_PARSING_TEMPERATURE: float = 0.2
 
     # Content analysis model - For future complex analysis
-    CONTENT_ANALYSIS_MODEL: str = "gpt-4o-mini"
+    CONTENT_ANALYSIS_MODEL: str = "claude-haiku-4-5"
     CONTENT_ANALYSIS_TEMPERATURE: float = 0.5
 
     MAX_CONTENT_LENGTH: int = 50000
