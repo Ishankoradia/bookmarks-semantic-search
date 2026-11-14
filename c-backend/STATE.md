@@ -12,19 +12,22 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
 ## Position
 
 - **Phase:** 0 — Toolchain and the mental model
-- **Task in flight:** **0.2 in progress.** Two drills done — `sum 1..n`
-  (`p0.2/sum.c`, prints `Sum = 55`) and the **triangle** (`p0.2/triangle.c`,
-  nested loop, correct output). **Two drills remain: max-in-an-array and
-  count-vowels** — both need the thing 0.2 hasn't covered yet: **arrays** (a block
-  of N things, `sizeof`, an array that doesn't know its own length).
-- **Next action:** **teach arrays** (declaration, indexing, that the length is
-  *not* carried with the array, `sizeof` on an array vs a pointer), then build
-  **find-the-max-in-an-array**, then **count-vowels in a fixed `char` array**.
-  Folder `p0.2/` ready. Per the new depth rule: arrays/`sizeof` is where C and
-  Python *diverge* (no bounds checks, no `len()`) — slow down there, it's not
-  trivial. **First question before the max drill:** given a C array doesn't store
-  its own length, how will the function know where to stop?
-- **Sessions this phase:** 6
+- **Task in flight:** **0.2 COMPLETE** — all four drills built and working:
+  `sum.c` (55), `triangle.c` (nested loop), `maxarr.c` (max=15), `vowels.c`
+  (count=5). Arrays, `char`, C strings and the null terminator are all covered.
+  **Moving to 0.3.**
+- **Next action:** **ROADMAP 0.3 — reading errors and the first flags.** Take a
+  working 0.2 program (`maxarr.c` or `vowels.c`) and **break it on purpose, one
+  way at a time**, reading exactly what clang says each time: missing semicolon,
+  undeclared variable, typo'd function name, wrong type to `printf`, calling an
+  undeclared function. Then meet the warning flags — compile everything with
+  `-Wall -Wextra` from now on, and see what they catch that a bare compile
+  doesn't. Make a fresh folder `p0.3/`. **First question before starting:** of the
+  errors you've *already* hit by accident this phase (the `main123` linker error,
+  the `FILE` redefinition, `called object type 'int' is not a function`), which
+  came from the **compiler** and which from the **linker** — and how did the
+  message's shape tell you?
+- **Sessions this phase:** 7
 - **Phase exit test:** can explain the path from `clang a.c b.c` to a binary
   without notes, naming preprocessor / compiler / assembler / linker and what
   each consumed and produced. **Now passing cold** — the four-stage question was
@@ -32,6 +35,45 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
   yet; nothing here allocates.)
 
 ## Last session
+
+**2026-11-08 → 2026-11-14 (session 7) — arrays, strings, and a deep dive that
+finished 0.2.** Long session spanning a 6-day gap: taught on 11-08, the vowel
+drill built and the string/`sizeof` deep-dives done on 11-14 (same-day gate meant
+no recall quiz at the start; a soft brush-up on resume).
+
+**Covered — the first genuinely un-Python topic:**
+- **Arrays** = a contiguous block of N fixed slots; indexing is `start + i×size`
+  arithmetic with **no bounds check**. The array **does not store its length** —
+  out-of-bounds is UB (silent garbage, or a segfault, or a buffer-overflow write
+  that clobbers a neighbour). `sizeof(arr)/sizeof(arr[0])` recovers N *only* where
+  the real array is in scope.
+- **`char` is a 1-byte integer** — `'a'` *is* `97`, `'\0'` *is* `0` (≠ `'0'` = 48);
+  comparing chars is integer `==`. `sizeof(char) == 1` is guaranteed (though a
+  "byte" is `CHAR_BIT`≥8 bits; 8 on this Mac).
+- **C strings** = `char` array + a `'\0'` sentinel the compiler plants for you;
+  loops walk until they hit it. The idiomatic stop is `sent[i] != '\0'`, *not*
+  `i < sizeof` (which includes the terminator and breaks for oversized buffers or
+  after decay).
+- Deep dives (all banked): **`sizeof` is compile-time** (reads the static type,
+  doesn't evaluate its operand); **a C string can't hold a `0` byte as data**
+  (→ real data needs `(ptr, len)`); **`len` is O(1) / `strlen` is O(n)** because
+  one stores the length and the other doesn't.
+
+**Built — `p0.2/maxarr.c` and `p0.2/vowels.c`:**
+- `maxarr.c`: computed `n` via `sizeof`, seeded `max = arr[0]`, `i < n` bound — all
+  correct. Had a logic bug (compared `arr[i] > arr[i-1]`, the *neighbour*, not the
+  running `max`); fixed to `arr[i] > max` after a failing test case `{3,20,2,5,1}`.
+- `vowels.c`: counts correctly (5 for "The Quick Brown Fox", handling both cases
+  via position arithmetic). **Left with known, unfixed hygiene issues** (noted, not
+  correctness-critical): loops `i < sizeof` so it scans the `'\0'` instead of
+  stopping at it; off-by-one upper bounds (`<= 91`/`<= 123` include `'['`/`'{'`);
+  a leftover "Not a vowel" debug print; missing `\n`.
+
+**Where I left off mid-thought:** 0.2 is done; `vowels.c` hygiene fixes are
+optional and still pending if I want them. `p0.1/hello.c` still missing `return 0`
+(harmless). Several `p0.2/` throwaway experiment files (`sigint.c`, `segv.c`,
+`collision.c`) are bin-able. **All the `git mv` + new `p0.2/` files are still
+staged/uncommitted** — a commit is overdue.
 
 **2026-11-08 (session 6) — nested loops, finally: the triangle built.** Quick
 2-question quiz (only the pipeline "which stage understands C" one got asked —
@@ -137,6 +179,11 @@ should offer to close one of these when a session has slack at the end.*
   diagnostic names the stage that produced it, and a warning and an error in one
   output can come from different stages.* Offered twice, not written up. It's in
   the recall queue anyway.
+- **Array → pointer "decay", and `char *p = "..."`.** Keep hearing that passing an
+  array to a function turns it into a pointer (so `sizeof` starts lying), and that
+  a string literal assigned to `char *` is read-only and writing to it is UB — but
+  I've only got the sentences, not the mechanism or the memory picture. This is
+  *the* Phase 2 topic; met properly there.
 
 ## Recall queue
 
@@ -166,10 +213,13 @@ retires one after I've answered it correctly twice on different days.*
 | `sum(100000)` returns a positive number far below the true sum and exits `0`. Where did the missing value go, and why did nothing complain? | 2026-11-08 | — | 0 |
 | You divide an `int` by a variable holding `0` and run it on your arm64 Mac. Does it crash? What would an x86 box do, and what one concept explains why both are "correct"? | 2026-11-08 | — | 0 |
 | What does *undefined behaviour* mean in C — and why is it a different claim from "you'll get an unpredictable result"? | 2026-11-08 | — | 0 |
+| At what point is `sizeof(x)` computed, and does it evaluate `x`? What does that mean for `sizeof(x++)`? | 2026-11-14 | — | 0 |
+| Why can't a C null-terminated string hold a `0` byte in the middle, and what must you use for data (like an HTTP body) that might contain one? | 2026-11-14 | — | 0 |
+| Python `len(s)` and C `strlen(s)` — which is O(1), which is O(n), and what single fact about each explains the difference? | 2026-11-14 | — | 0 |
 
 ## Phase progress
 
-- [ ] **P0** Toolchain and the mental model — *0.1 done, pipeline solid; 0.2-0.5 remain*
+- [ ] **P0** Toolchain and the mental model — *0.1-0.2 done; 0.3-0.5 remain*
 - [ ] **P1** Core language, drilled
 - [ ] **P2** Memory ★
 - [ ] **P3** Data structures (`libcore`)
@@ -185,16 +235,16 @@ retires one after I've answered it correctly twice on different days.*
 real measure of progress — mechanical memory tags should give way to structural
 ones by Phase 5.*
 
-17 entries.
+20 entries.
 
 | Tag | Count |
 | --- | --- |
-| `python-collision` | 9 |
+| `python-collision` | 12 |
 | `ub` | 6 |
+| `types` | 6 |
 | `toolchain` | 4 |
+| `standard` | 4 |
 | `process` | 3 |
-| `types` | 3 |
-| `standard` | 3 |
 | `integer` | 2 |
 | `memory` | 1 |
 | `alignment-aliasing` | 1 |

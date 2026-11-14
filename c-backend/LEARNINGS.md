@@ -245,3 +245,45 @@ recall queue. It is also the source for `/teach`'s quiz.
   `$? = 136`). Same UB, opposite outcome by architecture.
 - **When:** 2026-11-08 · P0.2
 - **Tags:** `ub`, `integer`, `python-collision`
+
+## `sizeof` is a compile-time operator, not a runtime measurement
+
+- **I used to assume:** it measured an object's size while the program ran, like
+  Python's `len` / `sys.getsizeof`. Really the compiler reads the operand's
+  **static type**, works out the size *during compilation*, and bakes in a
+  constant — there's no runtime work at all. It doesn't even evaluate its operand
+  (`sizeof(x++)` leaves `x` unchanged; `sizeof(f())` never calls `f`).
+- **Found out by:** asking what `sizeof` does underneath — `sizeof(sent)` for
+  `char sent[20]` is replaced by the literal `20` in the generated code. Also why
+  it "lies" after array→pointer decay: it's reading the static type, which has
+  become `char *`.
+- **When:** 2026-11-14 · P0.2
+- **Tags:** `types`, `python-collision`
+
+## A null-terminated C string cannot hold a `0` byte as data
+
+- **I used to assume:** a string could contain any character, the way a Python
+  `str`/`bytes` can hold `\x00` anywhere. But C marks a string's end with the
+  `'\0'` sentinel (value 0), so the convention *steals* the value 0 — a zero byte
+  in the middle makes every `'\0'`-based loop and library function stop dead
+  there, and everything after it is invisible though still in memory.
+- **Found out by:** asking "what if the string actually has a 0?" — a `0` at
+  index 3 of `"abc\0ef"` means `strlen`/`printf("%s")`/my own loop all see just
+  `"abc"`. Anything that can contain zero bytes (HTTP bodies, binary data) needs
+  an explicit `(pointer, length)`, not a `char *`.
+- **When:** 2026-11-14 · P0.2
+- **Tags:** `types`, `python-collision`, `standard`
+
+## Python `len()` is O(1), C `strlen` is O(n) — "runtime" doesn't mean "linear"
+
+- **I used to assume:** that because `len` runs at runtime (unlike `sizeof`), it
+  must scan the object, so it'd be O(n). It isn't — Python stores the element
+  count *in the object* (`ob_size`) and `len()` just reads it (O(1)); mutating
+  methods keep that counter in sync. C strings store no length, so `strlen` has
+  to walk byte-by-byte to the `'\0'` (O(n)). The cost gap is a direct consequence
+  of whether the length is stored.
+- **Found out by:** asking whether Python's `len` is O(n) — it isn't, and the
+  contrast with `strlen` pinned down why. It's the same "C arrays don't store
+  their length" rule, now showing up as a complexity difference.
+- **When:** 2026-11-14 · P0.2
+- **Tags:** `types`, `python-collision`
