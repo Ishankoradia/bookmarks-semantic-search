@@ -12,24 +12,23 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
 ## Position
 
 - **Phase:** 0 — Toolchain and the mental model
-- **Task in flight:** **0.3 core done** (in `p0.3/break.c`): broke a program four
-  ways and read the diagnostics, nailing **compiler (file:line) vs linker (`ld:`
-  symbol)** and the **declared-vs-defined** principle; adopted **`-Wall -Wextra`**
-  and watched it catch a real latent `-Wsign-compare` bug. *Loose end:* the rest
-  of 0.3's flag progression (`-std=c11`, `-g`, then the strict trio `-Werror
-  -Wshadow -Wconversion` once the build is quiet) isn't adopted yet — fold it in
-  when the Makefile lands in 0.5. **Moving to 0.4.**
-- **Next action:** **ROADMAP 0.4 — two files, and why headers exist.** Split a
-  working single-file program into `main.c` + `util.c` + `util.h`. Learn:
-  **translation units** (the compiler sees one `.c` at a time, blind to the
-  others), declaration vs definition (just banked — now *use* it), `-c` to make
-  object files, linking them, include guards. Break it four ways and predict the
-  error *kind* each produces: misspelled header, object file left out of the
-  link, circular include, function declared-but-never-defined. New folder `p0.4/`.
-  **First question before starting:** if the compiler sees only `main.c` and is
-  *blind* to `util.c`, how can `main.c` legally *call* a function whose body
-  lives in `util.c` — what does `main.c` need to see, and what provides it?
-- **Sessions this phase:** 8
+- **Task in flight:** **0.4 COMPLETE** (`p0.4/`: `main.c` + `util.c` + `util.h`,
+  a `max_of_arr` split across files). Two-step compile+link working; header is
+  self-contained (`<stddef.h>`) and guarded; all four break-experiments run and
+  predicted (misspelled header → compiler; omitted `.o` → linker; circular include
+  → preprocessor, stopped by the guard; declared-not-defined → compiles, fails at
+  link). **Moving to 0.5 — the last step of Phase 0.**
+- **Next action:** **ROADMAP 0.5 — the Makefile** (hand-written, not CMake), which
+  also **closes Phase 0**. Learn *first* (before writing it): what a make **rule**
+  is (target, prerequisites, recipe), how make decides a target is **stale**, and
+  the **tab-not-spaces** rule — GNU make manual §2. Targets: `build`, `test`,
+  `asan`, `clean`. This is where the **full strict flag set finally gets adopted**
+  (the 0.3 loose end): `-std=c11 -Wall -Wextra -Werror -Wshadow -Wconversion -g
+  -O0 -fsanitize=address,undefined -fno-omit-frame-pointer`. Work in `p0.5/` (or
+  promote the `p0.4/` files). **First question before writing it:** the compiler
+  turns `util.c` into `util.o`; how could `make` decide whether it even *needs* to
+  rebuild `util.o` — what two things would it compare to know the `.o` is stale?
+- **Sessions this phase:** 9
 - **Phase exit test:** can explain the path from `clang a.c b.c` to a binary
   without notes, naming preprocessor / compiler / assembler / linker and what
   each consumed and produced. **Now passing cold** — the four-stage question was
@@ -37,6 +36,38 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
   yet; nothing here allocates.)
 
 ## Last session
+
+**2026-11-15 (session 9) — multi-file builds and headers (0.4 done).** Same-day
+continuation, so no quiz. Split `maxarr` into `main.c` + `util.c` + `util.h`.
+
+**Covered:**
+- **Translation units:** the compiler compiles each `.c` *alone*, blind to the
+  others. Cross-file calls need the **declaration** (via a header); the **linker**
+  joins them. Three-file roles: `util.h` = declaration (shared, repeatable),
+  `util.c` = definition (exactly one), `main.c` = user.
+- **Two-step build:** `clang -c x.c -o x.o` (compile a TU → object) then
+  `clang *.o -o prog` (link). Saw `.o` as Mach-O *object*, not executable.
+- **One Definition Rule:** 0 defs → "undefined symbol"; 1 → links; 2+ → "duplicate
+  symbol." Declarations repeat; **definitions** (function bodies, `struct`/typedef
+  *with* braces) don't. A bare `struct Point;` is a declaration (repeatable); with
+  members it's a definition (once only).
+- **Headers:** must be **self-contained** (include own deps — `util.h` needs
+  `<stddef.h>` for `size_t`) and **guarded** (`#ifndef UTIL_H …`, the name is a
+  plain convention from the filename, not magic). Guard = idempotent: stops diamond
+  duplicate-defs *and* circular-include recursion.
+- **The linker matches by NAME, not type** — a mismatched decl/def links clean and
+  becomes runtime UB; that's why a `.c` includes its own header.
+
+**Built — `p0.4/main.c`, `util.c`, `util.h`:** `max_of_arr` split cleanly; header
+ended textbook (guard + `<stddef.h>` + declaration only); `Max = 15`, clean under
+`-Wall -Wextra`. Ran all four break-experiments and predicted each stage right.
+
+**Banked 4 learnings:** translation-unit blindness; linker-matches-by-name-not-type;
+include-guard idempotency; self-contained headers.
+
+**Where I left off mid-thought:** nothing open. `p0.4/` builds clean. Strict flag
+set still not adopted — that's literally the 0.5 task now. Next step (0.5, the
+Makefile) **closes Phase 0**.
 
 **2026-11-15 (session 8) — reading errors, and a deep detour into memory.**
 1-day gap, so the quiz ran. Q1 was *"you deref `NULL` — why does it crash, and
@@ -256,6 +287,10 @@ retires one after I've answered it correctly twice on different days.*
 | `for (size_t i = len-1; i >= 0; i--)` — what goes wrong, and why? | 2026-11-15 | — | 0 |
 | `-1` as a signed `int` and `UINT_MAX` as unsigned — how do their bit patterns compare, and what does that tell you about where "signedness" lives? | 2026-11-15 | — | 0 |
 | A misspelled function *call* vs a renamed `main`: which fails at the compiler, which at the linker, and what one-word distinction decides it? | 2026-11-15 | — | 0 |
+| When the compiler compiles `main.c`, what can it see of `util.c`? So how can `main.c` legally call a function whose body is in `util.c`? | 2026-11-15 | — | 0 |
+| A header declares `int add(int,int)` but the `.c` defines it as `double add(int,int)` and the `.c` doesn't include the header. Does it link? What happens at runtime, and why didn't anything catch it? | 2026-11-15 | — | 0 |
+| An include guard prevents *two* different failures — name both, and say which header contents actually need protecting (and which don't). | 2026-11-15 | — | 0 |
+| You can write `struct Point;` twice but not `struct Point { int x; };` twice. Why — what's the difference, in one word? | 2026-11-15 | — | 0 |
 
 ## Phase progress
 
@@ -275,14 +310,14 @@ retires one after I've answered it correctly twice on different days.*
 real measure of progress — mechanical memory tags should give way to structural
 ones by Phase 5.*
 
-24 entries.
+28 entries.
 
 | Tag | Count |
 | --- | --- |
-| `python-collision` | 13 |
-| `types` | 8 |
+| `python-collision` | 14 |
+| `toolchain` | 9 |
+| `types` | 9 |
 | `ub` | 6 |
-| `toolchain` | 5 |
 | `standard` | 4 |
 | `integer` | 4 |
 | `process` | 3 |

@@ -346,3 +346,57 @@ recall queue. It is also the source for `/teach`'s quiz.
   moved earlier, the principle didn't.)
 - **When:** 2026-11-15 · P0.3
 - **Tags:** `toolchain`
+
+## The compiler compiles one `.c` at a time, in isolation — blind to every other `.c`
+
+- **I used to assume:** the compiler saw the whole program at once, the way
+  Python imports pull in whole modules. Each `.c` compiled alone is a **translation
+  unit**, and the compiler can't see any other `.c`. To call a function whose body
+  lives in another `.c`, this unit needs only its **declaration** (from a header);
+  the **linker** connects the call to the real definition afterwards.
+- **Found out by:** splitting a program into `main.c` + `util.c` + `util.h` in
+  0.4. `main.c` compiles fine knowing only `max_of_arr`'s declaration; the body in
+  `util.c` is invisible to it until link time.
+- **When:** 2026-11-15 · P0.4
+- **Tags:** `toolchain`, `python-collision`
+
+## The linker matches symbols by NAME only — it never checks types
+
+- **I used to assume:** the toolchain verified a function's types end to end. The
+  **compiler** checks types *within one file*; the **linker** just wires "needs
+  `add`" to "has `add`" by name and never looks at types. So if a header's
+  declaration and the `.c`'s definition disagree on types and nothing catches it,
+  it **links cleanly and becomes runtime UB**.
+- **Found out by:** working out why `util.c` should `#include` its own header —
+  it's the one place the compiler is forced to see the declaration and definition
+  together and check they match, since the linker never will. (Same root as "at
+  runtime there are only bytes" — the linker wires addresses, nobody re-checks
+  types.)
+- **When:** 2026-11-15 · P0.4
+- **Tags:** `toolchain`, `types`
+
+## An include guard makes a header idempotent — include it any number of times, it takes effect once
+
+- **I used to assume:** guards were just "avoid duplicate code." They stop two
+  distinct failures: **duplicate definitions** (a *diamond* include — two paths
+  reach the same header) and **infinite recursion** (a *circular* include).
+  Declarations may repeat freely; **definitions** (structs, typedefs) may not — so
+  the guard is really protecting the definitions.
+- **Found out by:** the circular-include experiment in 0.4 — *with* the guard it
+  compiles (the second visit hits `#ifndef` and is skipped); *without* it the
+  preprocessor recurses until `#include nested too deeply`.
+- **When:** 2026-11-15 · P0.4
+- **Tags:** `toolchain`
+
+## A header must include its own dependencies — it has to compile no matter who includes it, or in what order
+
+- **I used to assume:** it was fine for a header to rely on the `.c` having
+  included things first. A header that names `size_t` must itself
+  `#include <stddef.h>`; otherwise it silently depends on include order and breaks
+  for the next file that includes it first or alone. A header stands on its own
+  feet (self-contained) and is guarded.
+- **Found out by:** `util.h` named `size_t` but included nothing — it only built
+  because both `.c` files included `<stdio.h>` *before* it. A file including only
+  `util.h` failed with `unknown type name 'size_t'`.
+- **When:** 2026-11-15 · P0.4
+- **Tags:** `toolchain`
