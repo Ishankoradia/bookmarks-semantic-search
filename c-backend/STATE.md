@@ -12,22 +12,24 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
 ## Position
 
 - **Phase:** 0 — Toolchain and the mental model
-- **Task in flight:** **0.2 COMPLETE** — all four drills built and working:
-  `sum.c` (55), `triangle.c` (nested loop), `maxarr.c` (max=15), `vowels.c`
-  (count=5). Arrays, `char`, C strings and the null terminator are all covered.
-  **Moving to 0.3.**
-- **Next action:** **ROADMAP 0.3 — reading errors and the first flags.** Take a
-  working 0.2 program (`maxarr.c` or `vowels.c`) and **break it on purpose, one
-  way at a time**, reading exactly what clang says each time: missing semicolon,
-  undeclared variable, typo'd function name, wrong type to `printf`, calling an
-  undeclared function. Then meet the warning flags — compile everything with
-  `-Wall -Wextra` from now on, and see what they catch that a bare compile
-  doesn't. Make a fresh folder `p0.3/`. **First question before starting:** of the
-  errors you've *already* hit by accident this phase (the `main123` linker error,
-  the `FILE` redefinition, `called object type 'int' is not a function`), which
-  came from the **compiler** and which from the **linker** — and how did the
-  message's shape tell you?
-- **Sessions this phase:** 7
+- **Task in flight:** **0.3 core done** (in `p0.3/break.c`): broke a program four
+  ways and read the diagnostics, nailing **compiler (file:line) vs linker (`ld:`
+  symbol)** and the **declared-vs-defined** principle; adopted **`-Wall -Wextra`**
+  and watched it catch a real latent `-Wsign-compare` bug. *Loose end:* the rest
+  of 0.3's flag progression (`-std=c11`, `-g`, then the strict trio `-Werror
+  -Wshadow -Wconversion` once the build is quiet) isn't adopted yet — fold it in
+  when the Makefile lands in 0.5. **Moving to 0.4.**
+- **Next action:** **ROADMAP 0.4 — two files, and why headers exist.** Split a
+  working single-file program into `main.c` + `util.c` + `util.h`. Learn:
+  **translation units** (the compiler sees one `.c` at a time, blind to the
+  others), declaration vs definition (just banked — now *use* it), `-c` to make
+  object files, linking them, include guards. Break it four ways and predict the
+  error *kind* each produces: misspelled header, object file left out of the
+  link, circular include, function declared-but-never-defined. New folder `p0.4/`.
+  **First question before starting:** if the compiler sees only `main.c` and is
+  *blind* to `util.c`, how can `main.c` legally *call* a function whose body
+  lives in `util.c` — what does `main.c` need to see, and what provides it?
+- **Sessions this phase:** 8
 - **Phase exit test:** can explain the path from `clang a.c b.c` to a binary
   without notes, naming preprocessor / compiler / assembler / linker and what
   each consumed and produced. **Now passing cold** — the four-stage question was
@@ -35,6 +37,40 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
   yet; nothing here allocates.)
 
 ## Last session
+
+**2026-11-15 (session 8) — reading errors, and a deep detour into memory.**
+1-day gap, so the quiz ran. Q1 was *"you deref `NULL` — why does it crash, and
+what does the checking?"* **Missed:** said the *compiler* throws the error (the
+compiler is gone at runtime). That miss opened into the session's real material —
+**virtual memory**, which was entirely new ground (I'd thought addresses were
+RAM). Quiz stopped after Q1 (no badgering).
+
+**Covered (new, load-bearing for Phase 2):**
+- **Virtual memory:** a pointer is a *virtual* address; the **MMU** translates
+  virtual→physical every access via page tables; "unmapped" = no translation.
+  `NULL` deref → MMU can't translate addr 0 → **page fault** (hardware trap) →
+  kernel judges it illegal → **SIGSEGV**. A page fault isn't always fatal (lazy
+  alloc / swap use the same mechanism). Processes are isolated because the page
+  table is per-process.
+- **0.3 proper:** broke code four ways; **compiler error** = undeclared, file:line;
+  **linker error** = undefined symbol, no line. The dividing line is
+  **declared (compiler) vs defined (linker)** — `pintf` (undeclared) is a compiler
+  error, renamed `main` (valid but `_main` undefined) is a linker error.
+- **`-Wall -Wextra`** caught `-Wsign-compare` on `i < sizeof(...)` → led into
+  **signed/unsigned** conversion and **two's complement** (`-1` and `UINT_MAX`
+  are the same bits; signedness is interpretation; the CPU uses one add/sub for
+  both).
+
+**Did — `p0.3/break.c`:** a working program broken on purpose (missing `;`,
+undeclared var, `pintf`, renamed `main`), each diagnostic read and predicted;
+then compiled clean with `-Wall -Wextra` vs bare to compare.
+
+**Banked 4 learnings:** virtual-address/MMU; signed-vs-unsigned conversion;
+two's-complement (same bits); declared-vs-defined.
+
+**Where I left off mid-thought:** nothing open in the code. 0.3's strict flags
+(`-Werror -Wshadow -Wconversion`, `-std=c11 -g`) not yet adopted — deferred to the
+0.5 Makefile. Next real step is **0.4 (multi-file + headers)**.
 
 **2026-11-08 → 2026-11-14 (session 7) — arrays, strings, and a deep dive that
 finished 0.2.** Long session spanning a 6-day gap: taught on 11-08, the vowel
@@ -199,7 +235,7 @@ retires one after I've answered it correctly twice on different days.*
 | `clang -E hello.c` turns 4 lines into 599. What is in those lines — and what is definitely *not*? | 2026-10-18 | — | 0 |
 | Your binary is arm64 and your EC2 box is arm64. Why won't it run there? | 2026-10-18 | 2026-11-08 | 0 — recovered w/ nudge, re-ask |
 | Give three ways `#include` differs from `import`. | 2026-10-18 | 2026-11-08 | 0 — **missed cold, retaught** (no-namespace one was the sticky part) |
-| Why does dereferencing `NULL` usually crash, and what is doing the checking? | 2026-10-18 | — | 0 |
+| Why does dereferencing `NULL` usually crash, and what is doing the checking? | 2026-10-18 | 2026-11-15 | 0 — **missed cold, retaught** (said "compiler"; it's the MMU → page fault → kernel → SIGSEGV) |
 | `printf` is handed a value. How does it work out what type it is — and what happens when you're wrong? | 2026-10-18 | — | 0 |
 | A program returns `3`, but `echo $?` says `130`. What happened, and what does `130` decompose into? | 2026-10-18 | 2026-11-08 | 0 — **missed cold, retaught** (said `127+3`; it's `128+2` = killed by SIGINT) |
 | A build prints a warning with a `file:line` and an error prefixed `ld:`. Which one stopped the build, and what does each prefix tell you? | 2026-10-18 | 2026-11-08 | 1 |
@@ -216,6 +252,10 @@ retires one after I've answered it correctly twice on different days.*
 | At what point is `sizeof(x)` computed, and does it evaluate `x`? What does that mean for `sizeof(x++)`? | 2026-11-14 | — | 0 |
 | Why can't a C null-terminated string hold a `0` byte in the middle, and what must you use for data (like an HTTP body) that might contain one? | 2026-11-14 | — | 0 |
 | Python `len(s)` and C `strlen(s)` — which is O(1), which is O(n), and what single fact about each explains the difference? | 2026-11-14 | — | 0 |
+| You deref `NULL` and get SIGSEGV. Walk the chain: what spots the bad access, what does it raise, and who actually sends the signal? Is a page fault always fatal? | 2026-11-15 | — | 0 |
+| `for (size_t i = len-1; i >= 0; i--)` — what goes wrong, and why? | 2026-11-15 | — | 0 |
+| `-1` as a signed `int` and `UINT_MAX` as unsigned — how do their bit patterns compare, and what does that tell you about where "signedness" lives? | 2026-11-15 | — | 0 |
+| A misspelled function *call* vs a renamed `main`: which fails at the compiler, which at the linker, and what one-word distinction decides it? | 2026-11-15 | — | 0 |
 
 ## Phase progress
 
@@ -235,16 +275,16 @@ retires one after I've answered it correctly twice on different days.*
 real measure of progress — mechanical memory tags should give way to structural
 ones by Phase 5.*
 
-20 entries.
+24 entries.
 
 | Tag | Count |
 | --- | --- |
-| `python-collision` | 12 |
+| `python-collision` | 13 |
+| `types` | 8 |
 | `ub` | 6 |
-| `types` | 6 |
-| `toolchain` | 4 |
+| `toolchain` | 5 |
 | `standard` | 4 |
+| `integer` | 4 |
 | `process` | 3 |
-| `integer` | 2 |
-| `memory` | 1 |
+| `memory` | 2 |
 | `alignment-aliasing` | 1 |

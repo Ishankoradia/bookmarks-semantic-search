@@ -287,3 +287,62 @@ recall queue. It is also the source for `/teach`'s quiz.
   their length" rule, now showing up as a complexity difference.
 - **When:** 2026-11-14 · P0.2
 - **Tags:** `types`, `python-collision`
+
+## A pointer is a virtual address, not a RAM location — the MMU translates every access
+
+- **I used to assume:** an address in C was a direct spot in physical RAM. Each
+  process has its own **virtual** address space; the **MMU** (hardware) translates
+  virtual→physical on every access via page tables set up by the OS. "Unmapped"
+  means no translation exists.
+- **Found out by:** working out why dereferencing `NULL` crashes. Address 0 is
+  deliberately left **unmapped**, so the MMU can't translate it → raises a
+  **page fault** (hardware trap into the kernel) → the kernel judges it illegal →
+  sends **SIGSEGV** → process dies (`$? = 139`). Note: a page fault isn't always
+  fatal — it's the same mechanism behind lazy allocation and swap; the kernel
+  often just maps a page in and resumes.
+- **When:** 2026-11-15 · P0.3
+- **Tags:** `memory`, `python-collision`
+
+## Comparing signed with unsigned converts the signed to unsigned — a negative becomes huge
+
+- **I used to assume:** mixed-integer comparisons just did the obvious thing.
+  `size_t` (what `sizeof` returns) is **unsigned** (a size can't be negative), and
+  comparing `int i < sizeof(...)` converts `i` to unsigned first — so a *negative*
+  `i` wraps to a giant number and the comparison flips.
+- **Found out by:** `-Wextra` flagging `i < sizeof(sent)` in `vowels.c`
+  (`-Wsign-compare`). Harmless there (`i` only grows), but the canonical
+  `for (size_t i = len-1; i >= 0; i--)` is an **infinite loop** — unsigned can
+  never be `< 0`. A bare compile and a correct-looking run both hid it; the flag
+  caught it.
+- **When:** 2026-11-15 · P0.3
+- **Tags:** `types`, `integer`
+
+## A signed negative and a large unsigned are the *same bits* — signedness is only an interpretation
+
+- **I used to assume:** the hardware had a separate representation for negatives,
+  and converting negative→huge-unsigned was the hardware "not understanding"
+  negatives. Really it's **two's complement**: `-1` is stored as all-1s bits,
+  which read as unsigned *is* the maximum value. The CPU uses one set of add/sub
+  instructions for both; only comparison and overflow care about sign.
+- **Found out by:** realizing the signed→unsigned conversion is *free* — the same
+  bits, just reinterpreted. `-1` and `UINT_MAX` are identical bits. Same idea as
+  "at runtime there are only bytes; types exist for the compiler," now at the
+  level of integer representation.
+- **When:** 2026-11-15 · P0.3
+- **Tags:** `types`, `integer`
+
+## Compiler needs a *declaration*, linker needs a *definition* — that's the dividing line
+
+- **I used to assume:** an "unknown function/symbol" was always one kind of error.
+  The **compiler** needs a *declaration* (the shape) for anything you use, and
+  errors (file:line) if it's missing from the one file it can see. The **linker**
+  needs a *definition* and errors (a symbol, prefixed `ld:`, no line) if it's
+  missing across all the combined object files.
+- **Found out by:** breaking code on purpose in 0.3. A misspelled *call* (`pintf`)
+  is **undeclared** → compiler error with a line. A renamed `main` is valid,
+  fully-defined code, but the startup code's `_main` is **undefined** → linker
+  error, a symbol, no line. (Historical note: pre-C99 allowed implicit
+  declarations, so `pintf` *would* have been a linker error then — the boundary
+  moved earlier, the principle didn't.)
+- **When:** 2026-11-15 · P0.3
+- **Tags:** `toolchain`
