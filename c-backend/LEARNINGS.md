@@ -400,3 +400,15 @@ recall queue. It is also the source for `/teach`'s quiz.
   `util.h` failed with `unknown type name 'size_t'`.
 - **When:** 2026-11-15 · P0.4
 - **Tags:** `toolchain`
+
+## `make` rebuilds by comparing file *timestamps*, not contents — stale = target older than a prerequisite
+
+- **I used to assume:** `make` would just rebuild everything, or somehow diff the
+  files. It never reads contents: a target is rebuilt when it is **older than any
+  of its prerequisites** (by mtime). If `util.o` is older than `util.c` or
+  `util.h` → rebuild; otherwise skip (`"up to date"`).
+- **Found out by:** running `make` twice — the second run did nothing. Also why a
+  header must be *listed* as a prerequisite (or a change to it is missed), and why
+  `touch`ing a file forces a rebuild even though nothing in it changed.
+- **When:** 2026-11-15 · P0.5
+- **Tags:** `toolchain`

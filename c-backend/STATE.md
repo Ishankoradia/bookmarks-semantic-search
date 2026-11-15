@@ -11,31 +11,44 @@ Companions: `ROADMAP.md` (curriculum + protocol), `LEARNINGS.md` (lab notebook),
 
 ## Position
 
-- **Phase:** 0 — Toolchain and the mental model
-- **Task in flight:** **0.4 COMPLETE** (`p0.4/`: `main.c` + `util.c` + `util.h`,
-  a `max_of_arr` split across files). Two-step compile+link working; header is
-  self-contained (`<stddef.h>`) and guarded; all four break-experiments run and
-  predicted (misspelled header → compiler; omitted `.o` → linker; circular include
-  → preprocessor, stopped by the guard; declared-not-defined → compiles, fails at
-  link). **Moving to 0.5 — the last step of Phase 0.**
-- **Next action:** **ROADMAP 0.5 — the Makefile** (hand-written, not CMake), which
-  also **closes Phase 0**. Learn *first* (before writing it): what a make **rule**
-  is (target, prerequisites, recipe), how make decides a target is **stale**, and
-  the **tab-not-spaces** rule — GNU make manual §2. Targets: `build`, `test`,
-  `asan`, `clean`. This is where the **full strict flag set finally gets adopted**
-  (the 0.3 loose end): `-std=c11 -Wall -Wextra -Werror -Wshadow -Wconversion -g
-  -O0 -fsanitize=address,undefined -fno-omit-frame-pointer`. Work in `p0.5/` (or
-  promote the `p0.4/` files). **First question before writing it:** the compiler
-  turns `util.c` into `util.o`; how could `make` decide whether it even *needs* to
-  rebuild `util.o` — what two things would it compare to know the `.o` is stale?
-- **Sessions this phase:** 9
-- **Phase exit test:** can explain the path from `clang a.c b.c` to a binary
-  without notes, naming preprocessor / compiler / assembler / linker and what
-  each consumed and produced. **Now passing cold** — the four-stage question was
-  answered clean this session (see recall queue). (ASan isn't a meaningful gate
-  yet; nothing here allocates.)
+- **Phase:** 1 — Core language, drilled → **starting 1A** (everything that isn't
+  a pointer). **Phase 0 is COMPLETE.** 🎉
+- **Task in flight:** none — Phase 0 closed. `p0.5/` has a working hand-written
+  Makefile (`program`/`main.o`/`util.o`/`clean`/`test`, correct deps + tabs,
+  incremental rebuilds verified). **Carry-over (not blocking):** the Makefile
+  still lacks the strict flag set, an `asan` target, and `.PHONY` — round those
+  out early in Phase 1.
+- **Next action:** **begin Phase 1A.** Much of 1A's *integer* material they've
+  already brushed (size_t, signed-overflow-UB, sizeof, signed/unsigned) — per the
+  depth rule, move briskly over those. Spend the time on what's genuinely new:
+  **`struct` as a value (assigning one *copies* it — the Python-reference
+  collision), struct padding/alignment, `enum`, `const`, storage duration
+  (automatic/static/allocated), and the stack-frame mental model.** Recommended
+  first concrete session: **structs-as-values + padding** — drill: *predict a
+  struct's `sizeof` before printing it.* New folder `p1a/`. **First question:**
+  in Python, `b = a` for two objects makes them share; in C, what does `struct Pt
+  b = a;` do to `a`'s bytes — share, or copy?
+- **Sessions this phase:** 0 (Phase 1 just begun)
+- **Phase 1A exit test:** can **draw the stack for a three-deep call chain** and
+  say which locals exist at each moment and when each one dies. (ASan becomes a
+  real gate in Phase 2, once things allocate.)
 
 ## Last session
+
+**2026-11-15 (session 10) — the Makefile; Phase 0 closed.** Same-day, no quiz.
+Wrote a hand-written `Makefile` from scratch in `p0.5/` — first Makefile I'd ever
+seen. Learned: a **rule** = `target : prerequisites` + a **tab-indented recipe**;
+`make` rebuilds a target when it's **older than any prerequisite** (timestamps,
+never contents); the first target runs on plain `make`; `clean`/`test` are
+**phony** (named actions, no file). Got the tabs right first try (dodged the #1
+trap). Hit real bugs and fixed them: leftover `#include "other.h"` debris from the
+0.4 circular experiment; object rules missing `-c` (so they tried to link); the
+header missing as a prerequisite; and `clean` using `rm` (fails on missing files)
+instead of `rm -f`. Saw `make` print "up to date" on a no-op second run — the
+whole point of the tool, witnessed. **Got overwhelmed** near the end when I piled
+on the full flag set + sanitizers + variables at once — pulled back; the strict
+flags/`asan`/`.PHONY` are deferred (see carry-over above). Banked 1 learning
+(make = timestamps).
 
 **2026-11-15 (session 9) — multi-file builds and headers (0.4 done).** Same-day
 continuation, so no quiz. Split `maxarr` into `main.c` + `util.c` + `util.h`.
@@ -250,7 +263,11 @@ should offer to close one of these when a session has slack at the end.*
   array to a function turns it into a pointer (so `sizeof` starts lying), and that
   a string literal assigned to `char *` is read-only and writing to it is UB — but
   I've only got the sentences, not the mechanism or the memory picture. This is
-  *the* Phase 2 topic; met properly there.
+  *the* Phase 1B topic; met properly there.
+- **Makefile polish (carry-over from 0.5).** The `p0.5/Makefile` works but is
+  minimal — no strict flag set, no `asan` target, no `.PHONY`. Round it out early
+  in Phase 1 (and once `-Werror -Wconversion` go in, the `int n = sizeof(...)` in
+  `main.c` may turn from a warning into a hard error — a real fix, not a surprise).
 
 ## Recall queue
 
@@ -291,10 +308,11 @@ retires one after I've answered it correctly twice on different days.*
 | A header declares `int add(int,int)` but the `.c` defines it as `double add(int,int)` and the `.c` doesn't include the header. Does it link? What happens at runtime, and why didn't anything catch it? | 2026-11-15 | — | 0 |
 | An include guard prevents *two* different failures — name both, and say which header contents actually need protecting (and which don't). | 2026-11-15 | — | 0 |
 | You can write `struct Point;` twice but not `struct Point { int x; };` twice. Why — what's the difference, in one word? | 2026-11-15 | — | 0 |
+| `make` runs, does its thing; you run `make` again immediately and it says "up to date." What did it compare to decide there was no work — and what did it *not* look at? | 2026-11-15 | — | 0 |
 
 ## Phase progress
 
-- [ ] **P0** Toolchain and the mental model — *0.1-0.2 done; 0.3-0.5 remain*
+- [x] **P0** Toolchain and the mental model — *complete (0.1–0.5). Exit test passed: four-stage pipeline explained cold.*
 - [ ] **P1** Core language, drilled
 - [ ] **P2** Memory ★
 - [ ] **P3** Data structures (`libcore`)
